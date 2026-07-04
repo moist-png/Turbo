@@ -61,3 +61,20 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- 6. Stripe integration: run this part once to add real payments.
+--    New columns so we can look a user up from a Stripe webhook event.
+alter table public.profiles add column if not exists stripe_customer_id text;
+alter table public.profiles add column if not exists stripe_subscription_id text;
+create index if not exists profiles_stripe_subscription_id_idx on public.profiles (stripe_subscription_id);
+
+-- IMPORTANT: Row Level Security (above) only controls which *rows* a
+-- logged-in user can touch \u2014 not which *columns*. Without the line below,
+-- a technically-minded user could open their browser's developer tools and
+-- set their own "subscribed" to true for free, without ever paying. This
+-- revokes their ability to write to the three billing columns directly;
+-- only the server-side webhook (api/stripe-webhook.js), which connects
+-- with a special key that ignores this restriction entirely, is able to
+-- set them. Everything else users already relied on \u2014 name, ftp, settings
+-- \u2014 is untouched.
+revoke update (subscribed, stripe_customer_id, stripe_subscription_id) on public.profiles from authenticated;

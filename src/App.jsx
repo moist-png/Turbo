@@ -2339,23 +2339,26 @@ function TrialBanner({ daysLeft, onUpgrade }) {
   );
 }
 
-function PaywallView({ blocking, trialExpired, onSubscribe, onClose, onLogout }) {
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
+function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email }) {
   const [error, setError] = useState('');
-  const [processing, setProcessing] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
-  function submit(e) {
-    e.preventDefault();
+  async function startCheckout() {
     setError('');
-    if (!cardName.trim()) { setError('Enter the name on your card.'); return; }
-    if (cardNumber.replace(/\s/g, '').length < 12) { setError('Enter a valid card number.'); return; }
-    if (!/^\d{2}\/\d{2}$/.test(expiry)) { setError('Expiry should be MM/YY.'); return; }
-    if (cvc.length < 3) { setError('Enter a valid CVC.'); return; }
-    setProcessing(true);
-    setTimeout(() => { setProcessing(false); onSubscribe(); }, 700); // simulated \u2014 no real charge happens
+    setRedirecting(true);
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, email }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout.');
+      window.location.href = data.url; // send them to Stripe's hosted checkout page
+    } catch (err) {
+      setError(err.message || 'Something went wrong starting checkout. Please try again.');
+      setRedirecting(false);
+    }
   }
 
   const body = (
@@ -2378,20 +2381,12 @@ function PaywallView({ blocking, trialExpired, onSubscribe, onClose, onLogout })
         </div>
       </div>
 
-      <AuthNote>Demo payment form \u2014 no real charge is made and no card details leave this screen. A live app needs a real processor (e.g. Stripe) or Apple/Google in-app purchase if sold through their app stores.</AuthNote>
+      <AuthNote>You'll be taken to Stripe's secure checkout page to enter your card details. Your card number never touches this app or its database.</AuthNote>
       <AuthError>{error}</AuthError>
 
-      <form onSubmit={submit}>
-        <AuthField label="Name on card" value={cardName} onChange={e => setCardName(e.target.value)} placeholder="Jane Rider" />
-        <AuthField label="Card number" value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" inputMode="numeric" />
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1 }}><AuthField label="Expiry" value={expiry} onChange={e => setExpiry(e.target.value)} placeholder="MM/YY" /></div>
-          <div style={{ flex: 1 }}><AuthField label="CVC" value={cvc} onChange={e => setCvc(e.target.value)} placeholder="123" inputMode="numeric" /></div>
-        </div>
-        <button type="submit" disabled={processing} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: processing ? 'default' : 'pointer', marginTop: 6, opacity: processing ? 0.7 : 1 }}>
-          {processing ? 'Processing\u2026' : `Subscribe \u2014 ${MONTHLY_PRICE_LABEL}`}
-        </button>
-      </form>
+      <button onClick={startCheckout} disabled={redirecting} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: redirecting ? 'default' : 'pointer', marginTop: 6, opacity: redirecting ? 0.7 : 1 }}>
+        {redirecting ? 'Redirecting to checkout\u2026' : `Subscribe \u2014 ${MONTHLY_PRICE_LABEL}`}
+      </button>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 16 }}>
         {!blocking && <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12.5, cursor: 'pointer' }}>Not now</button>}
@@ -2572,11 +2567,30 @@ export default function App() {
     setRecoveryMode(false);
     return {};
   }
-  async function handleSubscribe() {
-    if (user) await supabase.from('profiles').update({ subscribed: true }).eq('id', user.id);
-    setProfile(p => (p ? { ...p, subscribed: true } : p));
-    setShowPaywallModal(false);
-  }
+  // After a successful Stripe Checkout, the browser is sent back here with
+  // ?checkout=success in the URL. Stripe's webhook (see /api/stripe-webhook.js)
+  // updates the "subscribed" flag in the database independently and slightly
+  // ahead of or behind this redirect, so we poll the profile a few times to
+  // pick up that change without requiring a manual page reload.
+  useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') !== 'success') return;
+    window.history.replaceState({}, '', window.location.pathname);
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts += 1;
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      if (prof?.subscribed) {
+        setProfile(prof);
+        setShowPaywallModal(false);
+        clearInterval(poll);
+      } else if (attempts >= 8) {
+        clearInterval(poll); // give up after ~16s; webhook may just be slow
+      }
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [user]);
 
   // Called by the player whenever an FTP test finishes (either the rider
   // stalled and the app ended it automatically, or they rode it to the end).
@@ -2652,7 +2666,7 @@ export default function App() {
     return (
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
-        <PaywallView blocking trialExpired onSubscribe={handleSubscribe} onLogout={handleLogout} />
+        <PaywallView blocking trialExpired onLogout={handleLogout} userId={user.id} email={user.email} />
       </div>
     );
   }
@@ -2710,7 +2724,7 @@ export default function App() {
         )}
 
         {showPaywallModal && (
-          <PaywallView onSubscribe={handleSubscribe} onClose={() => setShowPaywallModal(false)} onLogout={handleLogout} />
+          <PaywallView onClose={() => setShowPaywallModal(false)} onLogout={handleLogout} userId={user.id} email={user.email} />
         )}
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(20,23,26,0.96)', borderTop: `1px solid ${LINE}`, display: 'flex', maxWidth: 520, margin: '0 auto' }}>
