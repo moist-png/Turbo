@@ -3,6 +3,7 @@ import {
   Play, Pause, SkipForward, SkipBack, RotateCcw, X, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight,
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
+  Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -65,6 +66,13 @@ const DEFAULT_SETTINGS = {
 // in-app purchase if you distribute through their app stores).
 const TRIAL_DAYS = 7;
 const MONTHLY_PRICE_LABEL = '$7.99 / month'; // placeholder \u2014 set your real price
+const ANNUAL_PRICE_LABEL = '$79.99 / year'; // keep in sync with ANNUAL_PRICE_CENTS in api/create-checkout-session.js
+// Strava's Client ID (not secret -- safe to have in front-end code, unlike
+// the Client Secret which only ever lives server-side as a Vercel env var).
+// Get this from https://www.strava.com/settings/api after creating an API
+// application, then paste it in here. Until it's set, the Strava section
+// in Settings stays hidden instead of showing a broken "Connect" button.
+const STRAVA_CLIENT_ID = '';
 function daysLeftInTrial(trialStart) {
   if (!trialStart) return 0;
   const start = new Date(trialStart).getTime();
@@ -1670,6 +1678,55 @@ function useTrainer() {
   return { supported, status, deviceName, errorMsg, power, cadence, hasControl, connect, disconnect, setErgTarget };
 }
 
+// Standard Bluetooth Heart Rate Service (0x180D) / Heart Rate Measurement
+// characteristic (0x2A37) \u2014 supported by essentially every BLE chest strap
+// and armband (Polar, Wahoo, Garmin, etc.), independent of the trainer.
+function useHeartRate() {
+  const [status, setStatus] = useState('disconnected');
+  const [deviceName, setDeviceName] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [bpm, setBpm] = useState(null);
+  const deviceRef = useRef(null);
+  const supported = typeof navigator !== 'undefined' && !!navigator.bluetooth;
+
+  function handleHrData(event) {
+    try {
+      const dv = event.target.value;
+      const flags = dv.getUint8(0);
+      const value = (flags & 0x01) ? dv.getUint16(1, true) : dv.getUint8(1);
+      setBpm(value);
+    } catch (e) {}
+  }
+  function handleDisconnected() {
+    setStatus('disconnected');
+    setBpm(null);
+  }
+  async function connect() {
+    if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return; }
+    setStatus('connecting'); setErrorMsg(null);
+    try {
+      const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [0x180d] }], optionalServices: [0x180d] });
+      device.addEventListener('gattserverdisconnected', handleDisconnected);
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(0x180d);
+      const hrChar = await service.getCharacteristic(0x2a37);
+      await hrChar.startNotifications();
+      hrChar.addEventListener('characteristicvaluechanged', handleHrData);
+      deviceRef.current = device;
+      setDeviceName(device.name || 'Heart rate monitor');
+      setStatus('connected');
+    } catch (e) {
+      setErrorMsg((e && e.message) ? e.message : 'Could not connect to a heart rate monitor.');
+      setStatus('error');
+    }
+  }
+  function disconnect() {
+    try { deviceRef.current && deviceRef.current.gatt && deviceRef.current.gatt.disconnect(); } catch (e) {}
+    setStatus('disconnected'); setDeviceName(null); setBpm(null);
+  }
+  return { supported, status, deviceName, errorMsg, bpm, connect, disconnect };
+}
+
 // ---------- profile chart ----------
 function ProfileChart({ intervals, height = 84, progress = null }) {
   const total = totalDuration(intervals) || 1;
@@ -1923,6 +1980,62 @@ function buildNextUpSuggestion(ftpHistory, workoutHistory) {
   return { text: 'You\u2019re riding consistently \u2014 keep it up.', action: null };
 }
 
+// ---------- personal records ----------
+// Monday-start week bucket, used to find the person's single best training week.
+function startOfWeek(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay(); // 0 = Sun ... 6 = Sat
+  const diff = (day === 0 ? -6 : 1) - day; // shift back to Monday
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+// Derives longest ride, best power numbers, streaks and totals purely from
+// completed session history \u2014 returns null until there's at least one
+// logged ride. avgPower/maxPower/avgHr/maxHr are only present on sessions
+// ridden with a trainer/heart rate monitor connected, so those particular
+// records simply don't appear until the person has ridden with one.
+function computePersonalRecords(workoutHistory) {
+  const completed = (workoutHistory || []).filter(w => w.completed);
+  if (completed.length === 0) return null;
+
+  const longest = completed.reduce((a, b) => (!a || b.duration > a.duration ? b : a), null);
+  const withPower = completed.filter(w => w.avgPower != null);
+  const bestAvgPower = withPower.length ? withPower.reduce((a, b) => (b.avgPower > a.avgPower ? b : a)) : null;
+  const withPeak = completed.filter(w => w.maxPower != null);
+  const bestPeakPower = withPeak.length ? withPeak.reduce((a, b) => (b.maxPower > a.maxPower ? b : a)) : null;
+
+  const totalRides = completed.length;
+  const totalSeconds = completed.reduce((a, w) => a + w.duration, 0);
+
+  // Unique calendar days ridden, sorted, for streak math.
+  const dayTimes = Array.from(new Set(completed.map(w => new Date(w.date).toDateString())))
+    .map(s => new Date(s).getTime())
+    .sort((a, b) => a - b);
+  let longestStreak = 1, run = 1;
+  for (let i = 1; i < dayTimes.length; i++) {
+    const gap = Math.round((dayTimes[i] - dayTimes[i - 1]) / 86400000);
+    run = gap === 1 ? run + 1 : 1;
+    if (run > longestStreak) longestStreak = run;
+  }
+  let currentStreak = 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const gapFromToday = Math.round((today.getTime() - dayTimes[dayTimes.length - 1]) / 86400000);
+  if (gapFromToday <= 1) {
+    currentStreak = 1;
+    for (let i = dayTimes.length - 1; i > 0; i--) {
+      if (Math.round((dayTimes[i] - dayTimes[i - 1]) / 86400000) === 1) currentStreak += 1;
+      else break;
+    }
+  }
+
+  const weekCounts = {};
+  completed.forEach(w => { const wk = startOfWeek(w.date); weekCounts[wk] = (weekCounts[wk] || 0) + 1; });
+  const bestWeekCount = Object.values(weekCounts).reduce((a, b) => Math.max(a, b), 0);
+
+  return { longest, bestAvgPower, bestPeakPower, totalRides, totalSeconds, longestStreak, currentStreak, bestWeekCount };
+}
+
 function Sparkline({ values, height = 28, color }) {
   if (!values || values.length < 2) return null;
   const width = 200;
@@ -2046,6 +2159,39 @@ function HomeView({ account, ftpHistory, workoutHistory, onNavigate }) {
 }
 
 // ---------- full workout history ----------
+function PersonalRecordsPanel({ workoutHistory }) {
+  const pr = computePersonalRecords(workoutHistory);
+  if (!pr) return null;
+  const cards = [
+    { label: 'Longest ride', value: fmtLong(pr.longest.duration), sub: pr.longest.name, icon: Bike },
+    pr.bestAvgPower && { label: 'Best average power', value: `${pr.bestAvgPower.avgPower}W`, sub: pr.bestAvgPower.name, icon: Zap },
+    pr.bestPeakPower && { label: 'Peak power', value: `${pr.bestPeakPower.maxPower}W`, sub: pr.bestPeakPower.name, icon: Zap },
+    { label: 'Current streak', value: `${pr.currentStreak} day${pr.currentStreak === 1 ? '' : 's'}`, sub: pr.longestStreak > pr.currentStreak ? `Best: ${pr.longestStreak} days` : pr.currentStreak > 0 ? 'Personal best' : `Best: ${pr.longestStreak} days`, icon: Flame },
+    { label: 'Best week', value: `${pr.bestWeekCount} session${pr.bestWeekCount === 1 ? '' : 's'}`, sub: null, icon: CalendarDays },
+    { label: 'All-time', value: fmtLong(pr.totalSeconds), sub: `${pr.totalRides} ride${pr.totalRides === 1 ? '' : 's'}`, icon: Trophy },
+  ].filter(Boolean);
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <Trophy size={15} color="var(--accent)" />
+        <div style={{ fontSize: 12, color: SUB, textTransform: 'uppercase', letterSpacing: 0.6 }}>Personal records</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {cards.map((c, i) => (
+          <div key={i} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>
+              <c.icon size={11} /> {c.label}
+            </div>
+            <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 17, fontWeight: 700, color: TEXT }}>{c.value}</div>
+            {c.sub && <div style={{ fontSize: 11, color: SUB, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.sub}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function HistoryView({ workoutHistory, onClear }) {
   const all = (workoutHistory || []).slice().reverse();
   return (
@@ -2059,6 +2205,7 @@ function HistoryView({ workoutHistory, onClear }) {
           </button>
         )}
       </div>
+      <PersonalRecordsPanel workoutHistory={workoutHistory} />
       {all.length === 0 ? (
         <div style={{ color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 0' }}>No workouts logged yet — finish a session and it'll show up here.</div>
       ) : (
@@ -2239,11 +2386,136 @@ function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDup
   );
 }
 
+// ---------- build a workout from an uploaded GPX route ----------
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = d => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+// Maps a road gradient to a realistic indoor power target and an assumed
+// outdoor speed for that gradient \u2014 the speed is only used to convert the
+// route's real-world distance into a believable interval duration.
+function gradeToEffort(gradePct) {
+  if (gradePct <= -6) return { target: 45, speedKmh: 45 };
+  if (gradePct <= -2) return { target: 55, speedKmh: 36 };
+  if (gradePct <= 1) return { target: 65, speedKmh: 27 };
+  if (gradePct <= 3) return { target: 76, speedKmh: 20 };
+  if (gradePct <= 5) return { target: 86, speedKmh: 15 };
+  if (gradePct <= 8) return { target: 96, speedKmh: 11 };
+  if (gradePct <= 11) return { target: 105, speedKmh: 8 };
+  return { target: 114, speedKmh: 6 };
+}
+function labelForTarget(target) {
+  if (target <= 55) return 'Descent';
+  if (target <= 65) return 'Flat / rolling';
+  if (target <= 76) return 'Gentle climb';
+  if (target <= 86) return 'Climb';
+  if (target <= 96) return 'Steep climb';
+  if (target <= 105) return 'Very steep';
+  return 'Wall';
+}
+// Turns raw GPX XML text into a custom workout: buckets the route into
+// ~150m chunks to smooth out GPS noise, works out the gradient of each
+// chunk, converts gradient -> power target + realistic duration, then
+// merges neighbouring chunks that land in the same effort zone so the
+// result is a manageable number of intervals rather than hundreds of
+// one-second ones.
+function parseGpxToWorkout(xmlText, fileName) {
+  const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('That file doesn\u2019t look like a valid GPX file.');
+  const trkpts = Array.from(doc.getElementsByTagName('trkpt'));
+  if (trkpts.length < 2) throw new Error('No track points were found in this file.');
+  const points = trkpts.map(pt => {
+    const lat = parseFloat(pt.getAttribute('lat'));
+    const lon = parseFloat(pt.getAttribute('lon'));
+    const eleNode = pt.getElementsByTagName('ele')[0];
+    const ele = eleNode ? parseFloat(eleNode.textContent) : null;
+    return { lat, lon, ele };
+  }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && Number.isFinite(p.ele));
+  if (points.length < 2) throw new Error('This GPX file doesn\u2019t include elevation data, so a profile can\u2019t be built from it.');
+
+  const bucketMeters = 150;
+  const buckets = [];
+  let bucketDist = 0, bucketStartEle = points[0].ele, prev = points[0];
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i];
+    const d = haversineMeters(prev.lat, prev.lon, p.lat, p.lon);
+    if (d > 0 && d < 2000) { // ignore GPS teleport glitches
+      bucketDist += d;
+      if (bucketDist >= bucketMeters) {
+        buckets.push({ distance: bucketDist, gradePct: ((p.ele - bucketStartEle) / bucketDist) * 100 });
+        bucketDist = 0;
+        bucketStartEle = p.ele;
+      }
+    }
+    prev = p;
+  }
+  if (bucketDist > 20) buckets.push({ distance: bucketDist, gradePct: ((prev.ele - bucketStartEle) / bucketDist) * 100 });
+  if (buckets.length === 0) throw new Error('This route is too short to build a workout from.');
+  buckets.forEach(b => { b.gradePct = Math.max(-20, Math.min(20, b.gradePct)); }); // clamp GPS/elevation noise
+
+  const raw = buckets.map(b => {
+    const { target, speedKmh } = gradeToEffort(b.gradePct);
+    return { target, duration: Math.round(b.distance / ((speedKmh * 1000) / 3600)) };
+  });
+
+  const merged = [];
+  for (const seg of raw) {
+    const last = merged[merged.length - 1];
+    if (last && last.target === seg.target) last.duration += seg.duration;
+    else merged.push({ ...seg });
+  }
+  const cleaned = [];
+  for (const seg of merged) {
+    if (seg.duration < 10 && cleaned.length > 0) cleaned[cleaned.length - 1].duration += seg.duration;
+    else cleaned.push(seg);
+  }
+
+  const MAX_SEGMENTS = 80;
+  let finalSegs = cleaned;
+  while (finalSegs.length > MAX_SEGMENTS) {
+    const next = [];
+    for (let i = 0; i < finalSegs.length; i += 2) {
+      if (i + 1 < finalSegs.length) {
+        const a = finalSegs[i], b = finalSegs[i + 1];
+        const totalDur = a.duration + b.duration;
+        next.push({ target: Math.round((a.target * a.duration + b.target * b.duration) / totalDur), duration: totalDur });
+      } else next.push(finalSegs[i]);
+    }
+    finalSegs = next;
+  }
+
+  const intervals = [
+    iv('Warm up', 600, 'power', 55),
+    ...finalSegs.map(s => iv(labelForTarget(s.target), Math.max(15, s.duration), 'power', s.target)),
+    iv('Cool down', 480, 'power', 50),
+  ];
+
+  const nameNode = doc.getElementsByTagName('name')[0];
+  const routeName = (nameNode && nameNode.textContent.trim()) || (fileName ? fileName.replace(/\.gpx$/i, '') : 'My route');
+  const totalDist = buckets.reduce((a, b) => a + b.distance, 0);
+  const totalElevGain = points.reduce((acc, p, i) => (i === 0 ? acc : acc + Math.max(0, p.ele - points[i - 1].ele)), 0);
+
+  return {
+    id: 'custom-' + newId(),
+    name: routeName,
+    category: 'Rides',
+    description: `Built from your uploaded route \u2014 ${(totalDist / 1000).toFixed(1)}km with ${Math.round(totalElevGain)}m of climbing, converted into an indoor power profile.`,
+    intervals,
+  };
+}
+
 function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, editingWorkout, clearEditing }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Mixed');
   const [description, setDescription] = useState('');
   const [intervals, setIntervals] = useState([]);
+  const [gpxError, setGpxError] = useState(null);
+  const [gpxBusy, setGpxBusy] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (editingWorkout) {
@@ -2253,6 +2525,29 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       setIntervals(editingWorkout.intervals.map(i => ({ ...i })));
     }
   }, [editingWorkout]);
+
+  function handleGpxFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file again later
+    if (!file) return;
+    setGpxError(null);
+    setGpxBusy(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const workout = parseGpxToWorkout(reader.result, file.name);
+        setName(workout.name);
+        setCategory(workout.category);
+        setDescription(workout.description);
+        setIntervals(workout.intervals);
+      } catch (err) {
+        setGpxError((err && err.message) || 'Could not read that file.');
+      }
+      setGpxBusy(false);
+    };
+    reader.onerror = () => { setGpxError('Could not read that file.'); setGpxBusy(false); };
+    reader.readAsText(file);
+  }
 
   function addBlock(block) { setIntervals(list => [...list, iv(block.label, block.duration, block.type, block.target)]); }
   function updateAt(idx, next) { setIntervals(list => list.map((it, i) => (i === idx ? next : it))); }
@@ -2274,7 +2569,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       return out;
     });
   }
-  function reset() { setName(''); setCategory('Mixed'); setDescription(''); setIntervals([]); clearEditing(); }
+  function reset() { setName(''); setCategory('Mixed'); setDescription(''); setIntervals([]); setGpxError(null); clearEditing(); }
   function save() {
     if (!name.trim() || intervals.length === 0) return;
     saveCustomWorkout({ id: editingWorkout ? editingWorkout.id : 'custom-' + newId(), name: name.trim(), category, description: description.trim() || 'Custom workout.', intervals });
@@ -2286,7 +2581,17 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, fontWeight: 600, color: TEXT, letterSpacing: 0.3, marginBottom: 2 }}>{editingWorkout ? 'Edit workout' : 'Build a workout'}</div>
-      <div style={{ fontSize: 13, color: SUB, marginBottom: 16 }}>Stack intervals, mix power, RPE and free riding.</div>
+      <div style={{ fontSize: 13, color: SUB, marginBottom: 16 }}>Stack intervals, mix power, RPE and free riding \u2014 or start from a real route.</div>
+
+      <input ref={fileInputRef} type="file" accept=".gpx" onChange={handleGpxFile} style={{ display: 'none' }} />
+      <button onClick={() => fileInputRef.current && fileInputRef.current.click()} disabled={gpxBusy}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 0', borderRadius: 10, border: `1px dashed ${LINE}`, background: PANEL, color: TEXT, fontSize: 13.5, fontWeight: 600, cursor: gpxBusy ? 'default' : 'pointer', marginBottom: 8, boxSizing: 'border-box' }}>
+        <Upload size={15} /> {gpxBusy ? 'Reading route\u2026' : 'Import a route (GPX file)'}
+      </button>
+      {gpxError && <div style={{ fontSize: 12, color: RED, marginBottom: 8 }}>{gpxError}</div>}
+      <div style={{ fontSize: 11.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
+        Turns a real ride's elevation profile into an indoor power workout \u2014 climbs get harder targets, descents get easier ones, timed to roughly match real-world pace. Review it below before saving.
+      </div>
 
       <input value={name} onChange={e => setName(e.target.value)} placeholder="Workout name"
         style={{ width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 15, marginBottom: 8, boxSizing: 'border-box' }} />
@@ -2361,7 +2666,7 @@ function avgOf(samples) {
 }
 
 // ---------- player ----------
-function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd }) {
+function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd }) {
   const intervals = workout.intervals;
   const isRampTest = !!workout.autoStopTest;
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -2375,7 +2680,10 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
   const wakeLockRef = useRef(null);
   const prevBleStatus = useRef(trainer.status);
   const trainerPowerRef = useRef(trainer.power);
+  const heartRateRef = useRef(heartRate ? heartRate.bpm : null);
   const stepSamplesRef = useRef([]); // watt readings collected during the current ramp step
+  const sessionPowerRef = useRef([]); // every watt reading for the whole session, for personal records
+  const sessionHrRef = useRef([]); // every bpm reading for the whole session, for personal records
   const lastStepAvgRef = useRef(null); // average watts of the last fully-completed ramp step
   const underPowerStreakRef = useRef(0); // consecutive seconds under the fail threshold
   const triggerAutoStopRef = useRef(() => {});
@@ -2392,6 +2700,8 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
   function logSession(completed, durationOverride) {
     if (loggedRef.current) return;
     loggedRef.current = true;
+    const powerSamples = sessionPowerRef.current;
+    const hrSamples = sessionHrRef.current;
     if (onSessionEnd) {
       onSessionEnd({
         workoutId: workout.id || null,
@@ -2399,11 +2709,16 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
         category: workout.category || 'Custom',
         duration: durationOverride != null ? durationOverride : computeElapsedSeconds(),
         completed,
+        avgPower: powerSamples.length ? avgOf(powerSamples) : null,
+        maxPower: powerSamples.length ? Math.max(...powerSamples) : null,
+        avgHr: hrSamples.length ? avgOf(hrSamples) : null,
+        maxHr: hrSamples.length ? Math.max(...hrSamples) : null,
       });
     }
   }
 
   useEffect(() => { trainerPowerRef.current = trainer.power; }, [trainer.power]);
+  useEffect(() => { heartRateRef.current = heartRate ? heartRate.bpm : null; }, [heartRate && heartRate.bpm]);
 
   // Always keep this pointed at a fresh version of the auto-stop logic so
   // the ticking interval below can call it without needing to restart
@@ -2431,6 +2746,11 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
         }
         return next;
       });
+      // Collect every second's readings for the whole ride \u2014 used at the
+      // end to work out this session's average/peak power and heart rate
+      // for personal records. Independent of the ramp-test step tracking below.
+      if (typeof trainerPowerRef.current === 'number') sessionPowerRef.current.push(trainerPowerRef.current);
+      if (typeof heartRateRef.current === 'number') sessionHrRef.current.push(heartRateRef.current);
       // Ramp test: log the rider's actual watts each second and watch for
       // a sustained drop below the step's target, which means they've
       // stalled and the test should end for them.
@@ -2536,6 +2856,8 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
     stepSamplesRef.current = [];
     lastStepAvgRef.current = null;
     underPowerStreakRef.current = 0;
+    sessionPowerRef.current = [];
+    sessionHrRef.current = [];
   }
   // Exit and restart both throw away an in-progress effort, so while the
   // workout is actively running we interrupt with a confirmation dialog
@@ -2604,8 +2926,13 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
             </div>
           )}
 
-          {!isDone && trainer.status === 'connected' && trainer.cadence !== null && (
-            <div style={{ fontSize: 12, color: SUB, marginTop: 8 }}>{trainer.cadence} rpm</div>
+          {!isDone && (trainer.status === 'connected' && trainer.cadence !== null || heartRate && heartRate.status === 'connected' && heartRate.bpm !== null) && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 12, color: SUB, marginTop: 8 }}>
+              {trainer.status === 'connected' && trainer.cadence !== null && <span>{trainer.cadence} rpm</span>}
+              {heartRate && heartRate.status === 'connected' && heartRate.bpm !== null && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><HeartPulse size={12} /> {heartRate.bpm} bpm</span>
+              )}
+            </div>
           )}
 
           {isDone && (
@@ -2671,10 +2998,12 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
 }
 
 // ---------- settings view ----------
-function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, onLogout, onShowPaywall }) {
+function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const statusColor = trainer.status === 'connected' ? '#8FC93A' : trainer.status === 'connecting' ? '#FF9F40' : trainer.status === 'error' ? RED : SUB;
   const statusLabel = trainer.status === 'connected' ? `Connected \u00b7 ${trainer.deviceName}` : trainer.status === 'connecting' ? 'Connecting\u2026' : trainer.status === 'error' ? 'Connection failed' : 'Not connected';
+  const hrStatusColor = heartRate.status === 'connected' ? '#8FC93A' : heartRate.status === 'connecting' ? '#FF9F40' : heartRate.status === 'error' ? RED : SUB;
+  const hrStatusLabel = heartRate.status === 'connected' ? `Connected \u00b7 ${heartRate.deviceName}` : heartRate.status === 'connecting' ? 'Connecting\u2026' : heartRate.status === 'error' ? 'Connection failed' : 'Not connected';
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
@@ -2706,6 +3035,44 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWor
       <SettingRow label="Auto-pause on disconnect" sub="Pause the timer if the trainer connection drops mid-ride">
         <Switch checked={settings.autoPauseOnDisconnect} onChange={v => updateSetting('autoPauseOnDisconnect', v)} />
       </SettingRow>
+
+      <SectionHeader icon={<HeartPulse size={16} color="var(--accent)" />} title="Heart rate monitor" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: hrStatusColor, flexShrink: 0 }} />
+        <div style={{ flex: 1, fontSize: 14, color: TEXT }}>{hrStatusLabel}</div>
+        {heartRate.status === 'connected' ? (
+          <button onClick={heartRate.disconnect} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
+        ) : (
+          <button onClick={heartRate.connect} disabled={heartRate.status === 'connecting'} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
+        )}
+      </div>
+      {!heartRate.supported && (
+        <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+          Bluetooth isn't available here. Works with any standard BLE chest strap or armband \u2014 Polar, Wahoo, Garmin and most others.
+        </div>
+      )}
+      {heartRate.errorMsg && <div style={{ fontSize: 12, color: RED, marginBottom: 6 }}>{heartRate.errorMsg}</div>}
+      <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+        Separate from your trainer \u2014 pair it here once and it'll show up alongside power during every ride.
+      </div>
+
+      {STRAVA_CLIENT_ID ? (
+        <>
+          <SectionHeader icon={<LinkIcon size={16} color="var(--accent)" />} title="Strava" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: stravaConnected ? '#8FC93A' : SUB, flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 14, color: TEXT }}>{stravaConnected ? 'Connected' : 'Not connected'}</div>
+            {stravaConnected ? (
+              <button onClick={onDisconnectStrava} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
+            ) : (
+              <button onClick={onConnectStrava} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+            Completed rides are pushed to your Strava account automatically once connected.
+          </div>
+        </>
+      ) : null}
 
       <SectionHeader icon={<Volume2 size={16} color="var(--accent)" />} title="Sounds" />
       <SettingRow label="Interval transition beep"><Switch checked={settings.soundIntervalBeep} onChange={v => updateSetting('soundIntervalBeep', v)} /></SettingRow>
@@ -2768,7 +3135,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWor
           <SettingRow label={account.name} sub={account.email}>
             <button onClick={onLogout} style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Log out</button>
           </SettingRow>
-          <SettingRow label={subscribed ? 'Monthly plan \u2014 active' : `Free trial \u2014 ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`} sub={subscribed ? MONTHLY_PRICE_LABEL : 'No charge yet in this demo'}>
+          <SettingRow label={subscribed ? 'Subscription \u2014 active' : `Free trial \u2014 ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`} sub={subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}>
             {!subscribed && (
               <button onClick={onShowPaywall} style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
             )}
@@ -2818,6 +3185,30 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWor
           </div>
         )}
       </SettingRow>
+
+      {ownerStats && (
+        <>
+          <SectionHeader icon={<BarChart3 size={16} color="var(--accent)" />} title="Your dashboard (only visible to you)" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            {[
+              { label: 'Total signups', value: ownerStats.total_users },
+              { label: 'Active subscribers', value: ownerStats.subscribed_users },
+              { label: 'On free trial', value: ownerStats.trial_users },
+              { label: 'Trial expired, unpaid', value: ownerStats.expired_trial_users },
+              { label: 'Signups, last 7 days', value: ownerStats.signups_last_7_days },
+              { label: 'Signups, last 30 days', value: ownerStats.signups_last_30_days },
+              { label: 'Rides, last 24h', value: ownerStats.rides_last_24h },
+              { label: 'Rides, last 7 days', value: ownerStats.rides_last_7_days },
+            ].map((c, i) => (
+              <div key={i} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10 }}>
+                <div style={{ fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{c.label}</div>
+                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: TEXT }}>{c.value ?? '\u2013'}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11.5, color: SUB, marginBottom: 6 }}>{ownerStats.total_rides_logged} rides logged in total, across everyone.</div>
+        </>
+      )}
     </div>
   );
 }
@@ -2852,11 +3243,22 @@ function AuthError({ children }) {
 function AuthNote({ children }) {
   return <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: '9px 12px', fontSize: 12, color: SUB, marginBottom: 12, lineHeight: 1.5 }}>{children}</div>;
 }
-function SocialAuthButtons({ onMock }) {
+function SocialAuthButtons({ onError }) {
+  async function handleProvider(provider, label) {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    });
+    // On success the browser is redirected away immediately, so there's
+    // nothing further to do here. This only runs if something went wrong
+    // before that redirect could happen (e.g. the provider isn't turned on
+    // yet in the Supabase dashboard).
+    if (error) onError(`${label} sign-in isn't available yet (${error.message}). Use email + password below instead.`);
+  }
   return (
     <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-      <button onClick={() => onMock('Google')} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Continue with Google</button>
-      <button onClick={() => onMock('Apple')} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Continue with Apple</button>
+      <button onClick={() => handleProvider('google', 'Google')} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Continue with Google</button>
+      <button onClick={() => handleProvider('apple', 'Apple')} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Continue with Apple</button>
     </div>
   );
 }
@@ -2888,7 +3290,7 @@ function LoginView({ onLogin, goSignup, goForgot }) {
       <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 19, color: TEXT, marginBottom: 16, textAlign: 'center' }}>Log in</div>
       <AuthError>{error}</AuthError>
       {socialMsg && <AuthNote>{socialMsg}</AuthNote>}
-      <SocialAuthButtons onMock={(p) => setSocialMsg(`${p} sign-in isn't wired up yet \u2014 it needs a separate OAuth setup in Supabase. Use email + password below instead.`)} />
+      <SocialAuthButtons onError={setSocialMsg} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 16px', color: SUB, fontSize: 11.5 }}>
         <div style={{ flex: 1, height: 1, background: LINE }} /> OR <div style={{ flex: 1, height: 1, background: LINE }} />
       </div>
@@ -2949,7 +3351,7 @@ function SignupView({ onSignup, goLogin }) {
       <div style={{ fontSize: 12.5, color: SUB, textAlign: 'center', marginBottom: 16 }}>{TRIAL_DAYS} days free, then {MONTHLY_PRICE_LABEL}. Cancel anytime.</div>
       <AuthError>{error}</AuthError>
       {socialMsg && <AuthNote>{socialMsg}</AuthNote>}
-      <SocialAuthButtons onMock={(p) => setSocialMsg(`${p} sign-up isn't wired up yet \u2014 it needs a separate OAuth setup in Supabase. Use the form below instead.`)} />
+      <SocialAuthButtons onError={setSocialMsg} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 16px', color: SUB, fontSize: 11.5 }}>
         <div style={{ flex: 1, height: 1, background: LINE }} /> OR <div style={{ flex: 1, height: 1, background: LINE }} />
       </div>
@@ -3048,6 +3450,7 @@ function TrialBanner({ daysLeft, onUpgrade }) {
 function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email }) {
   const [error, setError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
+  const [plan, setPlan] = useState('monthly');
 
   async function startCheckout() {
     setError('');
@@ -3056,7 +3459,7 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email }),
+        body: JSON.stringify({ userId, email, plan }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout.');
@@ -3066,6 +3469,8 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
       setRedirecting(false);
     }
   }
+
+  const priceLabel = plan === 'annual' ? ANNUAL_PRICE_LABEL : MONTHLY_PRICE_LABEL;
 
   const body = (
     <div style={{ maxWidth: 420, width: '100%', margin: '0 auto', padding: '20px 0' }}>
@@ -3077,21 +3482,33 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
         {trialExpired ? 'Subscribe to keep access to your workouts and the trainer connection.' : 'Lock in your subscription now so there\u2019s no interruption when your trial ends.'}
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <button onClick={() => setPlan('monthly')} style={{ flex: 1, textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${plan === 'monthly' ? 'var(--accent)' : LINE}`, background: plan === 'monthly' ? PANEL2 : 'transparent', cursor: 'pointer' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Monthly</div>
+          <div style={{ fontSize: 12, color: SUB }}>{MONTHLY_PRICE_LABEL}</div>
+        </button>
+        <button onClick={() => setPlan('annual')} style={{ flex: 1, textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${plan === 'annual' ? 'var(--accent)' : LINE}`, background: plan === 'annual' ? PANEL2 : 'transparent', cursor: 'pointer', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: -9, right: 10, fontSize: 9.5, fontWeight: 700, color: INK, background: 'var(--accent)', borderRadius: 999, padding: '2px 7px' }}>2 MONTHS FREE</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Annual</div>
+          <div style={{ fontSize: 12, color: SUB }}>{ANNUAL_PRICE_LABEL}</div>
+        </button>
+      </div>
+
       <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 16, marginBottom: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Turbo Trainer \u2014 Monthly</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>{MONTHLY_PRICE_LABEL}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Turbo Trainer \u2014 {plan === 'annual' ? 'Annual' : 'Monthly'}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>{priceLabel}</div>
         </div>
         <div style={{ fontSize: 12, color: SUB, lineHeight: 1.6 }}>
           Full workout library · Custom workout builder · Trainer &amp; sensor connectivity · FTP testing &amp; history
         </div>
       </div>
 
-      <AuthNote>You'll be taken to Stripe's secure checkout page to enter your card details. Your card number never touches this app or its database.</AuthNote>
+      <AuthNote>You'll be taken to Stripe's secure checkout page to enter your card details. Your card number never touches this app or its database. Have a promo code? There's a field for it on that page.</AuthNote>
       <AuthError>{error}</AuthError>
 
       <button onClick={startCheckout} disabled={redirecting} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: redirecting ? 'default' : 'pointer', marginTop: 6, opacity: redirecting ? 0.7 : 1 }}>
-        {redirecting ? 'Redirecting to checkout\u2026' : `Subscribe \u2014 ${MONTHLY_PRICE_LABEL}`}
+        {redirecting ? 'Redirecting to checkout\u2026' : `Subscribe \u2014 ${priceLabel}`}
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 16 }}>
@@ -3175,6 +3592,7 @@ export default function App() {
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [activeWorkout, setActiveWorkout] = useState(null);
   const trainer = useTrainer();
+  const heartRate = useHeartRate();
 
   // Keep the browser/OS chrome (e.g. the address bar tint on mobile) in
   // sync with whichever theme is active, not just the in-page colors.
@@ -3210,8 +3628,9 @@ export default function App() {
   }, []);
 
   // Once we know who's logged in, load their profile + saved data from the database.
+  const [ownerStats, setOwnerStats] = useState(null); // non-null only when logged in as the app owner
   useEffect(() => {
-    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); return; }
+    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); setOwnerStats(null); return; }
     let mounted = true;
     (async () => {
       setProfileLoading(true);
@@ -3234,7 +3653,11 @@ export default function App() {
       const { data: history } = await supabase.from('ftp_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
       if (mounted && history) setFtpHistory(history.map(h => ({ id: h.id, date: h.date, ftp: h.ftp, source: h.source })));
       const { data: sessions } = await supabase.from('workout_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
-      if (mounted && sessions) setWorkoutHistory(sessions.map(s => ({ id: s.id, date: s.date, workoutId: s.workout_id, name: s.name, category: s.category, duration: s.duration, completed: s.completed })));
+      if (mounted && sessions) setWorkoutHistory(sessions.map(s => ({ id: s.id, date: s.date, workoutId: s.workout_id, name: s.name, category: s.category, duration: s.duration, completed: s.completed, avgPower: s.avg_power, maxPower: s.max_power, avgHr: s.avg_hr, maxHr: s.max_hr })));
+      // Returns real numbers only when logged in as the app owner (checked
+      // server-side by email) -- everyone else gets null back, silently.
+      const { data: stats } = await supabase.rpc('admin_dashboard_stats');
+      if (mounted) setOwnerStats(stats || null);
       if (mounted) setProfileLoading(false);
     })();
     return () => { mounted = false; };
@@ -3307,6 +3730,49 @@ export default function App() {
     return () => clearInterval(poll);
   }, [user]);
 
+  // Strava sends people back here with ?code=... after they approve the
+  // connection. The sessionStorage flag (set right before we redirect them
+  // to Strava) is how we tell that apart from any other use of ?code= on
+  // this page, e.g. a Google/Apple login in progress.
+  useEffect(() => {
+    if (!user || !STRAVA_CLIENT_ID) return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code || sessionStorage.getItem('stravaOAuthPending') !== '1') return;
+    sessionStorage.removeItem('stravaOAuthPending');
+    window.history.replaceState({}, '', window.location.pathname);
+    (async () => {
+      try {
+        const res = await fetch('/api/strava-connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, code }),
+        });
+        if (res.ok) {
+          const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+          if (prof) setProfile(prof);
+        }
+      } catch (e) {}
+    })();
+  }, [user]);
+
+  function connectStrava() {
+    if (!STRAVA_CLIENT_ID) return;
+    sessionStorage.setItem('stravaOAuthPending', '1');
+    const redirectUri = window.location.origin + window.location.pathname;
+    const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=auto&scope=activity:write`;
+    window.location.href = url;
+  }
+  async function disconnectStrava() {
+    if (!user) return;
+    await fetch('/api/strava-connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, disconnect: true }),
+    });
+    setProfile(p => (p ? { ...p, strava_athlete_id: null } : p));
+  }
+
   // Called by the player whenever an FTP test finishes (either the rider
   // stalled and the app ended it automatically, or they rode it to the end).
   function recordFtpResult(value, source) {
@@ -3320,12 +3786,22 @@ export default function App() {
   }
   // Called once per session by the player, either when a workout finishes
   // naturally or when the rider confirms exiting/restarting partway through.
-  function recordWorkoutSession({ workoutId, name, category, duration, completed }) {
-    const entry = { id: newId(), date: new Date().toISOString(), workoutId, name, category, duration, completed };
+  function recordWorkoutSession({ workoutId, name, category, duration, completed, avgPower, maxPower, avgHr, maxHr }) {
+    const entry = { id: newId(), date: new Date().toISOString(), workoutId, name, category, duration, completed, avgPower, maxPower, avgHr, maxHr };
     setWorkoutHistory(list => [...list, entry]);
     if (user) supabase.from('workout_history').insert({
       id: entry.id, user_id: user.id, workout_id: workoutId, name, category, duration, completed, date: entry.date,
+      avg_power: avgPower ?? null, max_power: maxPower ?? null, avg_hr: avgHr ?? null, max_hr: maxHr ?? null,
     }).then(() => {});
+    // Only push genuinely finished rides of real length to Strava \u2014 not
+    // aborted attempts \u2014 and only for people who've connected their account.
+    if (user && completed && duration >= 60 && profile && profile.strava_athlete_id) {
+      fetch('/api/strava-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, name, durationSeconds: duration, date: entry.date, avgPower, maxPower, avgHr, maxHr }),
+      }).catch(() => {});
+    }
   }
   function clearWorkoutHistory() {
     setWorkoutHistory([]);
@@ -3426,7 +3902,7 @@ export default function App() {
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
-          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} onExit={() => setActiveWorkout(null)} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} />
+          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => setActiveWorkout(null)} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} />
         </OrientationGate>
       </div>
     );
@@ -3447,9 +3923,11 @@ export default function App() {
         {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
         {view === 'settings' && (
           <SettingsView
-            settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer}
+            settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer} heartRate={heartRate}
             customWorkouts={customWorkouts} onResetCustom={resetCustomWorkouts} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory}
             account={account} daysLeft={daysLeft} subscribed={subscribed} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
+            ownerStats={ownerStats}
+            stravaConnected={!!(profile && profile.strava_athlete_id)} onConnectStrava={connectStrava} onDisconnectStrava={disconnectStrava}
           />
         )}
 

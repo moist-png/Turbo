@@ -96,3 +96,62 @@ create index if not exists profiles_stripe_subscription_id_idx on public.profile
 -- set them. Everything else users already relied on -- name, ftp, settings
 -- is untouched.
 revoke update (subscribed, stripe_customer_id, stripe_subscription_id) on public.profiles from authenticated;
+
+-- 7. Personal records: average/peak power and heart rate captured per ride
+--    (only present on rides done with a trainer and/or heart rate monitor
+--    connected), used to work out personal bests on the History screen.
+alter table public.workout_history add column if not exists avg_power integer;
+alter table public.workout_history add column if not exists max_power integer;
+alter table public.workout_history add column if not exists avg_hr integer;
+alter table public.workout_history add column if not exists max_hr integer;
+
+-- 8. Private dashboard for you (the app owner) only -- signup counts, active
+--    subscribers, trial users and ride activity, never any other person's
+--    individual data. "security definer" lets this one function see across
+--    every account despite Row Level Security above, but the check inside
+--    it means it only ever returns real numbers to YOUR login -- every
+--    other account gets nothing back, and the dashboard simply won't
+--    appear in their app.
+--
+--    \u26a0\ufe0f BEFORE RUNNING THIS: replace 'YOUR-LOGIN-EMAIL@example.com' below
+--    with the email address you personally log into Turbo Trainer with.
+create or replace function public.admin_dashboard_stats()
+returns json as $$
+declare
+  is_owner boolean;
+  result json;
+begin
+  select (auth.jwt() ->> 'email') = 'YOUR-LOGIN-EMAIL@example.com' into is_owner;
+  if not is_owner then
+    return null;
+  end if;
+
+  select json_build_object(
+    'total_users', (select count(*) from public.profiles),
+    'subscribed_users', (select count(*) from public.profiles where subscribed = true),
+    'trial_users', (select count(*) from public.profiles where subscribed = false and trial_start > now() - interval '7 days'),
+    'expired_trial_users', (select count(*) from public.profiles where subscribed = false and trial_start <= now() - interval '7 days'),
+    'signups_last_7_days', (select count(*) from public.profiles where created_at > now() - interval '7 days'),
+    'signups_last_30_days', (select count(*) from public.profiles where created_at > now() - interval '30 days'),
+    'rides_last_24h', (select count(*) from public.workout_history where date > now() - interval '1 day'),
+    'rides_last_7_days', (select count(*) from public.workout_history where date > now() - interval '7 days'),
+    'total_rides_logged', (select count(*) from public.workout_history)
+  ) into result;
+
+  return result;
+end;
+$$ language plpgsql security definer;
+
+-- 9. Strava connection: run this once too. Stores each person's own Strava
+--    tokens so completed rides can be pushed to their Strava account. These
+--    are protected the same way as everything else above (RLS: only the
+--    owning user's row), since a leaked Strava token here only affects that
+--    one person's own Strava account, not billing or anyone else's data.
+alter table public.profiles add column if not exists strava_athlete_id text;
+alter table public.profiles add column if not exists strava_access_token text;
+alter table public.profiles add column if not exists strava_refresh_token text;
+alter table public.profiles add column if not exists strava_token_expires_at bigint;
+-- Same reasoning as the billing columns above: only the server-side
+-- functions (api/strava-connect.js, api/strava-upload.js), which use the
+-- service role key, can write the actual token values.
+revoke update (strava_access_token, strava_refresh_token, strava_token_expires_at) on public.profiles from authenticated;
