@@ -2,18 +2,39 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Play, Pause, SkipForward, SkipBack, RotateCcw, X, Plus, Trash2, ChevronUp, ChevronDown,
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
-  BluetoothOff, Volume2, Sun, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell,
+  BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // ---------- palette ----------
+// TEXT/SUB/PANEL/PANEL2/LINE/RED/BG/MUTED resolve through CSS custom
+// properties (set on the app's root wrapper from THEMES below) so every
+// component that already references these constants repaints automatically
+// when the person switches between dark and light mode. INK is the one
+// exception: it's the fixed dark foreground used for icons/text sitting on
+// top of the (always-bright) accent color, so it stays constant in both themes.
 const INK = '#14171A';
-const PANEL = '#1D2126';
-const PANEL2 = '#242930';
-const LINE = '#31373F';
-const TEXT = '#E9ECEF';
-const SUB = '#8B929B';
-const RED = '#FF4D4D';
+const BG = 'var(--bg)';
+const PANEL = 'var(--panel)';
+const PANEL2 = 'var(--panel2)';
+const LINE = 'var(--line)';
+const TEXT = 'var(--text)';
+const SUB = 'var(--sub)';
+const RED = 'var(--red)';
+const MUTED = 'var(--muted)';
+const NAVBG = 'var(--navbg)';
+const THEMES = {
+  dark: {
+    bg: '#14171A', panel: '#1D2126', panel2: '#242930', line: '#31373F',
+    text: '#E9ECEF', sub: '#8B929B', red: '#FF4D4D', muted: '#4a4f56',
+    navbg: 'rgba(20,23,26,0.96)',
+  },
+  light: {
+    bg: '#F3F4F6', panel: '#FFFFFF', panel2: '#ECEEF1', line: '#DDE1E6',
+    text: '#14171A', sub: '#6B7280', red: '#D9333F', muted: '#C7CBD1',
+    navbg: 'rgba(255,255,255,0.96)',
+  },
+};
 const ACCENT_PRESETS = [
   { name: 'Hi-vis', value: '#C9F031' },
   { name: 'Ember', value: '#FF6B4A' },
@@ -21,6 +42,7 @@ const ACCENT_PRESETS = [
   { name: 'Chalk', value: '#F2F2F2' },
 ];
 const DEFAULT_SETTINGS = {
+  theme: 'dark', // 'dark' | 'light'
   accentColor: '#C9F031',
   soundIntervalBeep: true,
   soundCountdown: true,
@@ -1353,8 +1375,8 @@ function ProfileChart({ intervals, height = 84, progress = null }) {
         const h = Math.max(14, Math.min(100, z.intensity * 78));
         const isFree = it.type === 'free';
         return (
-          <div key={it.id} style={{ width: `${w}%`, height: '100%', display: 'flex', alignItems: 'flex-end', borderRight: `1px solid ${INK}` }}>
-            <div style={{ width: '100%', height: `${h}%`, background: isFree ? `repeating-linear-gradient(135deg, ${z.color}, ${z.color} 4px, #3a3f45 4px, #3a3f45 8px)` : z.color }} />
+          <div key={it.id} style={{ width: `${w}%`, height: '100%', display: 'flex', alignItems: 'flex-end', borderRight: `1px solid ${PANEL2}` }}>
+            <div style={{ width: '100%', height: `${h}%`, background: isFree ? `repeating-linear-gradient(135deg, ${z.color}, ${z.color} 4px, ${LINE} 4px, ${LINE} 8px)` : z.color }} />
           </div>
         );
       })}
@@ -1379,7 +1401,7 @@ function IconBtn({ onClick, children, disabled, danger }) {
   return (
     <button onClick={onClick} disabled={disabled} style={{
       width: 34, height: 34, borderRadius: 8, border: `1px solid ${LINE}`,
-      background: PANEL2, color: disabled ? '#4a4f56' : (danger ? RED : TEXT),
+      background: PANEL2, color: disabled ? MUTED : (danger ? RED : TEXT),
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1, flexShrink: 0,
     }}>{children}</button>
@@ -1433,7 +1455,7 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: INK, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: 20, maxHeight: '85vh', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: 20, maxHeight: '85vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{workout.name}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer' }}><X size={22} /></button>
@@ -1683,7 +1705,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       {intervals.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <ProfileChart intervals={intervals} />
-          <div style={{ fontSize: 12, color: SUB, marginTop: 6 }}>{fmtLong(total)} total \u00b7 {intervals.length} intervals</div>
+          <div style={{ fontSize: 12, color: SUB, marginTop: 6 }}>{fmtLong(total)} total · {intervals.length} intervals</div>
         </div>
       )}
 
@@ -1707,7 +1729,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
         {editingWorkout && <button onClick={reset} style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: SUB, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>}
         <button onClick={save} disabled={!name.trim() || intervals.length === 0}
-          style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: (!name.trim() || intervals.length === 0) ? '#4a4f56' : 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: (!name.trim() || intervals.length === 0) ? 'default' : 'pointer' }}>
+          style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: (!name.trim() || intervals.length === 0) ? MUTED : 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: (!name.trim() || intervals.length === 0) ? 'default' : 'pointer' }}>
           <Save size={17} /> {editingWorkout ? 'Save changes' : 'Save workout'}
         </button>
       </div>
@@ -1719,7 +1741,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
             <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, color: TEXT, fontWeight: 600 }}>{w.name}</div>
-                <div style={{ fontSize: 12, color: SUB }}>{fmtLong(totalDuration(w.intervals))} \u00b7 {w.category}</div>
+                <div style={{ fontSize: 12, color: SUB }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
               </div>
               <IconBtn onClick={() => { setName(w.name); setCategory(w.category); setDescription(w.description); setIntervals(w.intervals.map(i => ({ ...i }))); }}><Edit3 size={15} /></IconBtn>
               <IconBtn onClick={() => deleteCustomWorkout(w.id)} danger><Trash2 size={15} /></IconBtn>
@@ -1753,6 +1775,8 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
   const [isDone, setIsDone] = useState(false);
   const [testResult, setTestResult] = useState(null); // { ftp, auto } once a ramp test ends
   const [ftpApplied, setFtpApplied] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
+  const confirmRestartTimer = useRef(null);
   const beepedRef = useRef(new Set());
   const wakeLockRef = useRef(null);
   const prevBleStatus = useRef(trainer.status);
@@ -1885,6 +1909,8 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
     setFtpApplied(false);
     stepSamplesRef.current = [];
     underPowerStreakRef.current = 0;
+    clearTimeout(confirmRestartTimer.current);
+    setConfirmRestart(false);
   }
   function restart() {
     setCurrentIndex(0); setTimeLeft(intervals[0].duration); setIsPlaying(false); setIsDone(false);
@@ -1895,6 +1921,21 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
     lastStepAvgRef.current = null;
     underPowerStreakRef.current = 0;
   }
+  // Restart is destructive (throws away progress on the current ride), and
+  // sits near the pause button, so it needs a second tap to confirm rather
+  // than firing on the first accidental touch. The confirm state quietly
+  // reverts on its own after a few seconds if the person doesn't follow through.
+  function handleRestartClick() {
+    if (confirmRestart) {
+      clearTimeout(confirmRestartTimer.current);
+      setConfirmRestart(false);
+      restart();
+    } else {
+      setConfirmRestart(true);
+      confirmRestartTimer.current = setTimeout(() => setConfirmRestart(false), 4000);
+    }
+  }
+  useEffect(() => () => clearTimeout(confirmRestartTimer.current), []);
 
   const current = intervals[currentIndex];
   const next = intervals[currentIndex + 1];
@@ -1904,68 +1945,97 @@ function PlayerView({ workout, ftp, settings, trainer, onExit, onSaveFtpResult, 
   const elapsed = elapsedBefore + (current.duration - Math.max(0, timeLeft));
   const progress = Math.min(1, elapsed / total);
   const targetTxt = formatTarget(current, ftp, settings.targetDisplay);
+  const currentPowerTxt = trainer.power !== null ? `${trainer.power}W` : '\u2013 W';
 
   return (
-    <div style={{ padding: '16px 16px 30px', minHeight: '70vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+    <div className="player-screen" style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
         <button onClick={onExit} style={{ background: 'none', border: 'none', color: SUB, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}><X size={18} /> Exit</button>
         <div style={{ fontSize: 13, color: SUB }}>{workout.name}</div>
       </div>
 
-      <ProfileChart intervals={intervals} progress={progress} height={54} />
-
-      {trainer.status === 'connected' && (
-        <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'center' }}>
-          <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 14px', fontSize: 13, color: TEXT }}>
-            {trainer.power !== null ? `${trainer.power}W` : '\u2013 W'}
+      <div className="player-main" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+        <div className="player-stats" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: z.color, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>
+            {isDone ? (testResult ? (testResult.auto ? 'Test ended \u2014 that\u2019s your limit' : 'Ramp test complete') : 'Workout complete') : (current.label || z.name)}
           </div>
-          <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 14px', fontSize: 13, color: TEXT }}>
-            {trainer.cadence !== null ? `${trainer.cadence} rpm` : '\u2013 rpm'}
+          <div className="player-timer" style={{ fontFamily: 'Space Mono, monospace', fontSize: settings.compactLabels ? 44 : 64, fontWeight: 700, color: TEXT, lineHeight: 1 }}>
+            {isDone ? (testResult ? `${testResult.ftp}W` : fmtLong(total)) : fmt(Math.max(0, timeLeft))}
           </div>
-        </div>
-      )}
 
-      <div style={{ textAlign: 'center', marginTop: 26 }}>
-        <div style={{ fontSize: 13, color: z.color, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
-          {isDone ? (testResult ? (testResult.auto ? 'Test ended \u2014 that\u2019s your limit' : 'Ramp test complete') : 'Workout complete') : (current.label || z.name)}
+          {!isDone && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 12 }}>
+              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 18px', minWidth: 92 }}>
+                <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Target</div>
+                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 19, fontWeight: 700, color: TEXT, marginTop: 2 }}>{targetTxt}</div>
+              </div>
+              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 18px', minWidth: 92 }}>
+                <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Current</div>
+                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 19, fontWeight: 700, color: trainer.status === 'connected' ? 'var(--accent)' : TEXT, marginTop: 2 }}>{currentPowerTxt}</div>
+              </div>
+            </div>
+          )}
+
+          {!isDone && trainer.status === 'connected' && trainer.cadence !== null && (
+            <div style={{ fontSize: 12, color: SUB, marginTop: 8 }}>{trainer.cadence} rpm</div>
+          )}
+
+          {isDone && (
+            <div style={{ fontSize: 16, color: SUB, marginTop: 6 }}>
+              {testResult ? 'Estimated FTP \u2014 saved to your FTP history' : 'Nice work \u2014 log it and recover well.'}
+            </div>
+          )}
+
+          {isDone && testResult && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <button
+                onClick={() => { if (onApplyFtp) onApplyFtp(testResult.ftp); setFtpApplied(true); }}
+                disabled={ftpApplied}
+                style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: ftpApplied ? PANEL2 : 'var(--accent)', color: ftpApplied ? SUB : INK, fontWeight: 700, fontSize: 14, cursor: ftpApplied ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {ftpApplied ? <Check size={16} /> : <Zap size={16} />} {ftpApplied ? 'FTP updated' : `Update my FTP to ${testResult.ftp}W`}
+              </button>
+            </div>
+          )}
+
+          {!isDone && next && settings.showNextPreview && (
+            <div style={{ marginTop: 14, fontSize: 12.5, color: SUB }}>
+              Up next: <span style={{ color: TEXT }}>{next.label}</span> · {fmt(next.duration)}
+            </div>
+          )}
         </div>
-        <div style={{ fontFamily: 'Space Mono, monospace', fontSize: settings.compactLabels ? 52 : 72, fontWeight: 700, color: TEXT, lineHeight: 1 }}>
-          {isDone ? (testResult ? `${testResult.ftp}W` : fmtLong(total)) : fmt(Math.max(0, timeLeft))}
-        </div>
-        <div style={{ fontSize: 16, color: SUB, marginTop: 6 }}>
-          {isDone ? (testResult ? 'Estimated FTP \u2014 saved to your FTP history' : 'Nice work \u2014 log it and recover well.') : targetTxt}
+
+        <div className="player-controls">
+          <div className="player-controls-row" style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 20 }}>
+            <IconBtn onClick={() => skip(-1)} disabled={currentIndex === 0}><SkipBack size={18} /></IconBtn>
+            <button onClick={isDone ? restart : togglePlay} style={{ width: 68, height: 68, borderRadius: '50%', border: 'none', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              {isDone ? <RotateCcw size={26} color={INK} /> : isPlaying ? <Pause size={26} color={INK} fill={INK} /> : <Play size={26} color={INK} fill={INK} style={{ marginLeft: 3 }} />}
+            </button>
+            <IconBtn onClick={() => skip(1)} disabled={currentIndex === intervals.length - 1}><SkipForward size={18} /></IconBtn>
+          </div>
+
+          {!isDone && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 32 }}>
+              {!confirmRestart ? (
+                <button onClick={handleRestartClick} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 10px' }}>
+                  <RotateCcw size={13} /> Restart
+                </button>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button onClick={handleRestartClick} style={{ background: RED, border: 'none', color: '#fff', fontSize: 12.5, fontWeight: 700, borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+                    Tap again to restart
+                  </button>
+                  <button onClick={() => setConfirmRestart(false)} style={{ background: 'none', border: `1px solid ${LINE}`, color: SUB, fontSize: 12, borderRadius: 8, padding: '7px 10px', cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {isDone && testResult && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
-          <button
-            onClick={() => { if (onApplyFtp) onApplyFtp(testResult.ftp); setFtpApplied(true); }}
-            disabled={ftpApplied}
-            style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: ftpApplied ? PANEL2 : 'var(--accent)', color: ftpApplied ? SUB : INK, fontWeight: 700, fontSize: 14, cursor: ftpApplied ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-            {ftpApplied ? <Check size={16} /> : <Zap size={16} />} {ftpApplied ? 'FTP updated' : `Update my FTP to ${testResult.ftp}W`}
-          </button>
-        </div>
-      )}
-
-      {!isDone && next && settings.showNextPreview && (
-        <div style={{ marginTop: 22, textAlign: 'center', fontSize: 12.5, color: SUB }}>
-          Up next: <span style={{ color: TEXT }}>{next.label}</span> \u00b7 {fmt(next.duration)}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 34 }}>
-        <IconBtn onClick={() => skip(-1)} disabled={currentIndex === 0}><SkipBack size={18} /></IconBtn>
-        <button onClick={isDone ? restart : togglePlay} style={{ width: 68, height: 68, borderRadius: '50%', border: 'none', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          {isDone ? <RotateCcw size={26} color={INK} /> : isPlaying ? <Pause size={26} color={INK} fill={INK} /> : <Play size={26} color={INK} fill={INK} style={{ marginLeft: 3 }} />}
-        </button>
-        <IconBtn onClick={() => skip(1)} disabled={currentIndex === intervals.length - 1}><SkipForward size={18} /></IconBtn>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
-        <button onClick={restart} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}><RotateCcw size={14} /> Restart</button>
-      </div>
-      <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: SUB }}>
-        Interval {currentIndex + 1} of {intervals.length} \u00b7 {fmt(elapsed)} elapsed \u00b7 {fmt(Math.max(0, total - elapsed))} remaining
+      <div style={{ flexShrink: 0, marginTop: 14 }}>
+        <ProfileChart intervals={intervals} progress={progress} height={48} />
       </div>
     </div>
   );
@@ -2022,6 +2092,13 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWor
       </div>
 
       <SectionHeader icon={<Sun size={16} color="var(--accent)" />} title="Visuals" />
+      <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
+        <div style={{ fontSize: 14, color: TEXT, marginBottom: 8 }}>Appearance</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Chip active={settings.theme !== 'light'} onClick={() => updateSetting('theme', 'dark')}><Moon size={12} style={{ marginRight: 5, verticalAlign: -2 }} />Dark</Chip>
+          <Chip active={settings.theme === 'light'} onClick={() => updateSetting('theme', 'light')}><Sun size={12} style={{ marginRight: 5, verticalAlign: -2 }} />Light</Chip>
+        </div>
+      </div>
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
         <div style={{ fontSize: 14, color: TEXT, marginBottom: 8 }}>Accent colour</div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -2102,7 +2179,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWor
       <SettingRow label="Custom workouts saved" sub={`${customWorkouts.length} workout${customWorkouts.length === 1 ? '' : 's'}`}>
         {!confirmReset ? (
           <button onClick={() => setConfirmReset(true)} disabled={customWorkouts.length === 0}
-            style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: customWorkouts.length === 0 ? '#4a4f56' : RED, fontSize: 12.5, cursor: customWorkouts.length === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: customWorkouts.length === 0 ? MUTED : RED, fontSize: 12.5, cursor: customWorkouts.length === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <RefreshCw size={13} /> Clear all
           </button>
         ) : (
@@ -2119,7 +2196,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, customWor
 // ---------- auth screens ----------
 function AuthShell({ children, footer }) {
   return (
-    <div style={{ minHeight: '100%', background: INK, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 20px', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100%', background: BG, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 20px', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ maxWidth: 380, width: '100%', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 28 }}>
           <Zap size={22} color="var(--accent)" />
@@ -2377,7 +2454,7 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>{MONTHLY_PRICE_LABEL}</div>
         </div>
         <div style={{ fontSize: 12, color: SUB, lineHeight: 1.6 }}>
-          Full workout library \u00b7 Custom workout builder \u00b7 Trainer &amp; sensor connectivity \u00b7 FTP testing &amp; history
+          Full workout library · Custom workout builder · Trainer &amp; sensor connectivity · FTP testing &amp; history
         </div>
       </div>
 
@@ -2398,13 +2475,13 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
   if (!blocking) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
-        <div onClick={e => e.stopPropagation()} style={{ background: INK, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: '10px 20px 24px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: '10px 20px 24px', maxHeight: '90vh', overflowY: 'auto' }}>
           {body}
         </div>
       </div>
     );
   }
-  return <div style={{ minHeight: '100%', background: INK, padding: '20px 20px 40px', fontFamily: 'Inter, sans-serif' }}>{body}</div>;
+  return <div style={{ minHeight: '100%', background: BG, padding: '20px 20px 40px', fontFamily: 'Inter, sans-serif' }}>{body}</div>;
 }
 
 // ---------- orientation gate ----------
@@ -2441,7 +2518,7 @@ function OrientationGate({ preferredOrientation, children }) {
     <>
       {children}
       {showPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: INK, zIndex: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 28, textAlign: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: BG, zIndex: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 28, textAlign: 'center' }}>
           <div style={{ fontSize: 42, marginBottom: 14, transform: 'rotate(90deg)' }}>\ud83d\udcf1</div>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 19, color: TEXT, marginBottom: 8 }}>Rotate your device</div>
           <div style={{ fontSize: 13.5, color: SUB, maxWidth: 320, lineHeight: 1.6, marginBottom: 22 }}>
@@ -2460,7 +2537,6 @@ function OrientationGate({ preferredOrientation, children }) {
 // ---------- app ----------
 export default function App() {
   const [view, setView] = useState('library');
-  const [preSettingsView, setPreSettingsView] = useState('library');
   const [ftp, setFtpState] = useState(200);
   const [settings, setSettingsState] = useState(DEFAULT_SETTINGS);
   const [customWorkouts, setCustomWorkouts] = useState([]);
@@ -2469,6 +2545,13 @@ export default function App() {
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [activeWorkout, setActiveWorkout] = useState(null);
   const trainer = useTrainer();
+
+  // Keep the browser/OS chrome (e.g. the address bar tint on mobile) in
+  // sync with whichever theme is active, not just the in-page colors.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', (THEMES[settings.theme] || THEMES.dark).bg);
+  }, [settings.theme]);
 
   // ---- account / trial / subscription, backed by Supabase ----
   const [user, setUser] = useState(null); // Supabase auth user (id, email, ...)
@@ -2623,8 +2706,30 @@ export default function App() {
     if (user) supabase.from('custom_workouts').delete().eq('user_id', user.id).then(() => {});
   }
 
-  const globalStyle = "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Space+Mono:wght@700&family=Inter:wght@400;500;600&display=swap'); input:focus, select:focus { outline: 1px solid var(--accent); } ::-webkit-scrollbar { width: 4px; height: 4px; } ::-webkit-scrollbar-thumb { background: " + LINE + "; border-radius: 4px; }";
-  const wrapStyle = { '--accent': settings.accentColor, background: INK, minHeight: '100%', fontFamily: 'Inter, sans-serif' };
+  const theme = THEMES[settings.theme] || THEMES.dark;
+  const themeVars = {
+    '--bg': theme.bg, '--panel': theme.panel, '--panel2': theme.panel2, '--line': theme.line,
+    '--text': theme.text, '--sub': theme.sub, '--red': theme.red, '--muted': theme.muted, '--navbg': theme.navbg,
+  };
+  const themeCss = Object.entries(themeVars).map(([k, v]) => `${k}:${v};`).join('');
+  const globalStyle = "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Space+Mono:wght@700&family=Inter:wght@400;500;600&display=swap');"
+    + " :root { " + themeCss + " }"
+    + " html, body, #root { height: 100%; }"
+    + " input:focus, select:focus { outline: 1px solid var(--accent); }"
+    + " ::-webkit-scrollbar { width: 4px; height: 4px; } ::-webkit-scrollbar-thumb { background: " + LINE + "; border-radius: 4px; }"
+    // bottom tab bar: keep clear of notches / home-indicator gestures in
+    // both orientations, and compact itself on short landscape screens
+    + " .tabbar { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); padding-bottom: env(safe-area-inset-bottom); }"
+    + " .tabbar-btn { padding: 8px 0; }"
+    + " @media (orientation: landscape) and (max-height: 480px) { .tabbar-btn { padding: 4px 0; } .tabbar-btn svg { width: 15px; height: 15px; } .tabbar-btn span { font-size: 9px; } }"
+    // in-workout screen: fill the real viewport height so nothing needs to
+    // scroll to be seen, and lay stats/controls out side-by-side once the
+    // phone is rotated to landscape (mounted on the bars) instead of stacked
+    + " .player-screen { height: 100vh; height: 100dvh; box-sizing: border-box; }"
+    + " .player-main { flex: 1; min-height: 0; overflow: auto; }"
+    + " @media (orientation: landscape) { .player-main { flex-direction: row !important; align-items: center; justify-content: center; gap: 32px; } .player-stats { flex: 1 1 auto; max-width: 420px; } .player-controls { flex: 0 0 auto; } }"
+    + " @media (orientation: landscape) and (max-height: 420px) { .player-timer { font-size: 44px !important; } .player-controls-row { margin-top: 10px !important; } }";
+  const wrapStyle = { '--accent': settings.accentColor, ...themeVars, background: BG, minHeight: '100%', fontFamily: 'Inter, sans-serif' };
 
   if (authLoading) {
     return <div style={wrapStyle}><style>{globalStyle}</style></div>;
@@ -2683,20 +2788,10 @@ export default function App() {
   }
 
   return (
-    <div style={{ ...wrapStyle, position: 'relative', paddingBottom: 54 }}>
+    <div style={{ ...wrapStyle, position: 'relative', paddingBottom: 'calc(54px + env(safe-area-inset-bottom))' }}>
       <style>{globalStyle}</style>
       <OrientationGate preferredOrientation={settings.preferredOrientation}>
         {!subscribed && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
-
-        <div style={{ position: 'fixed', top: subscribed ? 0 : 40, left: 0, right: 0, maxWidth: 520, margin: '0 auto', display: 'flex', justifyContent: 'flex-end', padding: '14px 16px 0', pointerEvents: 'none', zIndex: 30, transition: 'top .15s' }}>
-          <button onClick={() => { setPreSettingsView(view); setView('settings'); }} style={{
-            pointerEvents: 'auto', width: 38, height: 38, borderRadius: '50%', border: `1px solid ${LINE}`,
-            background: 'rgba(29,33,38,0.94)', color: view === 'settings' ? 'var(--accent)' : TEXT,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-          }}>
-            <SettingsIcon size={18} />
-          </button>
-        </div>
 
         {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} />}
         {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" />}
@@ -2706,7 +2801,6 @@ export default function App() {
           <SettingsView
             settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer}
             customWorkouts={customWorkouts} onResetCustom={resetCustomWorkouts} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory}
-            onClose={() => setView(preSettingsView)}
             account={account} daysLeft={daysLeft} subscribed={subscribed} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
           />
         )}
@@ -2727,18 +2821,21 @@ export default function App() {
           <PaywallView onClose={() => setShowPaywallModal(false)} onLogout={handleLogout} userId={user.id} email={user.email} />
         )}
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(20,23,26,0.96)', borderTop: `1px solid ${LINE}`, display: 'flex', maxWidth: 520, margin: '0 auto' }}>
-          <button onClick={() => setView('library')} style={{ flex: 1, padding: '8px 0', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'library' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
+        <div className="tabbar" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: NAVBG, borderTop: `1px solid ${LINE}`, display: 'flex', maxWidth: 520, margin: '0 auto' }}>
+          <button onClick={() => setView('library')} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'library' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
             <Library size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Library</span>
           </button>
-          <button onClick={() => setView('basics')} style={{ flex: 1, padding: '8px 0', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'basics' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
+          <button onClick={() => setView('basics')} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'basics' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
             <Dumbbell size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Basics</span>
           </button>
-          <button onClick={() => setView('rides')} style={{ flex: 1, padding: '8px 0', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'rides' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
+          <button onClick={() => setView('rides')} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'rides' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
             <Bike size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Rides</span>
           </button>
-          <button onClick={() => { setEditingWorkout(null); setView('builder'); }} style={{ flex: 1, padding: '8px 0', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'builder' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
+          <button onClick={() => { setEditingWorkout(null); setView('builder'); }} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'builder' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
             <Wrench size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Builder</span>
+          </button>
+          <button onClick={() => setView('settings')} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'settings' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
+            <SettingsIcon size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Settings</span>
           </button>
         </div>
       </OrientationGate>
