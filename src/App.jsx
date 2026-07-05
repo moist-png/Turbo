@@ -1778,15 +1778,15 @@ function ProfileChart({ intervals, height = 84, progress = null }) {
 
 // A ring that traces around the interval timer and fills clockwise as the
 // current interval counts down, so progress reads at a glance without
-// having to parse the numbers.
-function ProgressRing({ progress, color, size = 210 }) {
+// having to parse the numbers. Fills whatever box its parent gives it.
+function ProgressRing({ progress, color, size = 190 }) {
   const stroke = 7;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(1, progress));
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-      style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-90deg)', zIndex: -1 }}>
+      style={{ position: 'absolute', inset: 0, zIndex: -1, transform: 'rotate(-90deg)' }}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={LINE} strokeWidth={stroke} />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - pct)} style={{ transition: 'stroke-dashoffset 0.4s linear, stroke 0.6s ease' }} />
@@ -3065,28 +3065,41 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           <div style={{ fontSize: 13, color: z.color, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>
             {isDone ? (testResult ? (testResult.auto ? 'Test ended \u2014 that\u2019s your limit' : 'Ramp test complete') : 'Workout complete') : (current.label || z.name)}
           </div>
-          <div style={{ position: 'relative', display: 'inline-block', isolation: 'isolate' }}>
-            {settings.visualProgressRing && (
-              <ProgressRing progress={ringProgress} color={z.color} size={settings.compactLabels ? 150 : 210} />
-            )}
-            <div className="player-timer" style={{ fontFamily: 'Space Mono, monospace', fontSize: settings.compactLabels ? 44 : 64, fontWeight: 700, color: TEXT, lineHeight: 1, padding: '0 8px' }}>
-              {isDone ? (testResult ? `${testResult.ftp}W` : fmtLong(total)) : fmt(Math.max(0, timeLeft))}
-            </div>
-          </div>
-
-          {!isDone && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 10, marginTop: 12 }}>
-              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 18px', minWidth: 92 }}>
+          {!isDone ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 14px', minWidth: 80 }}>
                 <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Target</div>
-                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 19, fontWeight: 700, color: TEXT, marginTop: 2 }}>{targetTxt}</div>
+                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: TEXT, marginTop: 2 }}>{targetTxt}</div>
               </div>
-              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 18px', minWidth: 92 }}>
+
+              <div className="ring-box" style={{ position: 'relative', width: settings.compactLabels ? 140 : 190, height: settings.compactLabels ? 140 : 190, display: 'flex', alignItems: 'center', justifyContent: 'center', isolation: 'isolate', flexShrink: 0 }}>
+                {settings.visualProgressRing && (
+                  <ProgressRing progress={ringProgress} color={z.color} size={settings.compactLabels ? 140 : 190} />
+                )}
+                <div className="player-timer" style={{ fontFamily: 'Space Mono, monospace', fontSize: settings.compactLabels ? 36 : 50, fontWeight: 700, color: TEXT, lineHeight: 1 }}>
+                  {fmt(Math.max(0, timeLeft))}
+                </div>
+              </div>
+
+              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 14px', minWidth: 80 }}>
                 <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Current</div>
-                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 19, fontWeight: 700, color: trainer.status === 'connected' ? 'var(--accent)' : TEXT, marginTop: 2 }}>{currentPowerTxt}</div>
+                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: trainer.status === 'connected' ? 'var(--accent)' : TEXT, marginTop: 2 }}>{currentPowerTxt}</div>
               </div>
-              {settings.visualPowerGauge && trainer.status === 'connected' && current.type === 'power' && (
-                <PowerGauge power={trainer.power || 0} targetWatts={targetWattsForGauge} />
+            </div>
+          ) : (
+            <div className="ring-box" style={{ position: 'relative', width: settings.compactLabels ? 150 : 200, height: settings.compactLabels ? 150 : 200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', isolation: 'isolate' }}>
+              {settings.visualProgressRing && (
+                <ProgressRing progress={1} color={z.color} size={settings.compactLabels ? 150 : 200} />
               )}
+              <div className="player-timer" style={{ fontFamily: 'Space Mono, monospace', fontSize: settings.compactLabels ? 40 : 56, fontWeight: 700, color: TEXT, lineHeight: 1 }}>
+                {testResult ? `${testResult.ftp}W` : fmtLong(total)}
+              </div>
+            </div>
+          )}
+
+          {!isDone && settings.visualPowerGauge && trainer.status === 'connected' && current.type === 'power' && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 6 }}>
+              <PowerGauge power={trainer.power || 0} targetWatts={targetWattsForGauge} />
             </div>
           )}
 
@@ -3124,16 +3137,16 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
         </div>
 
         <div className="player-controls">
-          <div className="player-controls-row" style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 20 }}>
+          <div className="player-controls-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
             <IconBtn onClick={() => skip(-1)} disabled={currentIndex === 0}><SkipBack size={18} /></IconBtn>
-            <button onClick={isDone ? () => requestAction('restart') : togglePlay} style={{ width: 68, height: 68, borderRadius: '50%', border: 'none', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              {isDone ? <RotateCcw size={26} color={INK} /> : isPlaying ? <Pause size={26} color={INK} fill={INK} /> : <Play size={26} color={INK} fill={INK} style={{ marginLeft: 3 }} />}
+            <button onClick={isDone ? () => requestAction('restart') : togglePlay} style={{ width: 58, height: 58, borderRadius: '50%', border: 'none', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              {isDone ? <RotateCcw size={24} color={INK} /> : isPlaying ? <Pause size={24} color={INK} fill={INK} /> : <Play size={24} color={INK} fill={INK} style={{ marginLeft: 3 }} />}
             </button>
             <IconBtn onClick={() => skip(1)} disabled={currentIndex === intervals.length - 1}><SkipForward size={18} /></IconBtn>
           </div>
 
           {!isDone && (
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
               <button onClick={() => requestAction('restart')} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 10px' }}>
                 <RotateCcw size={13} /> Restart
               </button>
@@ -4038,8 +4051,8 @@ export default function App() {
     // phone is rotated to landscape (mounted on the bars) instead of stacked
     + " .player-screen { height: 100vh; height: 100dvh; box-sizing: border-box; }"
     + " .player-main { flex: 1; min-height: 0; overflow: auto; }"
-    + " @media (orientation: landscape) { .player-main { flex-direction: row !important; align-items: center; justify-content: center; gap: 32px; } .player-stats { flex: 1 1 auto; max-width: 420px; } .player-controls { flex: 0 0 auto; } }"
-    + " @media (orientation: landscape) and (max-height: 420px) { .player-timer { font-size: 44px !important; } .player-controls-row { margin-top: 10px !important; } }"
+    + " @media (orientation: landscape) { .player-main { flex-direction: row !important; align-items: center; justify-content: center; gap: 20px; } .player-stats { flex: 1 1 auto; max-width: 560px; } .player-controls { flex: 0 0 auto; } }"
+    + " @media (orientation: landscape) and (max-height: 420px) { .player-timer { font-size: 38px !important; } .ring-box { width: 120px !important; height: 120px !important; } .ring-box svg { width: 120px !important; height: 120px !important; } .player-controls-row { margin-top: 6px !important; } }"
     // finish-line celebration confetti
     + " @keyframes confetti-fall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(420px) rotate(600deg); opacity: 0; } }";
   const wrapStyle = { '--accent': settings.accentColor, ...themeVars, background: BG, minHeight: '100%', fontFamily: 'Inter, sans-serif' };
