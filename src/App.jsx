@@ -3049,7 +3049,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const targetWattsForGauge = current.type === 'power' ? Math.round((ftp * current.target) / 100) : 0;
 
   return (
-    <div className="player-screen" style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+    <div className="player-screen" style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
       {settings.visualZoneWash && (
         <div style={{ position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none', transition: 'background 1s ease', background: `radial-gradient(ellipse 80% 55% at 50% 15%, ${hexToRgba(z.color, isDone ? 0.08 : 0.22)} 0%, transparent 70%)` }} />
       )}
@@ -3065,7 +3065,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           <div style={{ fontSize: 13, color: z.color, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>
             {isDone ? (testResult ? (testResult.auto ? 'Test ended \u2014 that\u2019s your limit' : 'Ramp test complete') : 'Workout complete') : (current.label || z.name)}
           </div>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
+          <div style={{ position: 'relative', display: 'inline-block', isolation: 'isolate' }}>
             {settings.visualProgressRing && (
               <ProgressRing progress={ringProgress} color={z.color} size={settings.compactLabels ? 150 : 210} />
             )}
