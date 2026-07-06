@@ -1806,9 +1806,9 @@ function ProfileChart({ intervals, height = 84, progress = null }) {
 // current elapsed time, keeping "now" a little left of center so upcoming
 // work is visible \u2014 but a touch-drag pauses the auto-follow so the rider
 // can look ahead, and it quietly resumes a couple seconds after they let go.
-const TIMELINE_PX_PER_SEC = 2.2;    // zoom level: bigger = more zoomed in
+const TIMELINE_PX_PER_SEC = 1.2;    // zoom level: bigger = more zoomed in
 const TIMELINE_FOLLOW_RATIO = 0.24; // keeps "now" ~a quarter of the way across the visible window
-const TIMELINE_RESUME_MS = 2500;    // delay after a manual scroll before auto-follow kicks back in
+const TIMELINE_RESUME_MS = 10000;   // delay after a manual scroll before auto-follow kicks back in
 
 function LiveTimeline({ intervals, elapsed, total }) {
   const scrollRef = useRef(null);
