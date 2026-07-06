@@ -2911,6 +2911,12 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const offTargetStreakRef = useRef(0); // consecutive seconds off-target, for the nudge tone
   const confettiRef = useRef([]); // randomized confetti pieces, generated once per celebration
   const [celebrate, setCelebrate] = useState(false);
+  // Lets a rider scale back the remaining power targets if a ride is too
+  // hard \u2014 session-only, always starts fresh at 100%. Hidden for the FTP
+  // tests since dialing those down would just corrupt the result.
+  const [intensityAdjust, setIntensityAdjust] = useState(1);
+  const [showIntensityAdjust, setShowIntensityAdjust] = useState(false);
+  const canAdjustIntensity = !workout.fixedLength;
   const { beep, chime } = useBeeper();
 
   // Elapsed time in seconds up to a given point in the workout \u2014 used both
@@ -2990,7 +2996,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
         const curInterval = intervals[currentIndex];
         const power = trainerPowerRef.current;
         if (curInterval.type === 'power' && typeof power === 'number') {
-          const targetWatts = Math.round((ftp * curInterval.target) / 100);
+          const targetWatts = Math.round((ftp * curInterval.target * intensityAdjust) / 100);
           const dev = targetWatts > 0 ? Math.abs(power - targetWatts) / targetWatts : 0;
           if (dev > 0.15) {
             offTargetStreakRef.current += 1;
@@ -3024,7 +3030,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [isPlaying, isDone, currentIndex, settings.soundCountdown, settings.soundVolume, settings.soundHalfwayFinal, settings.soundOffTargetNudge, isRampTest, ftp]);
+  }, [isPlaying, isDone, currentIndex, settings.soundCountdown, settings.soundVolume, settings.soundHalfwayFinal, settings.soundOffTargetNudge, isRampTest, ftp, intensityAdjust]);
 
   useEffect(() => {
     if (timeLeft >= 0) return;
@@ -3091,12 +3097,13 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     }
   }, [currentIndex]);
 
-  // ERG mode: push power target to trainer on interval change
+  // ERG mode: push power target to trainer on interval change (or when the
+  // rider dials the intensity up or down mid-ride)
   useEffect(() => {
     if (!settings.ergMode || trainer.status !== 'connected' || !trainer.hasControl) return;
     const current = intervals[currentIndex];
-    if (current.type === 'power') trainer.setErgTarget(Math.round((ftp * current.target) / 100));
-  }, [currentIndex, settings.ergMode, trainer.status, trainer.hasControl]);
+    if (current.type === 'power') trainer.setErgTarget(Math.round((ftp * current.target * intensityAdjust) / 100));
+  }, [currentIndex, settings.ergMode, trainer.status, trainer.hasControl, ftp, intensityAdjust]);
 
   // auto-pause if trainer disconnects mid-ride
   useEffect(() => {
@@ -3176,16 +3183,22 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 
   const current = intervals[currentIndex];
   const next = intervals[currentIndex + 1];
-  const z = zoneFor(current);
+  // What the rider is actually being asked for right now, after any
+  // mid-ride intensity adjustment. Only power intervals scale \u2014 RPE and
+  // free/rest segments aren't wattage-based, so they're left alone.
+  const displayCurrent = (current.type === 'power' && intensityAdjust !== 1)
+    ? { ...current, target: Math.round(current.target * intensityAdjust) }
+    : current;
+  const z = zoneFor(displayCurrent);
   const total = totalDuration(intervals);
   const elapsedBefore = totalDuration(intervals.slice(0, currentIndex));
   const elapsed = elapsedBefore + (current.duration - Math.max(0, timeLeft));
   const progress = Math.min(1, elapsed / total);
-  const targetTxt = formatTarget(current, ftp, settings.targetDisplay);
+  const targetTxt = formatTarget(displayCurrent, ftp, settings.targetDisplay);
   const currentPowerTxt = trainer.power !== null ? `${trainer.power}W` : '\u2013 W';
 
   const ringProgress = isDone ? 1 : Math.min(1, (current.duration - Math.max(0, timeLeft)) / current.duration);
-  const targetWattsForGauge = current.type === 'power' ? Math.round((ftp * current.target) / 100) : 0;
+  const targetWattsForGauge = displayCurrent.type === 'power' ? Math.round((ftp * displayCurrent.target) / 100) : 0;
 
   return (
     <div className="player-screen" style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
@@ -3206,10 +3219,19 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           </div>
           {!isDone ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 14px', minWidth: 80 }}>
-                <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Target</div>
-                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: TEXT, marginTop: 2 }}>{targetTxt}</div>
-              </div>
+              {canAdjustIntensity ? (
+                <button onClick={() => setShowIntensityAdjust(v => !v)} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 14px', minWidth: 80, cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                    Target{intensityAdjust !== 1 ? ` \u00b7 ${Math.round(intensityAdjust * 100)}%` : ''}
+                  </div>
+                  <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: TEXT, marginTop: 2 }}>{targetTxt}</div>
+                </button>
+              ) : (
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 14px', minWidth: 80 }}>
+                  <div style={{ fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Target</div>
+                  <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: TEXT, marginTop: 2 }}>{targetTxt}</div>
+                </div>
+              )}
 
               <div className="ring-box" style={{ position: 'relative', width: settings.compactLabels ? 140 : 190, height: settings.compactLabels ? 140 : 190, display: 'flex', alignItems: 'center', justifyContent: 'center', isolation: 'isolate', flexShrink: 0 }}>
                 {settings.visualProgressRing && (
@@ -3232,6 +3254,25 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
               )}
               <div className="player-timer" style={{ fontFamily: 'Space Mono, monospace', fontSize: settings.compactLabels ? 40 : 56, fontWeight: 700, color: TEXT, lineHeight: 1 }}>
                 {testResult ? `${testResult.ftp}W` : fmtLong(total)}
+              </div>
+            </div>
+          )}
+
+          {!isDone && canAdjustIntensity && showIntensityAdjust && (
+            <div style={{ marginTop: 10, padding: '10px 12px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10 }}>
+              <div style={{ fontSize: 11.5, color: SUB, marginBottom: 8 }}>
+                Too hard? Scale back your remaining power targets for the rest of this ride.
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                <IconBtn onClick={() => setIntensityAdjust(v => Math.max(0.5, Math.round((v - 0.05) * 100) / 100))} disabled={intensityAdjust <= 0.5}>−</IconBtn>
+                <div style={{ minWidth: 60 }}>
+                  <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 17, fontWeight: 700, color: TEXT }}>{Math.round(intensityAdjust * 100)}%</div>
+                  <div style={{ fontSize: 10, color: SUB }}>of plan</div>
+                </div>
+                <IconBtn onClick={() => setIntensityAdjust(v => Math.min(1, Math.round((v + 0.05) * 100) / 100))} disabled={intensityAdjust >= 1}>+</IconBtn>
+                {intensityAdjust !== 1 && (
+                  <button onClick={() => setIntensityAdjust(1)} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, textDecoration: 'underline', cursor: 'pointer', marginLeft: 4 }}>Reset</button>
+                )}
               </div>
             </div>
           )}
