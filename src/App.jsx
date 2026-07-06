@@ -3326,7 +3326,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
         <div style={{ fontSize: 14, color: TEXT, marginBottom: 8 }}>Appearance</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Chip active={settings.theme === 'palette'} onClick={() => updateSetting('theme', 'palette')}>New palette</Chip>
+          <Chip active={settings.theme === 'palette'} onClick={() => updateSetting('theme', 'palette')}>Default</Chip>
           <Chip active={settings.theme === 'dark'} onClick={() => updateSetting('theme', 'dark')}><Moon size={12} style={{ marginRight: 5, verticalAlign: -2 }} />Dark</Chip>
           <Chip active={settings.theme === 'light'} onClick={() => updateSetting('theme', 'light')}><Sun size={12} style={{ marginRight: 5, verticalAlign: -2 }} />Light</Chip>
         </div>
