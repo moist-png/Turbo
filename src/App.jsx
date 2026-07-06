@@ -2063,6 +2063,11 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
           </div>
         )}
 
+        <button onClick={() => onStart({ ...workout, intervals: scaledIntervals })}
+          style={{ width: '100%', marginTop: 16, padding: '12px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+          <Play size={18} fill={INK} /> Start workout
+        </button>
+
         {needsFtp && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
             <Gauge size={18} color="var(--accent)" />
@@ -2093,24 +2098,22 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
           })}
         </div>
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-          {isCustom && (
-            <>
-              <button onClick={onEdit} style={{ flex: '1 1 100px', padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}><Edit3 size={16} /> Edit</button>
-              <button onClick={onDelete} style={{ padding: '12px 14px', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: RED, cursor: 'pointer' }}><Trash2 size={16} /></button>
-            </>
-          )}
-          {isScaled && (
-            <button onClick={() => onSaveScaled({ ...workout, id: 'custom-' + newId(), name: `${workout.name} (${targetMinutes}m)`, intervals: scaledIntervals })}
-              style={{ flex: '1 1 140px', padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
-              <Save size={16} /> Save as new
-            </button>
-          )}
-          <button onClick={() => onStart({ ...workout, intervals: scaledIntervals })}
-            style={{ flex: '2 1 160px', padding: '12px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
-            <Play size={18} fill={INK} /> Start workout
-          </button>
-        </div>
+        {(isCustom || isScaled) && (
+          <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+            {isCustom && (
+              <>
+                <button onClick={onEdit} style={{ flex: '1 1 100px', padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}><Edit3 size={16} /> Edit</button>
+                <button onClick={onDelete} style={{ padding: '12px 14px', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: RED, cursor: 'pointer' }}><Trash2 size={16} /></button>
+              </>
+            )}
+            {isScaled && (
+              <button onClick={() => onSaveScaled({ ...workout, id: 'custom-' + newId(), name: `${workout.name} (${targetMinutes}m)`, intervals: scaledIntervals })}
+                style={{ flex: '1 1 140px', padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+                <Save size={16} /> Save as new
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
