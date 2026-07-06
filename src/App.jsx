@@ -3,7 +3,7 @@ import {
   Play, Pause, SkipForward, SkipBack, RotateCcw, X, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight,
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
-  Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3,
+  Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -1799,6 +1799,85 @@ function ProfileChart({ intervals, height = 84, progress = null }) {
   );
 }
 
+// A zoomed-in, time-accurate strip of the workout used by the in-ride
+// progress bar. Unlike ProfileChart (which squeezes the whole ride into
+// one fixed-width bar), each interval here is sized by its real duration,
+// so the strip is wider than the screen and scrolls. It auto-follows the
+// current elapsed time, keeping "now" a little left of center so upcoming
+// work is visible \u2014 but a touch-drag pauses the auto-follow so the rider
+// can look ahead, and it quietly resumes a couple seconds after they let go.
+const TIMELINE_PX_PER_SEC = 2.2;    // zoom level: bigger = more zoomed in
+const TIMELINE_FOLLOW_RATIO = 0.24; // keeps "now" ~a quarter of the way across the visible window
+const TIMELINE_RESUME_MS = 2500;    // delay after a manual scroll before auto-follow kicks back in
+
+function LiveTimeline({ intervals, elapsed, total }) {
+  const scrollRef = useRef(null);
+  const resumeTimerRef = useRef(null);
+  const [following, setFollowing] = useState(true);
+  const totalWidth = Math.max(1, total) * TIMELINE_PX_PER_SEC;
+  const nowX = Math.max(0, Math.min(total, elapsed)) * TIMELINE_PX_PER_SEC;
+
+  // Re-center on "now" every time elapsed ticks forward, as long as the
+  // rider hasn't grabbed the strip to look around.
+  useEffect(() => {
+    if (!following) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const maxScroll = Math.max(0, totalWidth - el.clientWidth);
+    const target = Math.max(0, Math.min(maxScroll, nowX - el.clientWidth * TIMELINE_FOLLOW_RATIO));
+    el.scrollLeft = target;
+  }, [nowX, following, totalWidth]);
+
+  useEffect(() => () => { if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current); }, []);
+
+  function pauseFollow() {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    setFollowing(false);
+  }
+  function scheduleResume() {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => setFollowing(true), TIMELINE_RESUME_MS);
+  }
+  function jumpToNow() {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    setFollowing(true);
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div
+        ref={scrollRef}
+        onTouchStart={pauseFollow}
+        onTouchEnd={scheduleResume}
+        onMouseDown={pauseFollow}
+        onMouseUp={scheduleResume}
+        style={{ overflowX: 'auto', overflowY: 'hidden', touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2 }}
+      >
+        <div style={{ position: 'relative', width: totalWidth, height: 48, display: 'flex', alignItems: 'flex-end' }}>
+          {intervals.map((it) => {
+            const z = zoneFor(it);
+            const w = it.duration * TIMELINE_PX_PER_SEC;
+            const h = Math.max(14, Math.min(100, z.intensity * 78));
+            const isFree = it.type === 'free';
+            return (
+              <div key={it.id} style={{ width: w, minWidth: w, flexShrink: 0, height: '100%', display: 'flex', alignItems: 'flex-end', borderRight: `1px solid ${PANEL2}` }}>
+                <div style={{ width: '100%', height: `${h}%`, background: isFree ? `repeating-linear-gradient(135deg, ${z.color}, ${z.color} 4px, ${LINE} 4px, ${LINE} 8px)` : z.color }} />
+              </div>
+            );
+          })}
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: nowX, background: 'rgba(255,255,255,0.14)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: nowX, width: 2, background: TEXT, pointerEvents: 'none' }} />
+        </div>
+      </div>
+      {!following && (
+        <button onClick={jumpToNow} style={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 999, border: `1px solid ${LINE}`, background: PANEL, color: TEXT, cursor: 'pointer' }}>
+          <Locate size={12} /> Now
+        </button>
+      )}
+    </div>
+  );
+}
+
 // A ring that traces around the interval timer and fills clockwise as the
 // current interval counts down, so progress reads at a glance without
 // having to parse the numbers. Fills whatever box its parent gives it.
@@ -3203,7 +3282,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
       </div>
 
       <div style={{ flexShrink: 0, marginTop: 14 }}>
-        <ProfileChart intervals={intervals} progress={progress} height={48} />
+        <LiveTimeline intervals={intervals} elapsed={elapsed} total={total} />
       </div>
 
       {pendingAction && (
