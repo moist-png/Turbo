@@ -4,8 +4,10 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
+  Target, Flag, TrendingUp,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import PlannerView from './PlannerView';
 
 // ---------- palette ----------
 // TEXT/SUB/PANEL/PANEL2/LINE/RED/BG/MUTED resolve through CSS custom
@@ -34,6 +36,8 @@ const THEMES = {
     hero1ink: 'var(--accent)', hero1chip: 'rgba(20,23,26,0.72)',
     hero2: 'repeating-linear-gradient(135deg,#20252b,#20252b 10px,#1a1e23 10px,#1a1e23 20px)',
     hero2ink: 'var(--accent)', hero2chip: 'rgba(20,23,26,0.72)',
+    hero3: 'repeating-linear-gradient(135deg,#20252b,#20252b 10px,#1a1e23 10px,#1a1e23 20px)',
+    hero3ink: 'var(--accent)', hero3chip: 'rgba(20,23,26,0.72)',
     flame: 'var(--accent)',
   },
   light: {
@@ -44,6 +48,8 @@ const THEMES = {
     hero1ink: 'var(--accent)', hero1chip: '#F0FBDD',
     hero2: 'repeating-linear-gradient(135deg,#EEF1F3,#EEF1F3 10px,#E7EBEE 10px,#E7EBEE 20px)',
     hero2ink: 'var(--accent)', hero2chip: '#F0FBDD',
+    hero3: 'repeating-linear-gradient(135deg,#EEF1F3,#EEF1F3 10px,#E7EBEE 10px,#E7EBEE 20px)',
+    hero3ink: 'var(--accent)', hero3chip: '#F0FBDD',
     flame: 'var(--accent)',
   },
   // NEW THEME
@@ -53,6 +59,7 @@ const THEMES = {
     navbg: 'rgba(250,246,239,0.96)',
     hero1: '#C0F5ED', hero1ink: '#1F6F63', hero1chip: 'rgba(255,255,255,0.72)',
     hero2: '#E6CBA8', hero2ink: '#8A5A22', hero2chip: 'rgba(255,255,255,0.72)',
+    hero3: '#C8DBC0', hero3ink: '#4A6B44', hero3chip: 'rgba(255,255,255,0.72)',
     flame: '#D79A4E',
     // Default theme always shows teal trim, regardless of the accent colour picked in Settings
     accent: '#2FC5AE',
@@ -2012,11 +2019,15 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', cancelLabel = 
 }
 
 // ---------- workout detail sheet ----------
-function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled }) {
+// `presetMinutes` (optional): when opened from the training planner, the sheet
+// starts pre-scaled to the plan's target length for that day instead of the
+// workout's native length.
+function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled, presetMinutes }) {
   const originalTotal = totalDuration(workout.intervals);
   const scalable = !workout.fixedLength;
-  const [targetMinutes, setTargetMinutes] = useState(Math.max(10, Math.round(originalTotal / 60)));
-  useEffect(() => { setTargetMinutes(Math.max(10, Math.round(originalTotal / 60))); }, [workout.id]);
+  const initialMinutes = scalable && presetMinutes ? Math.max(10, Math.round(presetMinutes)) : Math.max(10, Math.round(originalTotal / 60));
+  const [targetMinutes, setTargetMinutes] = useState(initialMinutes);
+  useEffect(() => { setTargetMinutes(initialMinutes); }, [workout.id, presetMinutes]);
 
   const scaledIntervals = useMemo(
     () => (scalable ? smartScaleWorkout(workout.intervals, targetMinutes * 60, workout.repeatWholeCore) : workout.intervals),
@@ -2270,7 +2281,7 @@ function HistoryRow({ entry }) {
   );
 }
 
-function HomeView({ account, ftpHistory, workoutHistory, onNavigate }) {
+function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigate }) {
   const hour = new Date().getHours();
   const greeting = hour < 5 ? 'Late one' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const firstName = (account && account.name ? account.name.split(' ')[0] : '') || 'Rider';
@@ -2292,9 +2303,14 @@ function HomeView({ account, ftpHistory, workoutHistory, onNavigate }) {
   const workoutCount = LIBRARY.filter(w => w.category === 'Basics').length;
   const rideCount = LIBRARY.filter(w => w.category === 'Rides').length;
 
+  const plannerCaption = trainingPlan
+    ? `${trainingPlan.goalLabel} · ${trainingPlan.totalWeeks}-week plan in progress`
+    : 'Build a periodized plan around your goal and schedule';
+
   const heroes = [
     { key: 'basics', label: 'Workouts', caption: `${workoutCount} structured sessions · intervals, sweet spot, VO2`, icon: Dumbbell, photo: '/images/home-workouts.jpg', photoPos: 'center 45%', ink: 'var(--hero1-ink)', chip: 'var(--hero1-chip)' },
     { key: 'rides', label: 'Rides', caption: `${rideCount} long routes · mixed-terrain, real-world feel`, icon: Bike, photo: '/images/home-rides.jpg', photoPos: 'center 74%', ink: 'var(--hero2-ink)', chip: 'var(--hero2-chip)' },
+    { key: 'planner', label: 'Planner', caption: plannerCaption, icon: CalendarDays, surface: 'var(--hero3)', photoPos: 'center 50%', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
   ];
   const slim = [
     { key: 'builder', label: 'Builder', icon: Wrench },
@@ -2355,10 +2371,13 @@ function HomeView({ account, ftpHistory, workoutHistory, onNavigate }) {
         {/* hero cards */}
         {heroes.map(h => (
           <button key={h.key} onClick={() => onNavigate(h.key)} style={{ width: '100%', padding: 0, border: `1px solid ${LINE}`, borderRadius: 20, overflow: 'hidden', cursor: 'pointer', background: PANEL, marginBottom: 14, display: 'block', textAlign: 'left' }}>
-            <div style={{ position: 'relative', height: 132, backgroundImage: `url(${h.photo})`, backgroundSize: 'cover', backgroundPosition: h.photoPos, display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ position: 'relative', height: 132, ...(h.photo ? { backgroundImage: `url(${h.photo})`, backgroundSize: 'cover', backgroundPosition: h.photoPos } : { background: h.surface }), display: 'flex', alignItems: 'flex-end' }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: h.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 14px 14px' }}>
                 <h.icon size={21} color={h.ink} />
               </div>
+              {h.key === 'planner' && trainingPlan && (
+                <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--accent)', color: INK, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', borderRadius: 6, padding: '3px 8px' }}>Active</div>
+              )}
             </div>
             <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ minWidth: 0 }}>
@@ -4266,7 +4285,9 @@ export default function App() {
   const [customWorkouts, setCustomWorkouts] = useState([]);
   const [ftpHistory, setFtpHistory] = useState([]);
   const [workoutHistory, setWorkoutHistory] = useState([]);
+  const [trainingPlan, setTrainingPlan] = useState(null); // active periodized plan (or null)
   const [detailWorkout, setDetailWorkout] = useState(null);
+  const [detailPresetMinutes, setDetailPresetMinutes] = useState(null); // set when opening from the planner
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [activeWorkout, setActiveWorkout] = useState(null);
   const trainer = useTrainer();
@@ -4308,7 +4329,7 @@ export default function App() {
   // Once we know who's logged in, load their profile + saved data from the database.
   const [ownerStats, setOwnerStats] = useState(null); // non-null only when logged in as the app owner
   useEffect(() => {
-    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); setOwnerStats(null); return; }
+    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setOwnerStats(null); return; }
     let mounted = true;
     (async () => {
       setProfileLoading(true);
@@ -4325,6 +4346,7 @@ export default function App() {
         setProfile(prof);
         setFtpState(prof.ftp || 200);
         setSettingsState({ ...DEFAULT_SETTINGS, ...(prof.settings || {}) });
+        setTrainingPlan(prof.training_plan || null);
       }
       const { data: workouts } = await supabase.from('custom_workouts').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
       if (mounted && workouts) setCustomWorkouts(workouts.map(w => w.workout));
@@ -4353,6 +4375,18 @@ export default function App() {
       if (user) supabase.from('profiles').update({ settings: next }).eq('id', user.id).then(() => {});
       return next;
     });
+  }
+  // The active training plan is a single JSON blob on the profile row (like
+  // settings). Passing null clears it.
+  function saveTrainingPlan(plan) {
+    setTrainingPlan(plan);
+    if (user) supabase.from('profiles').update({ training_plan: plan }).eq('id', user.id).then(() => {});
+  }
+  // Opening a workout from the planner: look up the full library workout by id
+  // and open the normal detail sheet, pre-scaled to the plan's target length.
+  function openPlanWorkout(workout, plannedSeconds) {
+    setDetailPresetMinutes(plannedSeconds ? Math.round(plannedSeconds / 60) : null);
+    setDetailWorkout(workout);
   }
 
   async function handleSignup(name, email, password) {
@@ -4507,12 +4541,27 @@ export default function App() {
   }
 
   const theme = THEMES[settings.theme] || THEMES.dark;
+
+  // Rider's recent weekly training load — the average TSS of the last few
+  // completed weeks. Feeds the planner so a new plan ramps from where the
+  // rider actually is, not a generic guess. Null-safe: 0 until there's history.
+  const recentWeeklyTss = useMemo(() => {
+    const completed = (workoutHistory || []).filter(w => w.completed && w.tss);
+    if (!completed.length) return 0;
+    const byWeek = {};
+    completed.forEach(w => { const wk = startOfWeek(w.date); byWeek[wk] = (byWeek[wk] || 0) + (w.tss || 0); });
+    const weekTotals = Object.entries(byWeek).sort((a, b) => Number(b[0]) - Number(a[0])).slice(0, 4).map(e => e[1]);
+    if (!weekTotals.length) return 0;
+    return Math.round(weekTotals.reduce((a, b) => a + b, 0) / weekTotals.length);
+  }, [workoutHistory]);
+
   const themeVars = {
     '--bg': theme.bg, '--panel': theme.panel, '--panel2': theme.panel2, '--line': theme.line,
     '--text': theme.text, '--sub': theme.sub, '--red': theme.red, '--muted': theme.muted, '--navbg': theme.navbg,
     // NEW
     '--hero1': theme.hero1, '--hero1-ink': theme.hero1ink, '--hero1-chip': theme.hero1chip,
     '--hero2': theme.hero2, '--hero2-ink': theme.hero2ink, '--hero2-chip': theme.hero2chip,
+    '--hero3': theme.hero3, '--hero3-ink': theme.hero3ink, '--hero3-chip': theme.hero3chip,
     '--flame': theme.flame,
   };
   const themeCss = Object.entries(themeVars).map(([k, v]) => `${k}:${v};`).join('');
@@ -4599,10 +4648,11 @@ export default function App() {
       <OrientationGate preferredOrientation={settings.preferredOrientation}>
         {!subscribed && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
 
-        {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} onNavigate={setView} />}
+        {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} />}
         {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} />}
         {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" />}
         {view === 'rides' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Rides" title="Rides" />}
+        {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} />}
         {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} />}
         {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
         {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
@@ -4619,12 +4669,13 @@ export default function App() {
         {detailWorkout && (
           <WorkoutDetail
             workout={detailWorkout} ftp={ftp} setFtp={setFtp} settings={settings}
+            presetMinutes={detailPresetMinutes}
             isCustom={customWorkouts.some(w => w.id === detailWorkout.id)}
-            onClose={() => setDetailWorkout(null)}
-            onStart={(w) => { setActiveWorkout(w); setDetailWorkout(null); }}
-            onEdit={() => { setEditingWorkout(detailWorkout); setDetailWorkout(null); setView('builder'); }}
+            onClose={() => { setDetailWorkout(null); setDetailPresetMinutes(null); }}
+            onStart={(w) => { setActiveWorkout(w); setDetailWorkout(null); setDetailPresetMinutes(null); }}
+            onEdit={() => { setEditingWorkout(detailWorkout); setDetailWorkout(null); setDetailPresetMinutes(null); setView('builder'); }}
             onDelete={() => deleteCustomWorkout(detailWorkout.id)}
-            onSaveScaled={(w) => { saveCustomWorkout(w); setDetailWorkout(null); }}
+            onSaveScaled={(w) => { saveCustomWorkout(w); setDetailWorkout(null); setDetailPresetMinutes(null); }}
           />
         )}
 
@@ -4644,6 +4695,9 @@ export default function App() {
           </button>
           <button onClick={() => setView('rides')} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'rides' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
             <Bike size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Rides</span>
+          </button>
+          <button onClick={() => setView('planner')} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'planner' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
+            <CalendarDays size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Planner</span>
           </button>
           <button onClick={() => { setEditingWorkout(null); setView('builder'); }} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === 'builder' ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
             <Wrench size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>Builder</span>

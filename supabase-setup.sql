@@ -181,3 +181,11 @@ revoke update (strava_access_token, strava_refresh_token, strava_token_expires_a
 --     History screen and load trend don't need to recompute them later.
 alter table public.workout_history add column if not exists tss numeric;
 alter table public.workout_history add column if not exists calories integer;
+
+-- 11. Training planner: the rider's active periodized plan, stored as a single
+--     JSON blob on their profile row (exactly like the settings column). It's
+--     covered by the same Row Level Security as the rest of the profile, so a
+--     user can only ever read or write their own plan. Nothing sensitive lives
+--     here -- it's just the generated week-by-week schedule -- so no extra
+--     column-level restriction is needed.
+alter table public.profiles add column if not exists training_plan jsonb;
