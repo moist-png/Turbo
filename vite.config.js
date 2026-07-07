@@ -9,7 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Trbo Trainer',
+        name: 'Trbo',
         short_name: 'Trbo',
         description: 'Structured indoor cycling training \u2014 workout library, custom builder and trainer connectivity.',
         theme_color: '#14171A',

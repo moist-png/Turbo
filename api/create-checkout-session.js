@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         {
           price_data: {
             currency: 'usd',
-            product_data: { name: isAnnual ? 'Trbo Trainer \u2014 Annual plan' : 'Trbo Trainer \u2014 Monthly plan' },
+            product_data: { name: isAnnual ? 'Trbo \u2014 Annual plan' : 'Trbo \u2014 Monthly plan' },
             unit_amount: isAnnual ? ANNUAL_PRICE_CENTS : MONTHLY_PRICE_CENTS,
             recurring: { interval: isAnnual ? 'year' : 'month' },
           },

@@ -3917,7 +3917,7 @@ function AuthShell({ children, footer }) {
       <div style={{ maxWidth: 380, width: '100%', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 28 }}>
           <Zap size={22} color="var(--accent)" />
-          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.4 }}>Trbo Trainer</div>
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.4 }}>Trbo</div>
         </div>
         {children}
         {footer && <div style={{ marginTop: 18, textAlign: 'center' }}>{footer}</div>}
@@ -4193,7 +4193,7 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
 
       <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 16, marginBottom: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Trbo Trainer — {plan === 'annual' ? 'Annual' : 'Monthly'}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Trbo — {plan === 'annual' ? 'Annual' : 'Monthly'}</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>{priceLabel}</div>
         </div>
         <div style={{ fontSize: 12, color: SUB, lineHeight: 1.6 }}>

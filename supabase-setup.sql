@@ -1,4 +1,4 @@
--- Trbo Trainer: database setup
+-- Trbo: database setup
 -- Paste this whole thing into Supabase SQL Editor and click "Run".
 -- Safe to re-run in full any time \u2014 every statement below either checks
 -- "if exists"/"if not exists" first or uses "create or replace", so running

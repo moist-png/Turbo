@@ -1,6 +1,6 @@
-# Trbo Trainer
+# Trbo
 
-This is the Trbo Trainer app, connected to a real Supabase database for
+This is the Trbo app, connected to a real Supabase database for
 accounts, saved workouts, and FTP history.
 
 ## Getting this online (no coding required)

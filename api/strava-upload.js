@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     if (maxPower != null) descriptionParts.push(`Peak power ${maxPower}W`);
     if (avgHr != null) descriptionParts.push(`Avg HR ${avgHr}bpm`);
     if (maxHr != null) descriptionParts.push(`Peak HR ${maxHr}bpm`);
-    const description = descriptionParts.length ? `Logged from Trbo Trainer \u2014 ${descriptionParts.join(' \u00b7 ')}` : 'Logged from Trbo Trainer';
+    const description = descriptionParts.length ? `Logged from Trbo \u2014 ${descriptionParts.join(' \u00b7 ')}` : 'Logged from Trbo';
 
     const activityRes = await fetch('https://www.strava.com/api/v3/activities', {
       method: 'POST',
