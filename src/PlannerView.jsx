@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CalendarDays, ChevronRight, ChevronDown, ChevronUp, Play, RefreshCw, Trash2, Target, Flag, TrendingUp, Check, X } from 'lucide-react';
 import {
   GOALS, PHASE, PURPOSE_LABEL, WORKOUT_PURPOSE,
   generatePlan, validatePlan, swapOptionsForPurpose, swapDayWorkout, applyCheckin,
-  estimateWorkoutTss,
+  estimateWorkoutTss, currentPlanWeek, isPlanComplete, changePlanDaysPerWeek,
 } from './planner';
 
 // Shared style tokens (mirror App.jsx so the planner blends in seamlessly).
@@ -172,19 +172,20 @@ function DayRow({ day, library, onOpen, onSwap }) {
 // ---------------------------------------------------------------------------
 // One week: header (phase, load, recovery badge) + the day rows. Collapsible.
 // ---------------------------------------------------------------------------
-function WeekCard({ week, library, defaultOpen, onOpen, onSwap, onCheckin }) {
+function WeekCard({ week, library, defaultOpen, isCurrent, cardRef, onOpen, onSwap, onCheckin }) {
   const [open, setOpen] = useState(defaultOpen);
   const phaseInfo = PHASE[week.phase];
   const phaseColor = PHASE_COLOR[week.phase] || SUB;
 
   return (
-    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14, marginBottom: 12, overflow: 'hidden' }}>
+    <div ref={cardRef} style={{ background: PANEL, border: `1px solid ${isCurrent ? 'var(--accent)' : LINE}`, borderRadius: 14, marginBottom: 12, overflow: 'hidden', scrollMarginTop: 12 }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: '100%', background: 'none', border: 'none', padding: 14, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, background: phaseColor, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
             <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 600, color: TEXT }}>Week {week.weekNumber}</span>
             <span style={{ fontSize: 10.5, color: phaseColor, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{phaseInfo.label}</span>
+            {isCurrent && <span style={{ fontSize: 10, color: INK, background: 'var(--accent)', borderRadius: 5, padding: '1px 6px', fontWeight: 700 }}>This week</span>}
             {week.isRecovery && <span style={{ fontSize: 10, color: '#4A6FA5', border: '1px solid #4A6FA5', borderRadius: 5, padding: '1px 6px' }}>Recovery</span>}
           </div>
           <div style={{ fontSize: 11.5, color: SUB }}>{week.days.length} sessions · {fmtLong(week.plannedSeconds)} · ~{week.plannedTss} TSS</div>
@@ -218,8 +219,26 @@ function WeekCard({ week, library, defaultOpen, onOpen, onSwap, onCheckin }) {
 // ---------------------------------------------------------------------------
 // The main view. Holds the active plan; delegates onboarding to PlannerSetup.
 // ---------------------------------------------------------------------------
-export default function PlannerView({ plan, ftp, recentWeeklyTss, library, onSavePlan, onOpenPlanWorkout }) {
+export default function PlannerView({ plan, ftp, recentWeeklyTss, library, onSavePlan, onOpenPlanWorkout, archivedPlans = [], onArchivePlan, onDeleteArchivedPlan }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dayEditor, setDayEditor] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const currentWeekRef = useRef(null);
+
+  // Which week is "now" for the active plan (feature: auto-route to the
+  // current week when a plan is opened). Recomputed each render so it stays
+  // correct as days pass. Falls back to 1 when there's no plan.
+  const currentWeek = plan ? currentPlanWeek(plan) : 1;
+  const planComplete = plan ? isPlanComplete(plan) : false;
+
+  // On opening an active plan, bring the current week into view. Runs when the
+  // plan or the current week changes (e.g. a new plan, or a day rolls over).
+  useEffect(() => {
+    if (plan && currentWeekRef.current) {
+      currentWeekRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan && plan.createdAt, currentWeek]);
 
   function handleGenerate({ goalKey, weeks, days, hours, multiSport }) {
     const p = generatePlan({
@@ -235,9 +254,19 @@ export default function PlannerView({ plan, ftp, recentWeeklyTss, library, onSav
   function handleCheckin(weekNumber, feedback) {
     onSavePlan(applyCheckin(plan, weekNumber, feedback, library));
   }
+  // Change training days from the current week onward. Past weeks are frozen.
+  function handleChangeDays(newDays) {
+    onSavePlan(changePlanDaysPerWeek(plan, newDays, currentWeek, library));
+    setDayEditor(false);
+  }
 
   if (!plan) {
-    return <PlannerSetup ftp={ftp} recentWeeklyTss={recentWeeklyTss} onGenerate={handleGenerate} />;
+    return (
+      <div>
+        <PlannerSetup ftp={ftp} recentWeeklyTss={recentWeeklyTss} onGenerate={handleGenerate} />
+        <ArchiveList plans={archivedPlans} onDelete={onDeleteArchivedPlan} />
+      </div>
+    );
   }
 
   const goal = GOALS[plan.goalKey] || GOALS['general-fitness'];
@@ -254,6 +283,17 @@ export default function PlannerView({ plan, ftp, recentWeeklyTss, library, onSav
         </button>
       </div>
       <div style={{ fontSize: 13, color: SUB, marginBottom: 16 }}>{goal.blurb}</div>
+
+      {planComplete && (
+        <div style={{ background: PANEL2, border: '1px solid var(--accent)', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontSize: 13.5, color: TEXT, fontWeight: 600, marginBottom: 4 }}>Plan complete — nice work.</div>
+          <div style={{ fontSize: 12, color: SUB, marginBottom: 12, lineHeight: 1.5 }}>You've reached the end of this {plan.totalWeeks}-week block. Archive it to keep it in your history, then start your next one.</div>
+          <button onClick={() => onArchivePlan(plan, 'completed')}
+            style={{ background: 'var(--accent)', border: 'none', borderRadius: 10, padding: '10px 16px', color: INK, fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>
+            Finish &amp; archive
+          </button>
+        </div>
+      )}
 
       {/* summary strip */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 18 }}>
@@ -277,27 +317,113 @@ export default function PlannerView({ plan, ftp, recentWeeklyTss, library, onSav
         </div>
       )}
 
+      {/* Change training days mid-block */}
+      <div style={{ marginBottom: 16 }}>
+        {!dayEditor ? (
+          <button onClick={() => setDayEditor(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px', cursor: 'pointer', color: TEXT, fontSize: 12.5, width: '100%', justifyContent: 'space-between' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <CalendarDays size={14} color={SUB} /> Training <b style={{ fontWeight: 700 }}>{plan.daysPerWeek} days</b> a week
+            </span>
+            <span style={{ color: SUB, fontSize: 12 }}>Change ›</span>
+          </button>
+        ) : (
+          <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ fontSize: 12.5, color: TEXT, fontWeight: 600, marginBottom: 4 }}>Change training days</div>
+            <div style={{ fontSize: 11.5, color: SUB, marginBottom: 12, lineHeight: 1.5 }}>
+              Life changed? Pick a new number of days a week. Weeks you've already done stay as they are — only week {currentWeek} onward is rebuilt.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {[2, 3, 4, 5, 6].map(d => {
+                const active = d === plan.daysPerWeek;
+                return (
+                  <button key={d} onClick={() => handleChangeDays(d)} disabled={active}
+                    style={{ padding: '9px 14px', borderRadius: 10, cursor: active ? 'default' : 'pointer', fontSize: 13.5,
+                      border: `1px solid ${active ? 'var(--accent)' : LINE}`, background: active ? 'var(--accent)' : PANEL2,
+                      color: active ? INK : TEXT, fontWeight: active ? 700 : 500 }}>{d} days</button>
+                );
+              })}
+            </div>
+            <button onClick={() => setDayEditor(false)}
+              style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', padding: 0 }}>Cancel</button>
+          </div>
+        )}
+      </div>
+
       {/* load bar chart across the plan */}
       <PlanLoadChart weeks={plan.weeks} />
 
       {/* weeks */}
       <div style={{ marginTop: 20 }}>
-        {plan.weeks.map((w, i) => (
-          <WeekCard key={w.weekNumber} week={w} library={library} defaultOpen={i === 0}
+        {plan.weeks.map((w) => (
+          <WeekCard key={w.weekNumber} week={w} library={library}
+            defaultOpen={w.weekNumber === currentWeek}
+            isCurrent={w.weekNumber === currentWeek}
+            cardRef={w.weekNumber === currentWeek ? currentWeekRef : null}
             onOpen={onOpenPlanWorkout} onSwap={handleSwap} onCheckin={handleCheckin} />
         ))}
       </div>
 
+      {/* Past plans (archive) on the active-plan screen too */}
+      <ArchiveList plans={archivedPlans} onDelete={onDeleteArchivedPlan} />
+
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setConfirmDelete(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: BG, border: `1px solid ${LINE}`, borderRadius: 16, padding: 20, maxWidth: 340, width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: BG, border: `1px solid ${LINE}`, borderRadius: 16, padding: 20, maxWidth: 360, width: '100%' }}>
             <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 600, color: TEXT, marginBottom: 8 }}>Start a new plan?</div>
-            <div style={{ fontSize: 13, color: SUB, marginBottom: 18, lineHeight: 1.5 }}>This clears your current plan and its progress. Your ride history and FTP are kept.</div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL, color: TEXT, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Keep it</button>
-              <button onClick={() => { onSavePlan(null); setConfirmDelete(false); }} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>New plan</button>
+            <div style={{ fontSize: 13, color: SUB, marginBottom: 18, lineHeight: 1.5 }}>You can keep this plan in your history and start fresh, or discard it completely. Either way your ride history and FTP are kept.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => { onArchivePlan(plan, 'retired'); setConfirmDelete(false); }} style={{ padding: '11px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Archive it &amp; start new</button>
+              <button onClick={() => { onSavePlan(null); setConfirmDelete(false); }} style={{ padding: '11px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL, color: TEXT, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Discard without saving</button>
+              <button onClick={() => setConfirmDelete(false)} style={{ padding: '8px 0', borderRadius: 10, border: 'none', background: 'none', color: SUB, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A collapsible list of finished/retired plans, shown on both the setup
+// screen and beneath the active plan.
+function ArchiveList({ plans, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
+  if (!plans || !plans.length) return null;
+
+  const fmtDate = (iso) => {
+    try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch { return ''; }
+  };
+
+  return (
+    <div style={{ maxWidth: 520, margin: '8px auto 0', padding: '0 16px 90px' }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', background: 'none', border: 'none', padding: '10px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: SUB }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>Past plans ({plans.length})</span>
+        {open ? <ChevronUp size={16} color={SUB} /> : <ChevronDown size={16} color={SUB} />}
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {plans.map(a => (
+            <div key={a.id} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, color: TEXT, fontWeight: 600 }}>{a.goalLabel || 'Training plan'}</div>
+                <div style={{ fontSize: 11.5, color: SUB, marginTop: 2 }}>
+                  {a.totalWeeks}-week block · {a.status === 'retired' ? 'retired early' : 'completed'} · archived {fmtDate(a.archivedAt)}
+                </div>
+              </div>
+              {confirmId === a.id ? (
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => { onDelete(a.id); setConfirmId(null); }} style={{ fontSize: 11.5, padding: '6px 10px', borderRadius: 8, border: 'none', background: '#C0392B', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                  <button onClick={() => setConfirmId(null)} style={{ fontSize: 11.5, padding: '6px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, cursor: 'pointer' }}>Keep</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmId(a.id)} title="Delete" style={{ background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  <Trash2 size={13} color={SUB} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

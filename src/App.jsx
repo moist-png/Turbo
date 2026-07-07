@@ -4286,6 +4286,7 @@ export default function App() {
   const [ftpHistory, setFtpHistory] = useState([]);
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [trainingPlan, setTrainingPlan] = useState(null); // active periodized plan (or null)
+  const [archivedPlans, setArchivedPlans] = useState([]); // finished/retired plans, newest first
   const [detailWorkout, setDetailWorkout] = useState(null);
   const [detailPresetMinutes, setDetailPresetMinutes] = useState(null); // set when opening from the planner
   const [editingWorkout, setEditingWorkout] = useState(null);
@@ -4329,7 +4330,7 @@ export default function App() {
   // Once we know who's logged in, load their profile + saved data from the database.
   const [ownerStats, setOwnerStats] = useState(null); // non-null only when logged in as the app owner
   useEffect(() => {
-    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setOwnerStats(null); return; }
+    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setArchivedPlans([]); setOwnerStats(null); return; }
     let mounted = true;
     (async () => {
       setProfileLoading(true);
@@ -4354,6 +4355,11 @@ export default function App() {
       if (mounted && history) setFtpHistory(history.map(h => ({ id: h.id, date: h.date, ftp: h.ftp, source: h.source })));
       const { data: sessions } = await supabase.from('workout_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
       if (mounted && sessions) setWorkoutHistory(sessions.map(s => ({ id: s.id, date: s.date, workoutId: s.workout_id, name: s.name, category: s.category, duration: s.duration, completed: s.completed, avgPower: s.avg_power, maxPower: s.max_power, avgHr: s.avg_hr, maxHr: s.max_hr, tss: s.tss, calories: s.calories })));
+      // Archived (finished/retired) training plans. Wrapped so that if the
+      // archived_plans table hasn't been created yet, the app still loads
+      // fine and simply shows no history.
+      const { data: archived, error: archErr } = await supabase.from('archived_plans').select('*').eq('user_id', user.id).order('archived_at', { ascending: false });
+      if (mounted && !archErr && archived) setArchivedPlans(archived.map(a => ({ id: a.id, plan: a.plan, goalLabel: a.goal_label, totalWeeks: a.total_weeks, status: a.status, archivedAt: a.archived_at })));
       // Returns real numbers only when logged in as the app owner (checked
       // server-side by email) -- everyone else gets null back, silently.
       const { data: stats } = await supabase.rpc('admin_dashboard_stats');
@@ -4381,6 +4387,35 @@ export default function App() {
   function saveTrainingPlan(plan) {
     setTrainingPlan(plan);
     if (user) supabase.from('profiles').update({ training_plan: plan }).eq('id', user.id).then(() => {});
+  }
+  // Archive the active plan: copy it onto the archive shelf, then clear the
+  // active slot. `status` is 'completed' (finished naturally) or 'retired'
+  // (swapped out early to start something new). Updates local state
+  // immediately so the UI responds, and persists in the background.
+  async function archivePlan(plan, status = 'completed') {
+    if (!plan) return;
+    const row = {
+      id: `plan_${Date.now()}`,
+      plan,
+      goalLabel: plan.goalLabel,
+      totalWeeks: plan.totalWeeks,
+      status,
+      archivedAt: new Date().toISOString(),
+    };
+    setArchivedPlans(prev => [row, ...prev]);
+    setTrainingPlan(null);
+    if (user) {
+      await supabase.from('archived_plans').insert({
+        id: row.id, user_id: user.id, plan, goal_label: plan.goalLabel,
+        total_weeks: plan.totalWeeks, status, archived_at: row.archivedAt,
+      });
+      await supabase.from('profiles').update({ training_plan: null }).eq('id', user.id);
+    }
+  }
+  // Permanently remove one plan from the archive.
+  function deleteArchivedPlan(id) {
+    setArchivedPlans(prev => prev.filter(a => a.id !== id));
+    if (user) supabase.from('archived_plans').delete().eq('id', id).eq('user_id', user.id).then(() => {});
   }
   // Opening a workout from the planner: look up the full library workout by id
   // and open the normal detail sheet, pre-scaled to the plan's target length.
@@ -4652,7 +4687,7 @@ export default function App() {
         {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} />}
         {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" />}
         {view === 'rides' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Rides" title="Rides" />}
-        {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} />}
+        {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} archivedPlans={archivedPlans} onArchivePlan={archivePlan} onDeleteArchivedPlan={deleteArchivedPlan} />}
         {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} />}
         {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
         {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}

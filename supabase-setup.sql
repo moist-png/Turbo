@@ -189,3 +189,28 @@ alter table public.workout_history add column if not exists calories integer;
 --     here -- it's just the generated week-by-week schedule -- so no extra
 --     column-level restriction is needed.
 alter table public.profiles add column if not exists training_plan jsonb;
+
+-- 12. Archived training plans: when a rider finishes a plan (or retires one to
+--     start a new block), the active plan is copied here so their history is
+--     kept. The active plan itself still lives in profiles.training_plan
+--     (section 11) -- this table is only the archive shelf, one row per saved
+--     plan. Same Row Level Security as everything else: a user can only ever
+--     see or touch their own archived plans.
+create table if not exists public.archived_plans (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  plan jsonb not null,
+  goal_label text,
+  total_weeks integer,
+  status text default 'completed',      -- 'completed' | 'retired'
+  archived_at timestamptz default now()
+);
+
+alter table public.archived_plans enable row level security;
+
+drop policy if exists "Users can view own archived plans" on public.archived_plans;
+create policy "Users can view own archived plans" on public.archived_plans for select using (auth.uid() = user_id);
+drop policy if exists "Users can insert own archived plans" on public.archived_plans;
+create policy "Users can insert own archived plans" on public.archived_plans for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can delete own archived plans" on public.archived_plans;
+create policy "Users can delete own archived plans" on public.archived_plans for delete using (auth.uid() = user_id);

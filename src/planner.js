@@ -1051,3 +1051,69 @@ export function swapDayWorkout(plan, weekNumber, dayIndex, newWorkoutId, library
   });
   return { ...plan, weeks };
 }
+
+// ---------------------------------------------------------------------------
+// 9. Plan progress & mid-block adjustments
+// ---------------------------------------------------------------------------
+
+// Which week is "now", based on when the plan was created. Week 1 covers the
+// first 7 days after createdAt, week 2 the next 7, and so on. Clamped to the
+// plan's real range so an over-running plan still points at its final week
+// rather than off the end. Returns a 1-based week number.
+export function currentPlanWeek(plan, now = new Date()) {
+  if (!plan || !plan.createdAt || !plan.weeks || !plan.weeks.length) return 1;
+  const start = new Date(plan.createdAt);
+  if (isNaN(start.getTime())) return 1;
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const elapsedWeeks = Math.floor((now - start) / msPerWeek);
+  const wk = elapsedWeeks + 1; // during the first 7 days, elapsed = 0 -> week 1
+  return Math.min(Math.max(wk, 1), plan.weeks.length);
+}
+
+// True once the plan's final week has fully elapsed (i.e. it's finished and a
+// candidate for archiving). Uses the same week arithmetic as currentPlanWeek.
+export function isPlanComplete(plan, now = new Date()) {
+  if (!plan || !plan.createdAt || !plan.weeks || !plan.weeks.length) return false;
+  const start = new Date(plan.createdAt);
+  if (isNaN(start.getTime())) return false;
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const elapsedWeeks = Math.floor((now - start) / msPerWeek);
+  return elapsedWeeks >= plan.weeks.length;
+}
+
+// Change how many days per week the plan uses, from `fromWeek` onward, without
+// disturbing weeks the rider has already been through. This is for when life
+// changes mid-block (a new job, an injury easing off, more free time). Past
+// weeks are frozen exactly as they were; the plan's own daysPerWeek is updated
+// and future weeks are rebuilt around the new number while keeping their
+// existing phase, recovery flag and target load.
+//
+// The new day count is clamped to a sane range, and — like the generator —
+// respects the same time-budget feasibility gate, so we never promise more
+// quality days than the weekly hours can actually hold.
+export function changePlanDaysPerWeek(plan, newDays, fromWeek, library) {
+  if (!plan || !plan.weeks || !plan.weeks.length) return plan;
+  const clamped = Math.min(Math.max(Math.round(newDays), 1), 7);
+
+  // Feasibility gate (mirrors the generator): how many quality days do the
+  // weekly hours realistically hold? ~45 min is the floor for a useful
+  // session, so hours*3600 / that floor is a soft ceiling on days.
+  const weeklySecondsBudget = (plan.weeklyHours || 4) * 3600;
+  const maxFeasibleDays = Math.max(1, Math.floor(weeklySecondsBudget / 2700));
+  const effectiveDays = Math.min(clamped, maxFeasibleDays);
+
+  // Rebuild uses plan.daysPerWeek internally, so set it first, then rebuild
+  // only the weeks from fromWeek onward. Earlier weeks are returned untouched
+  // by rebuildWeekWorkouts (it early-returns for w.weekNumber < fromWeek).
+  const adjusted = { ...plan, daysPerWeek: effectiveDays };
+  const rebuilt = rebuildWeekWorkouts(adjusted, library, fromWeek);
+
+  // Record the change so the UI can explain what happened and, if the request
+  // was trimmed for feasibility, why.
+  return {
+    ...rebuilt,
+    daysPerWeek: effectiveDays,
+    requestedDays: clamped,
+    dayChange: { fromWeek, requested: clamped, applied: effectiveDays, at: new Date().toISOString() },
+  };
+}
