@@ -348,7 +348,14 @@ export function weeklyLoadTargets({ startWeeklyTss, phaseByWeek, recoveryFlags, 
 // ---------------------------------------------------------------------------
 
 // Build the ordered list of purposes for a week's training days.
-export function weekPurposeSlots({ phase, daysPerWeek, goal, isRecovery, multiSport }) {
+//
+// `library` and `weeklySecondsBudget` are optional but should be passed
+// whenever available: they let this function keep fixed-length purposes
+// (climbing, threshold, vo2max, race, anaerobic — sessions we won't trim)
+// from over-committing the week's time budget before a single workout is
+// even picked. Without them the function still works, it just can't apply
+// the time-budget check.
+export function weekPurposeSlots({ phase, daysPerWeek, goal, isRecovery, multiSport, library, weeklySecondsBudget }) {
   if (isRecovery) {
     // Deload: mostly recovery + easy endurance, at most one light quality day.
     const slots = [];
@@ -375,38 +382,73 @@ export function weekPurposeSlots({ phase, daysPerWeek, goal, isRecovery, multiSp
     }
   }
 
-  // Always guarantee at least one endurance ride if training 3+ days.
-  // Build a weighted purpose pool.
-  const pool = [];
-  for (const [purpose, weight] of Object.entries(emphasis)) {
-    for (let i = 0; i < weight; i++) pool.push(purpose);
+  const purposes = Object.keys(emphasis);
+  // Smooth weighted round-robin (the algorithm nginx etc. use to spread
+  // weighted picks evenly): every "round" every purpose's counter climbs by
+  // its weight, then we take whichever purpose has climbed highest and drop
+  // it back by the total weight. This spreads picks proportionally across
+  // the whole week instead of the old approach (a flat pool like
+  // [endurance,endurance,endurance,endurance,tempo,tempo,threshold]) which
+  // walked the list in order — so any week short enough (which is most of
+  // them) never got past the heaviest-weighted purpose at all. That's what
+  // was producing all-endurance weeks.
+  const current = {};
+  purposes.forEach(p => { current[p] = 0; });
+  const totalWeight = purposes.reduce((a, p) => a + emphasis[p], 0) || 1;
+
+  // Purposes whose length we can freely scale down; everything else (an
+  // interval session or a long narrative "Ride") keeps its native length, so
+  // it has to be accounted for against the time budget up front rather than
+  // squeezed in after the fact.
+  const FLEXIBLE = new Set(['endurance', 'recovery', 'tempo']);
+  const MIN_FLEX_RESERVE = 2700; // keep the flexible anchor ride at least ~45 min
+  const avgDurationCache = {};
+  function avgNativeDuration(purpose) {
+    if (avgDurationCache[purpose] != null) return avgDurationCache[purpose];
+    if (!library) return (avgDurationCache[purpose] = 3600);
+    const cands = library.filter(w => WORKOUT_PURPOSE[w.id] === purpose && WORKOUT_PURPOSE[w.id] !== 'test');
+    const dur = cands.length
+      ? cands.reduce((a, w) => a + w.intervals.reduce((x, y) => x + y.duration, 0), 0) / cands.length
+      : 3600;
+    return (avgDurationCache[purpose] = dur);
   }
 
-  // Compose the week: one long endurance anchor, then fill the rest from the
-  // pool while respecting hard/easy spacing (no 2 high-stress days in a row).
-  const slots = [];
   const days = Math.max(1, daysPerWeek);
   // Multi-sport riders get one fewer hard day (extra recovery headroom).
   const maxHardDays = Math.max(1, Math.floor(days * (multiSport ? 0.35 : 0.5)));
+  const availableForFixed = weeklySecondsBudget ? Math.max(0, weeklySecondsBudget - MIN_FLEX_RESERVE) : Infinity;
 
-  // Seed with a long endurance ride (skipped for very short 1-2 day weeks).
+  const slots = [];
+  let hardCount = 0;
+  let fixedSecondsCommitted = 0;
+
+  // Always guarantee at least one endurance ride if training 3+ days (skipped
+  // for very short 1-2 day weeks).
   if (days >= 3) slots.push('endurance');
 
-  let hardCount = slots.filter(isHighStress).length;
-  let poolIdx = 0;
-  while (slots.length < days) {
-    // Rotate through the weighted pool for variety.
-    let candidate = pool[poolIdx % pool.length];
-    poolIdx++;
-    const prev = slots[slots.length - 1];
-    const wouldBeBackToBack = isHighStress(candidate) && isHighStress(prev);
-    const overHardBudget = isHighStress(candidate) && hardCount >= maxHardDays;
-    if (wouldBeBackToBack || overHardBudget) {
-      // Insert an easy day instead.
-      candidate = 'endurance';
+  function pickNext(prev) {
+    purposes.forEach(p => { current[p] += emphasis[p]; });
+    const ranked = [...purposes].sort((a, b) => current[b] - current[a]);
+    for (const candidate of ranked) {
+      const isFixedLength = !FLEXIBLE.has(candidate);
+      const wouldBeBackToBack = isHighStress(candidate) && isHighStress(prev);
+      const overHardBudget = isHighStress(candidate) && hardCount >= maxHardDays;
+      const overTimeBudget = isFixedLength && (fixedSecondsCommitted + avgNativeDuration(candidate) > availableForFixed);
+      if (wouldBeBackToBack || overHardBudget || overTimeBudget) continue;
+      current[candidate] -= totalWeight;
+      return candidate;
     }
+    // Nothing cleared every constraint this round (a very tight week) —
+    // endurance is always safe: never high-stress, always time-flexible.
+    return 'endurance';
+  }
+
+  while (slots.length < days) {
+    const prev = slots[slots.length - 1];
+    const candidate = pickNext(prev);
     slots.push(candidate);
     if (isHighStress(candidate)) hardCount++;
+    if (!FLEXIBLE.has(candidate)) fixedSecondsCommitted += avgNativeDuration(candidate);
   }
   return slots;
 }
@@ -524,7 +566,7 @@ export function generatePlan({
 
   const weeks = phaseByWeek.map((phase, wi) => {
     const isRecovery = recoveryFlags[wi];
-    const purposeSlots = weekPurposeSlots({ phase, daysPerWeek: effectiveDays, goal, isRecovery, multiSport });
+    const purposeSlots = weekPurposeSlots({ phase, daysPerWeek: effectiveDays, goal, isRecovery, multiSport, library, weeklySecondsBudget });
     const usedIds = new Set();
     const targetTss = loadTargets[wi];
 
@@ -739,7 +781,7 @@ export function rebuildWeekWorkouts(plan, library, fromWeek) {
 
   const weeks = plan.weeks.map(w => {
     if (w.weekNumber < fromWeek) return w;
-    const purposeSlots = weekPurposeSlots({ phase: w.phase, daysPerWeek: plan.daysPerWeek, goal, isRecovery: w.isRecovery, multiSport: plan.multiSport });
+    const purposeSlots = weekPurposeSlots({ phase: w.phase, daysPerWeek: plan.daysPerWeek, goal, isRecovery: w.isRecovery, multiSport: plan.multiSport, library, weeklySecondsBudget });
     const usedIds = new Set();
     const rawDays = purposeSlots.map(purpose => {
       const wk = pickWorkoutForPurpose(purpose, library, usedIds);
