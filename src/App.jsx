@@ -1666,7 +1666,7 @@ const LIBRARY = [
   // which the time-budget check was rejecting for most riders.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-lunch-climb', name: 'Lunchtime Climb', category: 'Rides',
+    id: 'ride-lunch-climb', name: 'Lunchtime Climb', category: 'Basics',
     description: 'One clean climb done over lunch — a short valley run-in, then a steady sustained effort to the top and straight back down.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
@@ -1680,7 +1680,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-hill-repeats', name: 'Hill Repeats', category: 'Rides',
+    id: 'ride-hill-repeats', name: 'Hill Repeats', category: 'Basics',
     description: 'The same short, steep pitch five times over — punch up out of every hairpin, roll back down, go again.',
     repeatWholeCore: true,
     intervals: [
@@ -1691,7 +1691,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-punchy-climb-express', name: 'Rolling Climb Express', category: 'Rides',
+    id: 'ride-punchy-climb-express', name: 'Rolling Climb Express', category: 'Basics',
     description: 'Three climbs linked by quick descents in under an hour — sustained climbing legs without the all-day epic.',
     intervals: [
       iv('Warm up', 360, 'power', 55),
@@ -1712,7 +1712,7 @@ const LIBRARY = [
   // narrative route the way build/peak phases intend.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-valley-sweetspot', name: 'Valley Sweet Spot Roll', category: 'Rides',
+    id: 'ride-valley-sweetspot', name: 'Valley Sweet Spot Roll', category: 'Basics',
     description: 'Rolling valley roads with three sweet spot blocks stitched between the scenic cruising — the workhorse tempo session with a view.',
     intervals: [
       iv('Warm up', 420, 'power', 58),
@@ -1730,7 +1730,7 @@ const LIBRARY = [
   // Recovery ride — rounds out a thin corner (only two recovery options).
   // ------------------------------------------------------------------------
   {
-    id: 'ride-country-recovery', name: 'Country Lanes Recovery', category: 'Rides',
+    id: 'ride-country-recovery', name: 'Country Lanes Recovery', category: 'Basics',
     description: 'A soft-pedal spin down quiet country lanes — nothing but easy gears to flush the legs the day after something hard.',
     intervals: [
       iv('Easy spin', 300, 'power', 50),
@@ -1747,7 +1747,7 @@ const LIBRARY = [
   // after the second. Gives the vo2max purpose a longer, Ride-flavoured option.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-vo2-furnace', name: 'The 40/20 Furnace', category: 'Rides',
+    id: 'ride-vo2-furnace', name: 'The 40/20 Furnace', category: 'Basics',
     description: 'Two full sets of 40/20s with a threshold block softening you up beforehand and a sustained VO2 finisher waiting on the far side. Bring a towel.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
