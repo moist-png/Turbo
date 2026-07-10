@@ -1747,7 +1747,7 @@ const LIBRARY = [
   // after the second. Gives the vo2max purpose a longer, Ride-flavoured option.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-vo2-furnace', name: 'The 40/20 Furnace', category: 'Basics',
+    id: 'ride-vo2-furnace', name: 'The 40/20 Furnace', category: 'Rides',
     description: 'Two full sets of 40/20s with a threshold block softening you up beforehand and a sustained VO2 finisher waiting on the far side. Bring a towel.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
