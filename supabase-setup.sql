@@ -221,3 +221,213 @@ drop policy if exists "Users can insert own archived plans" on public.archived_p
 create policy "Users can insert own archived plans" on public.archived_plans for insert with check (auth.uid() = user_id);
 drop policy if exists "Users can delete own archived plans" on public.archived_plans;
 create policy "Users can delete own archived plans" on public.archived_plans for delete using (auth.uid() = user_id);
+
+-- 13. Trial abuse prevention: closes the two easiest ways to get repeat free
+--     trials -- deleting your account and signing up again with the same
+--     email, and Gmail-style "+alias" / dot tricks (person+1@gmail.com,
+--     per.son@gmail.com, etc. all land in the same inbox as person@gmail.com)
+--     -- plus known disposable/temp-mail domains. It does NOT require a card
+--     and does NOT block or error out on signup; a repeat email just starts
+--     with its trial already used up, so it lands straight on the normal
+--     "subscribe to continue" screen instead of getting another free week.
+--
+--     This table is intentionally separate from profiles and is never
+--     touched when a user deletes their account, so "this email already had
+--     a trial" survives even if they try to start over from scratch. Nobody
+--     (not even a logged-in user) can read or write it directly -- only the
+--     trigger function below can, since it runs with elevated privileges.
+create table if not exists public.trial_history (
+  id bigint generated always as identity primary key,
+  email_normalized text not null,
+  created_at timestamptz default now()
+);
+create index if not exists trial_history_email_idx on public.trial_history (email_normalized);
+alter table public.trial_history enable row level security;
+
+create or replace function public.normalize_trial_email(raw_email text)
+returns text as $$
+declare
+  local_part text;
+  domain_part text;
+  at_pos int;
+  plus_pos int;
+begin
+  if raw_email is null then
+    return null;
+  end if;
+  raw_email := lower(trim(raw_email));
+  at_pos := position('@' in raw_email);
+  if at_pos = 0 then
+    return raw_email;
+  end if;
+  local_part := substring(raw_email from 1 for at_pos - 1);
+  domain_part := substring(raw_email from at_pos + 1);
+  if domain_part in ('gmail.com', 'googlemail.com') then
+    plus_pos := position('+' in local_part);
+    if plus_pos > 0 then
+      local_part := substring(local_part from 1 for plus_pos - 1);
+    end if;
+    local_part := replace(local_part, '.', '');
+    domain_part := 'gmail.com';
+  end if;
+  return local_part || '@' || domain_part;
+end;
+$$ language plpgsql immutable;
+
+-- A short, easy-to-extend list of well-known throwaway/temp-mail domains.
+-- Not exhaustive (new ones appear constantly) but catches the common ones
+-- with zero ongoing maintenance. Add more any time by editing this array
+-- and re-running this file.
+create or replace function public.is_disposable_email_domain(domain_part text)
+returns boolean as $$
+begin
+  return domain_part = any(array[
+    '10minutemail.com','guerrillamail.com','guerrillamail.info','mailinator.com',
+    'tempmail.com','temp-mail.org','throwawaymail.com','yopmail.com','trashmail.com',
+    'getnada.com','maildrop.cc','mintemail.com','fakeinbox.com','sharklasers.com',
+    'dispostable.com','mailnesia.com','moakt.com','tempmailo.com','emailondeck.com',
+    'discard.email','mohmal.com','burnermail.io','mailcatch.com','spamgourmet.com'
+  ]);
+end;
+$$ language plpgsql immutable;
+
+-- Replaces the section-5 signup trigger: same job as before (create the
+-- profile, start the trial) for a genuine new person, but backdates the
+-- trial for a normalized-email repeat or a disposable-domain signup so it
+-- reads as already expired.
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  norm_email text;
+  domain_part text;
+  already_seen boolean;
+  is_disposable boolean;
+  effective_trial_start timestamptz;
+begin
+  norm_email := public.normalize_trial_email(new.email);
+  domain_part := split_part(norm_email, '@', 2);
+  is_disposable := public.is_disposable_email_domain(domain_part);
+
+  select exists(
+    select 1 from public.trial_history where email_normalized = norm_email
+  ) into already_seen;
+
+  if already_seen or is_disposable then
+    effective_trial_start := now() - interval '30 days'; -- reads as trial already used up
+  else
+    effective_trial_start := now();
+  end if;
+
+  insert into public.profiles (id, name, trial_start)
+  values (new.id, coalesce(new.raw_user_meta_data->>'name', ''), effective_trial_start);
+
+  insert into public.trial_history (email_normalized) values (norm_email);
+
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- 14. Friends & family: free, permanent access for people you personally
+--     choose to comp -- no card, no Stripe checkout. Grant it to someone by
+--     running (swap in their real email):
+--
+--       update public.profiles set comp_access = true
+--       where id = (select id from auth.users where email = 'their@email.com');
+--
+--     Revoke it the same way with "= false". Protected the same way as the
+--     billing columns in section 6 -- only you, running SQL directly, can
+--     change it, so nobody can grant themselves free access from their
+--     browser's dev tools.
+alter table public.profiles add column if not exists comp_access boolean default false;
+revoke update (comp_access) on public.profiles from authenticated;
+
+-- 15. Device cap: stops one paid (or trialing) account being used on lots of
+--     devices at once. Each browser/app install gets a random id, generated
+--     by the app and stored only on that device, which "checks in" here.
+--     If more devices are active for one account than the app's
+--     MAX_ACTIVE_DEVICES constant allows, the oldest ones are marked
+--     revoked, and that device signs itself out (with an explanation) the
+--     next time it checks in.
+create table if not exists public.active_devices (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  device_id text not null,
+  device_label text,
+  last_seen timestamptz default now(),
+  revoked boolean default false,
+  created_at timestamptz default now(),
+  unique (user_id, device_id)
+);
+create index if not exists active_devices_user_idx on public.active_devices (user_id);
+
+alter table public.active_devices enable row level security;
+drop policy if exists "Users can view own devices" on public.active_devices;
+create policy "Users can view own devices" on public.active_devices for select using (auth.uid() = user_id);
+-- Deliberately no insert/update/delete policy for regular users -- every
+-- write goes through register_device() below, which is the only thing
+-- that gets to decide who is or isn't revoked.
+
+-- Called once when the app loads for a logged-in person. Registers/refreshes
+-- this device and enforces the cap, returning whether this exact device is
+-- (now) revoked.
+create or replace function public.register_device(p_device_id text, p_device_label text, p_max_devices int default 2)
+returns boolean as $$
+declare
+  uid uuid;
+  is_revoked boolean;
+begin
+  uid := auth.uid();
+  if uid is null then
+    return false;
+  end if;
+
+  insert into public.active_devices (user_id, device_id, device_label, last_seen, revoked)
+  values (uid, p_device_id, p_device_label, now(), false)
+  on conflict (user_id, device_id)
+  do update set last_seen = now(), device_label = excluded.device_label, revoked = false;
+
+  -- Keep the newest p_max_devices devices; revoke anything older than that.
+  -- The device that just checked in above always has the freshest
+  -- last_seen, so it's never the one revoked here.
+  update public.active_devices
+  set revoked = true
+  where user_id = uid
+    and id in (
+      select id from public.active_devices
+      where user_id = uid and revoked = false
+      order by last_seen desc
+      offset greatest(p_max_devices, 0)
+    );
+
+  select revoked from public.active_devices
+  where user_id = uid and device_id = p_device_id
+  into is_revoked;
+
+  return coalesce(is_revoked, false);
+end;
+$$ language plpgsql security definer;
+
+-- Called periodically while the app is open, to catch a device that gets
+-- revoked because a *different* device registered after it -- without this,
+-- an already-open tab would stay signed in indefinitely.
+create or replace function public.check_device(p_device_id text)
+returns boolean as $$
+declare
+  uid uuid;
+  is_revoked boolean;
+begin
+  uid := auth.uid();
+  if uid is null then
+    return false;
+  end if;
+  select revoked from public.active_devices
+  where user_id = uid and device_id = p_device_id
+  into is_revoked;
+  return coalesce(is_revoked, false);
+end;
+$$ language plpgsql security definer;

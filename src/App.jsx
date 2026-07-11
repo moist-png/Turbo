@@ -4,7 +4,7 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2,
+  Target, Flag, TrendingUp, Gamepad2, Smartphone,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
@@ -102,6 +102,10 @@ const DEFAULT_SETTINGS = {
 const TRIAL_DAYS = 7;
 const MONTHLY_PRICE_LABEL = '$7.99 / month'; // placeholder — set your real price
 const ANNUAL_PRICE_LABEL = '$79.99 / year'; // keep in sync with ANNUAL_PRICE_CENTS in api/create-checkout-session.js
+// How many devices one account can be actively signed in on at once. Backed
+// by the register_device/check_device functions in supabase-setup.sql —
+// change this number any time without touching the database.
+const MAX_ACTIVE_DEVICES = 2;
 // Strava's Client ID (not secret -- safe to have in front-end code, unlike
 // the Client Secret which only ever lives server-side as a Vercel env var).
 // Get this from https://www.strava.com/settings/api after creating an API
@@ -4083,7 +4087,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 }
 
 // ---------- settings view ----------
-function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
+function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const statusColor = trainer.status === 'connected' ? '#8FC93A' : trainer.status === 'connecting' ? '#FF9F40' : trainer.status === 'error' ? RED : SUB;
   const statusLabel = trainer.status === 'connected' ? `Connected · ${trainer.deviceName}` : trainer.status === 'connecting' ? 'Connecting…' : trainer.status === 'error' ? 'Connection failed' : 'Not connected';
@@ -4240,8 +4244,11 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           <SettingRow label={account.name} sub={account.email}>
             <button onClick={onLogout} style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Log out</button>
           </SettingRow>
-          <SettingRow label={subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`} sub={subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}>
-            {!subscribed && (
+          <SettingRow
+            label={compAccess ? 'Friends & family — free access' : subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+            sub={compAccess ? 'Complimentary access, no card on file' : subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}
+          >
+            {!subscribed && !compAccess && (
               <button onClick={onShowPaywall} style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
             )}
           </SettingRow>
@@ -4635,6 +4642,25 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
   return <div style={{ minHeight: '100%', background: BG, padding: '20px 20px 40px', fontFamily: 'Inter, sans-serif' }}>{body}</div>;
 }
 
+function DeviceLimitView({ onLogout }) {
+  return (
+    <div style={{ minHeight: '100%', background: BG, padding: '20px 20px 40px', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center' }}>
+      <div style={{ maxWidth: 380, width: '100%', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 14 }}>
+          <Smartphone size={20} color="var(--accent)" />
+          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 19, color: TEXT }}>Signed out on this device</div>
+        </div>
+        <div style={{ fontSize: 13, color: SUB, lineHeight: 1.6, marginBottom: 20 }}>
+          This account can be signed in on up to {MAX_ACTIVE_DEVICES} device{MAX_ACTIVE_DEVICES === 1 ? '' : 's'} at once, and another device has taken this one's place. Log back in here to make this your active device again.
+        </div>
+        <button onClick={onLogout} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+          Back to login
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---------- orientation gate ----------
 function useOrientation() {
   const [isPortrait, setIsPortrait] = useState(() => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(orientation: portrait)').matches : false));
@@ -4725,6 +4751,7 @@ export default function App() {
   const [recoveryMode, setRecoveryMode] = useState(false); // arrived via a "reset password" email link
   const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'signup' | 'forgot'
   const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [deviceRevoked, setDeviceRevoked] = useState(false); // this device got signed out for exceeding MAX_ACTIVE_DEVICES
 
   // Watch for an existing/changing Supabase session (login, logout, token
   // refresh, or arriving here from a "reset your password" email link).
@@ -4742,6 +4769,39 @@ export default function App() {
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
+
+  // ---- device cap: stop one paid account being shared across a pile of
+  // devices at once. Each browser/app install keeps a random id in
+  // localStorage and "checks in" with the database; if more than
+  // MAX_ACTIVE_DEVICES are active for this account, the oldest ones get
+  // marked revoked, and a device notices that the next time it checks in
+  // (either right away, or on the next periodic check below) and gets
+  // signed out with an explanation. Registration is best-effort: if it
+  // fails (offline, or the database function isn't set up yet) nobody
+  // gets locked out — it just quietly does nothing.
+  useEffect(() => {
+    if (!user) { setDeviceRevoked(false); return; }
+    let mounted = true;
+    let deviceId = localStorage.getItem('trbo_device_id');
+    if (!deviceId) {
+      deviceId = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : `dev_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('trbo_device_id', deviceId);
+    }
+    const deviceLabel = (navigator.userAgent || 'device').slice(0, 80);
+    async function checkIn(isFirstCall) {
+      try {
+        const { data, error } = isFirstCall
+          ? await supabase.rpc('register_device', { p_device_id: deviceId, p_device_label: deviceLabel, p_max_devices: MAX_ACTIVE_DEVICES })
+          : await supabase.rpc('check_device', { p_device_id: deviceId });
+        if (!error && data === true && mounted) setDeviceRevoked(true);
+      } catch { /* offline, or the function isn't deployed yet — fail open */ }
+    }
+    checkIn(true);
+    const interval = setInterval(() => checkIn(false), 4 * 60 * 1000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [user]);
 
   // Once we know who's logged in, load their profile + saved data from the database.
   const [ownerStats, setOwnerStats] = useState(null); // non-null only when logged in as the app owner
@@ -5093,17 +5153,29 @@ export default function App() {
     );
   }
 
+  // ---- gate 1b: this device got signed out for exceeding the device cap ----
+  if (deviceRevoked) {
+    return (
+      <div style={wrapStyle}>
+        <style>{globalStyle}</style>
+        <DeviceLimitView onLogout={handleLogout} />
+      </div>
+    );
+  }
+
   if (profileLoading || !profile) {
     return <div style={wrapStyle}><style>{globalStyle}</style></div>;
   }
 
   const account = { name: profile.name || user.user_metadata?.name || 'Rider', email: user.email };
   const subscribed = !!profile.subscribed;
+  const compAccess = !!profile.comp_access; // friends & family: free, permanent access, no card ever
+  const hasFullAccess = subscribed || compAccess;
   const daysLeft = daysLeftInTrial(profile.trial_start);
   const trialExpired = daysLeft <= 0;
 
-  // ---- gate 2: trial over and never subscribed → blocking paywall ----
-  if (trialExpired && !subscribed) {
+  // ---- gate 2: trial over and neither subscribed nor comped → blocking paywall ----
+  if (trialExpired && !hasFullAccess) {
     return (
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
@@ -5136,7 +5208,7 @@ export default function App() {
     <div style={{ ...wrapStyle, position: 'relative', paddingBottom: 'calc(54px + env(safe-area-inset-bottom))' }}>
       <style>{globalStyle}</style>
       <OrientationGate preferredOrientation={settings.preferredOrientation}>
-        {!subscribed && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
+        {!hasFullAccess && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
 
         {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} />}
         {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} />}
@@ -5151,7 +5223,7 @@ export default function App() {
           <SettingsView
             settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer} heartRate={heartRate}
             customWorkouts={customWorkouts} onResetCustom={resetCustomWorkouts} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory}
-            account={account} daysLeft={daysLeft} subscribed={subscribed} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
+            account={account} daysLeft={daysLeft} subscribed={subscribed} compAccess={compAccess} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
             ownerStats={ownerStats}
             stravaConnected={!!(profile && profile.strava_athlete_id)} onConnectStrava={connectStrava} onDisconnectStrava={disconnectStrava}
           />
