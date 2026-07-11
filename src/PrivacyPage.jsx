@@ -1,147 +1,190 @@
 import React from 'react';
 import { LegalShell, LegalH2, LegalH3, LegalP, LegalUl, LegalLi, LegalTable } from './PublicPages';
 
-const UPDATED = 'July 2026';
+const UPDATED = '11 July 2026';
+const LINK = { color: '#2FC5AE' };
 
 export default function PrivacyPage() {
   return (
     <LegalShell title="Privacy Policy" updated={UPDATED}>
+      <LegalH2>1. Who we are</LegalH2>
       <LegalP>
-        This Privacy Policy explains how Trbo, registered at 301/19-21 Wilson St, Botany NSW 2019, Australia
-        ("Trbo," "we," "us"), collects, uses, and protects personal information through the Trbo indoor cycling
-        training application and website (the "Service"). It's written to comply with the Australian Privacy Act
-        1988 (Cth), including the Australian Privacy Principles (APPs), and the EU/UK General Data Protection
-        Regulation (GDPR) for people located in the European Union or United Kingdom.
+        Trbo ("Trbo", "we", "us", "our") is an indoor cycling training application operated by <strong>Trbo</strong> of
+        301/19-21 Wilson St, Botany NSW 2019, Australia.
+      </LegalP>
+      <LegalP>Contact us about privacy at <a href="mailto:Trbo.help@outlook.com" style={LINK}>Trbo.help@outlook.com</a>.</LegalP>
+      <LegalP>
+        This policy explains what personal information we collect, why, who we share it with, and what rights you
+        have. It reflects the Australian Privacy Principles under the Privacy Act 1988 (Cth) and, where they apply
+        to you, the EU and UK General Data Protection Regulation ("GDPR").
       </LegalP>
 
-      <LegalH2>1. Information we collect</LegalH2>
-      <LegalTable
-        headers={['Category', 'Examples']}
-        rows={[
-          ['Account information', 'Name, email address, hashed password (or OAuth identity if you sign in with Google or Apple)'],
-          ['Training data', 'Workouts completed, power/cadence/speed data recorded during a ride, ride history, personal bests, plan preferences (goal, available days, hours per week)'],
-          ['Device connection data', 'Bluetooth-paired trainer identifiers, used only to connect and control your own trainer during a session'],
-          ['Payment information', 'Handled directly by Stripe; we receive only subscription status, plan tier, and billing history — never your full card number'],
-          ['Support communications', 'Anything you send us at Trbo.help@outlook.com'],
-          ['Technical data', 'Device type, app version, and basic diagnostic/error logs'],
-          ['Third-party integration data', 'If you connect Strava, the ride data you choose to export there'],
-        ]}
-      />
-
-      <LegalH3>Heart rate data</LegalH3>
+      <LegalH2>2. We do not collect health or biometric data</LegalH2>
+      <LegalP>This is the most important thing to know about Trbo, so we have put it first.</LegalP>
       <LegalP>
-        If you connect a heart rate monitor, your heart rate is displayed to you live during a ride and can be
-        included in an export you initiate (for example, to Strava). We do not store or persist heart rate data on
-        our servers or in our database at any point — it exists only transiently for display and export, under your
-        control. We made this design choice deliberately so that we don't hold special-category health data about
-        you beyond what passes through your own device in the moment.
+        <strong>Trbo does not store your heart rate.</strong> If you pair a heart rate monitor, your heart rate is
+        read directly from the strap to your device over Bluetooth, shown on screen while you ride, and then
+        discarded. It is never transmitted to our servers, never written to our database, and never sent to Strava
+        or any other third party.
+      </LegalP>
+      <LegalP>
+        The only place your heart rate persists is inside the workout file (<code>.tcx</code> or <code>.fit</code>)
+        that <strong>you</strong> choose to export to <strong>your own device</strong>. That file is generated in
+        your browser and downloaded by you. We never receive a copy.
+      </LegalP>
+      <LegalP>
+        We also do <strong>not</strong> collect: biometric identifiers, physiological measurements other than the
+        transient heart rate described above, medical history, your weight, Apple Health / HealthKit data, Google
+        Fit data, or your location.
+      </LegalP>
+      <LegalP>
+        <strong>We treat the training metrics we do store — power, FTP, Training Stress Score, calories, duration —
+        as athletic performance data, not health information.</strong> They describe how hard you pedalled, not your
+        physical condition.
       </LegalP>
 
-      <LegalH2>2. How we use information</LegalH2>
+      <LegalH2>3. What we do collect</LegalH2>
+      <LegalH3>3.1 Information you give us</LegalH3>
       <LegalUl>
-        <LegalLi>To provide the Service: authenticate you, sync your ride history across devices, and control your trainer during a session.</LegalLi>
-        <LegalLi>To generate your training plan: the plan builder uses the goal, schedule, and hours you provide, together with your workout history, to select and sequence sessions automatically. See Section 5 of the Terms of Service for how this automated process works and how to override it.</LegalLi>
-        <LegalLi>To process payment and manage your subscription, via Stripe.</LegalLi>
-        <LegalLi>To respond to support requests.</LegalLi>
-        <LegalLi>To maintain security, diagnose faults, and improve the Service.</LegalLi>
-        <LegalLi>To meet legal obligations, such as tax and accounting record-keeping.</LegalLi>
+        <LegalLi><strong>Account information.</strong> Your email address and a securely hashed password, or — if you sign in with Google — your email address, name and Google account identifier.</LegalLi>
+        <LegalLi><strong>Training profile.</strong> Your Functional Threshold Power (FTP), FTP history, training plan settings and workout preferences.</LegalLi>
+        <LegalLi><strong>Support correspondence.</strong> Anything you send us by email or in-app feedback.</LegalLi>
       </LegalUl>
-      <LegalP>We do not sell personal information, and we do not use your training data to serve you third-party advertising.</LegalP>
+      <LegalH3>3.2 Information generated when you train</LegalH3>
+      <LegalUl>
+        <LegalLi><strong>Workout records.</strong> For each completed session: the workout name and category, duration, average and maximum power, Training Stress Score, estimated calories, whether you finished, and the date.</LegalLi>
+        <LegalLi><strong>Mini Games records.</strong> Personal bests are stored <strong>only in your browser on your device</strong>. They never reach our servers, and are lost if you clear your browser data.</LegalLi>
+      </LegalUl>
+      <LegalH3>3.3 Device connections (Bluetooth)</LegalH3>
+      <LegalP>
+        Trbo talks to your smart trainer and heart rate monitor directly from your browser to the device. <strong>We
+        never receive or store Bluetooth device identifiers.</strong> Your browser asks your permission before each
+        connection. Power and cadence are processed on your device; only the summary metrics in 3.2 are saved.
+      </LegalP>
+      <LegalH3>3.4 Payments</LegalH3>
+      <LegalP>
+        Subscriptions are processed by <strong>Stripe</strong>. We never see or store your card number, CVC or
+        expiry date. Stripe tells us only your customer ID, subscription status, plan and billing period, so we can
+        unlock paid features. Stripe handles your card details as an independent controller under its own policy.
+      </LegalP>
+      <LegalH3>3.5 Strava</LegalH3>
+      <LegalP>
+        If you connect Strava, we store the access and refresh tokens it issues so we can upload your completed
+        workouts at your request. We upload the workout name, duration, date and power summary — <strong>not heart
+        rate</strong>. Disconnect at any time and we delete the tokens.
+      </LegalP>
+      <LegalH3>3.6 Technical information</LegalH3>
+      <LegalP>Our hosting providers automatically log IP address, browser and device type, pages requested and timestamps, for security and fault diagnosis.</LegalP>
+      <LegalP>We use <strong>no advertising cookies and no third-party advertising trackers</strong>. Browser storage is used only for essentials: keeping you signed in, remembering your theme, and Mini Games bests.</LegalP>
 
-      <LegalH2>3. Legal bases for processing (EU/UK users)</LegalH2>
+      <LegalH2>4. Why we use it</LegalH2>
+      <LegalP>
+        We use your information to run your account; deliver workouts, Rides, Mini Games and training plans; control
+        your trainer in ERG mode; calculate training metrics and show your history and progress; process
+        subscriptions; upload to Strava when you ask; provide support; keep the Service secure; and comply with the
+        law.
+      </LegalP>
+      <LegalP>We do <strong>not</strong> sell your personal information. We do <strong>not</strong> use your data for advertising. We do <strong>not</strong> use it to train machine learning models.</LegalP>
+      <LegalH3>Legal bases (EU/UK users)</LegalH3>
       <LegalTable
-        headers={['Purpose', 'Legal basis under GDPR']}
+        headers={['Purpose', 'Legal basis']}
         rows={[
-          ['Creating and running your account', 'Performance of a contract'],
-          ['Generating your training plan', 'Performance of a contract'],
-          ['Billing and subscription management', 'Performance of a contract'],
+          ['Your account and the Service itself', 'Performance of a contract'],
+          ['Payments and billing', 'Contract; legal obligation'],
+          ['Uploading to Strava', 'Your consent'],
           ['Security, fraud prevention, diagnostics', 'Legitimate interests'],
-          ['Marketing emails (only if you opt in)', 'Consent'],
           ['Tax and accounting records', 'Legal obligation'],
         ]}
       />
-
-      <LegalH2>4. Automated decision-making</LegalH2>
       <LegalP>
-        The training plan builder makes an automated decision about which workouts to sequence into your plan, based
-        on rules and rotation logic applied to the goal, schedule, and history you provide. Under GDPR Article
-        22, you have the right not to be subject to a decision based solely on automated processing where it
-        produces legal or similarly significant effects — the plan builder does not produce effects of that kind; it
-        only shapes which training content is suggested to you, and you can always browse the full library, choose
-        any workout directly, or regenerate your plan instead of accepting its output.
+        Because we do not store heart rate or any other health or biometric data, <strong>we do not process special
+        category data under Article 9 GDPR</strong>, and no explicit-consent mechanism is required.
       </LegalP>
 
-      <LegalH2>5. Who we share information with</LegalH2>
+      <LegalH2>5. Automated decisions</LegalH2>
+      <LegalP>
+        Trbo generates workout suggestions, training plans and FTP estimates automatically from your training
+        history. These are <strong>recommendations only</strong>. They produce no legal effect and no similarly
+        significant effect on you, you are free to ignore them, and no human profiling, scoring or eligibility
+        decision is made about you. You may request a human explanation of any suggestion by emailing us.
+      </LegalP>
+
+      <LegalH2>6. Who we share it with</LegalH2>
+      <LegalTable
+        headers={['Provider', 'Purpose', 'Location']}
+        rows={[
+          ['Supabase', 'Database and authentication', 'United States'],
+          ['Vercel', 'Hosting and serverless functions', 'Global edge network'],
+          ['Stripe', 'Payments and subscriptions', 'United States / global'],
+          ['Strava', 'Activity upload — only if you connect it', 'United States'],
+          ['Google', 'Sign-in — only if you use it', 'Global'],
+        ]}
+      />
+      <LegalP>
+        We may also disclose information where required by law, to enforce our Terms, or to protect the safety of
+        our users or the public. If Trbo is sold or merged, your information may transfer to the acquirer, who will
+        remain bound by this policy or one at least as protective; we will tell you first.
+      </LegalP>
+
+      <LegalH2>7. Overseas transfers</LegalH2>
+      <LegalP>
+        We operate from Australia. Our providers store and process data overseas, primarily in the <strong>United
+        States</strong>. For transfers of EU and UK personal data we rely on <strong>Standard Contractual
+        Clauses</strong> incorporated into our data processing agreements with each provider. For Australian users,
+        we take reasonable steps under APP 8 to ensure overseas recipients handle your information consistently with
+        the Australian Privacy Principles.
+      </LegalP>
+
+      <LegalH2>8. How long we keep it</LegalH2>
       <LegalUl>
-        <LegalLi><strong>Supabase</strong> — hosts our authentication system and database.</LegalLi>
-        <LegalLi><strong>Stripe</strong> — processes subscription payments.</LegalLi>
-        <LegalLi><strong>Vercel</strong> — hosts the application and website.</LegalLi>
-        <LegalLi><strong>Strava</strong> — only if you actively choose to connect your account and export a ride.</LegalLi>
+        <LegalLi><strong>Account and training data</strong> — while your account is open; deleted within <strong>30 days</strong> of you deleting your account, and purged from backups within <strong>90 days</strong>.</LegalLi>
+        <LegalLi><strong>Billing records</strong> — as required by Australian tax law, generally <strong>7 years</strong>.</LegalLi>
+        <LegalLi><strong>Strava tokens</strong> — until you disconnect.</LegalLi>
+        <LegalLi><strong>Technical logs</strong> — a short retention period set by our providers.</LegalLi>
+        <LegalLi><strong>Heart rate</strong> — never retained. There is nothing to delete.</LegalLi>
       </LegalUl>
+      <LegalP>You can delete individual workouts from your history at any time.</LegalP>
+
+      <LegalH2>9. Security</LegalH2>
       <LegalP>
-        We don't sell or rent personal information to third parties, and we don't share it with anyone else except
-        where required by law or to protect the rights, safety, or property of Trbo or our users.
+        We use HTTPS/TLS in transit, encryption at rest, row-level security so you can only ever read and write your
+        own records, and hashed passwords managed by our authentication provider. Card details never touch our
+        servers.
+      </LegalP>
+      <LegalP>
+        No system is perfectly secure. If a data breach is likely to cause you serious harm, we will notify you and
+        the Office of the Australian Information Commissioner under the Notifiable Data Breaches scheme, and — where
+        the GDPR applies — the relevant supervisory authority within 72 hours.
       </LegalP>
 
-      <LegalH2>6. International data transfers</LegalH2>
+      <LegalH2>10. Your rights</LegalH2>
       <LegalP>
-        Our service providers may process data outside your home country, including in the United States. Where
-        personal information of EU/UK users is transferred outside the European Economic Area or United Kingdom, we
-        rely on the European Commission's Standard Contractual Clauses (SCCs), or an equivalent UK-approved transfer
-        mechanism, as the safeguard for that transfer.
+        Wherever you live, you can <strong>access</strong> your information, <strong>correct</strong> it,
+        <strong> export</strong> your workouts as TCX or FIT, <strong>delete</strong> your account and its data,
+        <strong> withdraw consent</strong> to Strava, and <strong>complain</strong> to us.
       </LegalP>
-
-      <LegalH2>7. Data retention</LegalH2>
-      <LegalP>
-        We keep account and training data for as long as your account is active, so your history and plan continue
-        to work correctly. If you delete your account, we delete or de-identify your personal information within a
-        reasonable period, except where we're required to retain certain records (such as billing history) for tax
-        or legal purposes.
-      </LegalP>
-
-      <LegalH2>8. Your rights</LegalH2>
-      <LegalP>Depending on where you live, you may have the right to:</LegalP>
-      <LegalUl>
-        <LegalLi>Access the personal information we hold about you.</LegalLi>
-        <LegalLi>Correct inaccurate information.</LegalLi>
-        <LegalLi>Delete your account and associated personal information.</LegalLi>
-        <LegalLi>Export your data in a portable format.</LegalLi>
-        <LegalLi>Object to, or ask us to restrict, certain processing.</LegalLi>
-        <LegalLi>Withdraw consent at any time, where processing is based on consent.</LegalLi>
-        <LegalLi>Lodge a complaint with a data protection regulator — in Australia, the Office of the Australian Information Commissioner (OAIC); in the EU/UK, your local supervisory authority.</LegalLi>
-      </LegalUl>
-      <LegalP>To exercise any of these rights, email Trbo.help@outlook.com. We'll respond within the timeframe required by applicable law.</LegalP>
-
-      <LegalH2>9. Cancellation withdrawal right (EU/UK)</LegalH2>
-      <LegalP>
-        As described in our Terms of Service, EU/UK users have a 14-day right of withdrawal from a paid subscription
-        under the Consumer Rights Directive, which ends early only if you give express consent to start using paid
-        features immediately and do so before the 14 days are up.
-      </LegalP>
-
-      <LegalH2>10. Security</LegalH2>
-      <LegalP>
-        We use industry-standard measures — including encryption in transit, hashed passwords, and access controls
-        on our database — to protect personal information. No system is completely secure, and we can't guarantee
-        absolute security, but we work to keep information appropriately protected and will notify affected users
-        and, where required, regulators, in the event of a data breach likely to result in risk to individuals.
-      </LegalP>
+      <LegalP><strong>If you are in the EU or UK</strong>, you additionally have the rights to data portability, to object to or restrict processing, and to lodge a complaint with your local supervisory authority.</LegalP>
+      <LegalP><strong>If you are in Australia</strong>, you may complain to the Office of the Australian Information Commissioner at oaic.gov.au.</LegalP>
+      <LegalP><strong>If you are in California</strong>, we confirm we do not sell or share your personal information, and we will not discriminate against you for exercising any privacy right.</LegalP>
+      <LegalP>Email <a href="mailto:Trbo.help@outlook.com" style={LINK}>Trbo.help@outlook.com</a> to exercise any right. We respond within <strong>30 days</strong>.</LegalP>
 
       <LegalH2>11. Children</LegalH2>
       <LegalP>
-        The Service isn't directed at children and isn't intended for use by anyone under 16. We don't knowingly
-        collect personal information from children.
+        You must be at least <strong>16 years old</strong> to use Trbo. We do not knowingly collect information from
+        anyone under 16. If you believe a child has given us their information, contact us and we will delete it.
       </LegalP>
 
-      <LegalH2>12. Changes to this policy</LegalH2>
+      <LegalH2>12. Changes</LegalH2>
       <LegalP>
-        We may update this Privacy Policy from time to time. Material changes will be flagged in the app or by email
-        before they take effect.
+        We may update this policy. If a change is material, we will notify you in the app or by email before it
+        takes effect. The version and date at the top always reflect the current text.
       </LegalP>
 
       <LegalH2>13. Contact</LegalH2>
       <LegalP>
-        Trbo, 301/19-21 Wilson St, Botany NSW 2019, Australia. Email: Trbo.help@outlook.com.
+        <strong>Trbo</strong><br />
+        Email: <a href="mailto:Trbo.help@outlook.com" style={LINK}>Trbo.help@outlook.com</a><br />
+        Address: 301/19-21 Wilson St, Botany NSW 2019
       </LegalP>
     </LegalShell>
   );
