@@ -2319,30 +2319,32 @@ function ControlPlayBtn({ onClick, children }) {
 function Switch({ checked, onChange, disabled }) {
   return (
     <button onClick={() => !disabled && onChange(!checked)} disabled={disabled} style={{
-      width: 44, height: 26, borderRadius: 13, border: `1px solid ${LINE}`,
+      width: 40, height: 24, borderRadius: 999, border: `1px solid ${LINE}`,
       background: checked ? 'var(--accent)' : PANEL2, position: 'relative', cursor: disabled ? 'default' : 'pointer',
       opacity: disabled ? 0.5 : 1, flexShrink: 0, padding: 0,
     }}>
-      <div style={{ position: 'absolute', top: 2, left: checked ? 20 : 2, width: 20, height: 20, borderRadius: '50%', background: checked ? INK : SUB, transition: 'left .15s' }} />
+      <div style={{ position: 'absolute', top: 3, left: checked ? 19 : 3, width: 18, height: 18, borderRadius: '50%', background: '#FFFFFF', transition: 'left .15s' }} />
     </button>
   );
 }
 function SettingRow({ label, sub, children }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '11px 0', borderBottom: `1px solid ${LINE}` }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 14, color: TEXT }}>{label}</div>
-        {sub && <div style={{ fontSize: 12, color: SUB, marginTop: 2 }}>{sub}</div>}
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT }}>{label}</div>
+        {sub && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginTop: 2, lineHeight: 1.4 }}>{sub}</div>}
       </div>
       {children}
     </div>
   );
 }
+// The recurring section-label pattern used across the restyled app pages: a
+// small accent-colored icon + an uppercase, letter-spaced, muted-color label.
 function SectionHeader({ icon, title }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 26, marginBottom: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20, marginBottom: 8 }}>
       {icon}
-      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{title}</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, fontWeight: 700, color: SUB, letterSpacing: 0.6, textTransform: 'uppercase' }}>{title}</div>
     </div>
   );
 }
@@ -2351,11 +2353,11 @@ function SectionHeader({ icon, title }) {
 function CollapsibleSection({ icon, title, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ marginTop: 26 }}>
-      <button onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, marginBottom: open ? 4 : 0, cursor: 'pointer', textAlign: 'left' }}>
+    <div style={{ marginTop: 20 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, marginBottom: open ? 8 : 0, cursor: 'pointer', textAlign: 'left' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {icon}
-          <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 16, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{title}</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, fontWeight: 700, color: SUB, letterSpacing: 0.6, textTransform: 'uppercase' }}>{title}</div>
         </div>
         {open ? <ChevronUp size={18} color={SUB} /> : <ChevronDown size={18} color={SUB} />}
       </button>
@@ -2670,11 +2672,11 @@ function HistoryRow({ entry }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px' }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 13.5, color: TEXT, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</div>
-        <div style={{ fontSize: 11.5, color: SUB }}>{new Date(entry.date).toLocaleDateString()} · {fmtLong(entry.duration)}</div>
-        {stats.length > 0 && <div style={{ fontSize: 11, color: SUB, marginTop: 3 }}>{stats.join(' · ')}</div>}
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13.5, color: TEXT, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB }}>{new Date(entry.date).toLocaleDateString()} · {fmtLong(entry.duration)}</div>
+        {stats.length > 0 && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, marginTop: 3 }}>{stats.join(' · ')}</div>}
       </div>
-      {!entry.completed && <div style={{ fontSize: 10, color: SUB, border: `1px solid ${LINE}`, borderRadius: 999, padding: '2px 8px', flexShrink: 0 }}>Partial</div>}
+      {!entry.completed && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 10, color: SUB, border: `1px solid ${LINE}`, borderRadius: 999, padding: '2px 8px', flexShrink: 0 }}>Partial</div>}
     </div>
   );
 }
@@ -2805,6 +2807,7 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
 
 // ---------- full workout history ----------
 function PersonalRecordsPanel({ workoutHistory }) {
+  const navLayout = useNavLayout();
   const pr = computePersonalRecords(workoutHistory);
   if (!pr) return null;
   const cards = [
@@ -2820,16 +2823,16 @@ function PersonalRecordsPanel({ workoutHistory }) {
     <div style={{ marginBottom: 26 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <Trophy size={15} color="var(--accent)" />
-        <div style={{ fontSize: 12, color: SUB, textTransform: 'uppercase', letterSpacing: 0.6 }}>Personal records</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>Personal records</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: navLayout.mode === 'sidebar' ? '1fr 1fr 1fr' : '1fr 1fr', gap: 10 }}>
         {cards.map((c, i) => (
           <div key={i} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>
+            <div style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>
               <c.icon size={11} /> {c.label}
             </div>
-            <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 17, fontWeight: 700, color: TEXT }}>{c.value}</div>
-            {c.sub && <div style={{ fontSize: 11, color: SUB, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.sub}</div>}
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: TEXT }}>{c.value}</div>
+            {c.sub && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.sub}</div>}
           </div>
         ))}
       </div>
@@ -2866,15 +2869,15 @@ function TrainingLoadPanel({ workoutHistory }) {
     <div style={{ marginBottom: 26 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <BarChart3 size={15} color="var(--accent)" />
-        <div style={{ fontSize: 12, color: SUB, textTransform: 'uppercase', letterSpacing: 0.6 }}>Training load</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>Training load</div>
       </div>
       {hasAnyLoad && (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, marginBottom: powerValues.length >= 2 ? 10 : 0 }}>
-          <div style={{ fontSize: 11, color: SUB, marginBottom: 8 }}>Weekly TSS · last 8 weeks</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, marginBottom: 8 }}>Weekly TSS · last 8 weeks</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 60 }}>
             {values.map((v, i) => (
               <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '100%' }}>
-                <div title={`${v} TSS`} style={{ width: '100%', maxWidth: 22, height: `${Math.max(3, (v / maxVal) * 100)}%`, borderRadius: 4, background: i === values.length - 1 ? 'var(--accent)' : PANEL2, border: `1px solid ${LINE}` }} />
+                <div title={`${v} TSS`} style={{ width: '100%', maxWidth: 22, height: `${Math.max(3, (v / maxVal) * 100)}%`, borderRadius: 4, background: i === values.length - 1 ? 'var(--accent)' : PANEL, border: `1px solid ${LINE}` }} />
               </div>
             ))}
           </div>
@@ -2882,7 +2885,7 @@ function TrainingLoadPanel({ workoutHistory }) {
       )}
       {powerValues.length >= 2 && (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}>
-          <div style={{ fontSize: 11, color: SUB, marginBottom: 2 }}>Average power · last {powerValues.length} rides</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, marginBottom: 2 }}>Average power · last {powerValues.length} rides</div>
           <Sparkline values={powerValues} height={30} />
         </div>
       )}
@@ -2894,11 +2897,11 @@ function HistoryView({ workoutHistory, onClear }) {
   const all = (workoutHistory || []).slice().reverse();
   return (
     <div style={{ padding: '16px 16px 80px' }}>
-      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, fontWeight: 600, color: TEXT, letterSpacing: 0.3, marginBottom: 2 }}>History</div>
+      <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 26, color: TEXT, letterSpacing: -0.3, marginBottom: 2 }}>History</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ fontSize: 13, color: SUB }}>{all.length} session{all.length === 1 ? '' : 's'} logged</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB }}>{all.length} session{all.length === 1 ? '' : 's'} logged</div>
         {all.length > 0 && (
-          <button onClick={onClear} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button onClick={onClear} style={{ fontFamily: "'Manrope', sans-serif", background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
             <Trash2 size={12} /> Clear
           </button>
         )}
@@ -2906,7 +2909,7 @@ function HistoryView({ workoutHistory, onClear }) {
       <PersonalRecordsPanel workoutHistory={workoutHistory} />
       <TrainingLoadPanel workoutHistory={workoutHistory} />
       {all.length === 0 ? (
-        <div style={{ color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 0' }}>No workouts logged yet — finish a session and it'll show up here.</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 0' }}>No workouts logged yet — finish a session and it'll show up here.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {all.map(entry => <HistoryRow key={entry.id} entry={entry} />)}
@@ -2923,59 +2926,59 @@ function FtpView({ ftp, setFtp, ftpHistory, onClearFtpHistory, onOpenWorkout }) 
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
-      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, fontWeight: 600, color: TEXT, letterSpacing: 0.3, marginBottom: 2 }}>FTP</div>
-      <div style={{ fontSize: 13, color: SUB, marginBottom: 18 }}>Test your threshold power and keep an eye on it over time.</div>
+      <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 26, color: TEXT, letterSpacing: -0.3, marginBottom: 2 }}>FTP</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 18 }}>Test your threshold power and keep an eye on it over time.</div>
 
       <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 11, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Current FTP</div>
-          <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 32, fontWeight: 700, color: TEXT }}>{ftp}W</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Current FTP</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, color: TEXT }}>{ftp}W</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <FtpInput ftp={ftp} setFtp={setFtp}
-            style={{ width: 72, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '8px 10px', fontSize: 14, textAlign: 'center' }} />
-          <span style={{ fontSize: 12.5, color: SUB }}>W</span>
+            style={{ width: 72, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '8px 10px', fontSize: 14, textAlign: 'center', fontFamily: "'Space Grotesk', sans-serif" }} />
+          <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB }}>W</span>
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: SUB, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Test protocols</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Test protocols</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26 }}>
         {tests.map(w => {
           const total = totalDuration(w.intervals);
           return (
             <div key={w.id} onClick={() => onOpenWorkout(w)} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, color: TEXT }}>{w.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--accent)' }}>{fmtLong(total)}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 17, color: TEXT }}>{w.name}</div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0 }}>{fmtLong(total)}</div>
               </div>
-              <div style={{ fontSize: 12.5, color: SUB, marginBottom: 10 }}>{w.description}</div>
-              <ProfileChart intervals={w.intervals} height={36} />
+              <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, marginBottom: 10 }}>{w.description}</div>
+              <ProfileChart intervals={w.intervals} height={40} />
             </div>
           );
         })}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 12, color: SUB, textTransform: 'uppercase', letterSpacing: 0.6 }}>Test history</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>Test history</div>
         {history.length > 0 && (
-          <button onClick={onClearFtpHistory} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button onClick={onClearFtpHistory} style={{ fontFamily: "'Manrope', sans-serif", background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
             <Trash2 size={12} /> Clear
           </button>
         )}
       </div>
       {history.length === 0 ? (
-        <div style={{ color: SUB, fontSize: 13, textAlign: 'center', padding: '24px 0', border: `1px dashed ${LINE}`, borderRadius: 10 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '24px 0', border: `1px dashed ${LINE}`, borderRadius: 10 }}>
           No FTP tests logged yet — run one of the protocols above to get started.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {history.map(entry => (
-            <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: PANEL, borderRadius: 8, padding: '8px 10px' }}>
+            <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: '9px 11px' }}>
               <div>
-                <div style={{ fontSize: 13.5, color: TEXT, fontWeight: 600 }}>{entry.ftp}W</div>
-                <div style={{ fontSize: 11.5, color: SUB }}>{entry.source}</div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13.5, color: TEXT, fontWeight: 600 }}>{entry.ftp}W</div>
+                <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB }}>{entry.source}</div>
               </div>
-              <div style={{ fontSize: 11.5, color: SUB }}>{new Date(entry.date).toLocaleDateString()}</div>
+              <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB }}>{new Date(entry.date).toLocaleDateString()}</div>
             </div>
           ))}
         </div>
@@ -3076,27 +3079,27 @@ function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDup
   return (
     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ width: 4, alignSelf: 'stretch', background: z.color, borderRadius: 2 }} />
+        <div style={{ width: 4, alignSelf: 'stretch', background: z.color, borderRadius: 2, flexShrink: 0 }} />
         <input value={interval.label} onChange={e => onChange({ ...interval, label: e.target.value })}
-          placeholder="Label" style={{ flex: 1, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 13 }} />
+          placeholder="Label" style={{ fontFamily: "'Manrope', sans-serif", flex: 1, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 13 }} />
         <IconBtn onClick={onMoveUp} disabled={first}><ChevronUp size={16} /></IconBtn>
         <IconBtn onClick={onMoveDown} disabled={last}><ChevronDown size={16} /></IconBtn>
         <IconBtn onClick={onDuplicate}><Copy size={15} /></IconBtn>
         <IconBtn onClick={onDelete} danger><Trash2 size={15} /></IconBtn>
       </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <label style={{ fontSize: 12, color: SUB }}>Duration</label>
         <input type="number" min="0" value={mins} onChange={e => onChange({ ...interval, duration: Math.max(0, Number(e.target.value) || 0) * 60 + secs })}
-          style={{ width: 48, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
+          style={{ fontFamily: "'Space Grotesk', sans-serif", width: 48, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
         <span style={{ color: SUB, fontSize: 12 }}>m</span>
         <input type="number" min="0" max="59" value={secs} onChange={e => onChange({ ...interval, duration: mins * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)) })}
-          style={{ width: 48, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
+          style={{ fontFamily: "'Space Grotesk', sans-serif", width: 48, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
         <span style={{ color: SUB, fontSize: 12 }}>s</span>
         <select value={interval.type} onChange={e => {
           const t = e.target.value;
           const target = t === 'power' ? 70 : t === 'rpe' ? 5 : null;
           onChange({ ...interval, type: t, target });
-        }} style={{ background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }}>
+        }} style={{ fontFamily: "'Manrope', sans-serif", background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }}>
           <option value="power">Power</option>
           <option value="rpe">RPE</option>
           <option value="free">Free</option>
@@ -3104,7 +3107,7 @@ function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDup
         {interval.type !== 'free' && (
           <>
             <input type="number" value={interval.target ?? ''} onChange={e => onChange({ ...interval, target: Number(e.target.value) || 0 })}
-              style={{ width: 52, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
+              style={{ fontFamily: "'Space Grotesk', sans-serif", width: 52, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
             <span style={{ color: SUB, fontSize: 12 }}>{interval.type === 'power' ? '% FTP' : '/ 10'}</span>
           </>
         )}
@@ -3307,68 +3310,69 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
-      <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, fontWeight: 600, color: TEXT, letterSpacing: 0.3, marginBottom: 2 }}>{editingWorkout ? 'Edit workout' : 'Build a workout'}</div>
-      <div style={{ fontSize: 13, color: SUB, marginBottom: 16 }}>Stack intervals, mix power, RPE and free riding — or start from a real route.</div>
+      <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 26, color: TEXT, letterSpacing: -0.3, marginBottom: 2 }}>{editingWorkout ? 'Edit workout' : 'Build a workout'}</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 16 }}>Stack intervals, mix power, RPE and free riding — or start from a real route.</div>
 
       <input ref={fileInputRef} type="file" accept=".gpx" onChange={handleGpxFile} style={{ display: 'none' }} />
       <button onClick={() => fileInputRef.current && fileInputRef.current.click()} disabled={gpxBusy}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 0', borderRadius: 10, border: `1px dashed ${LINE}`, background: PANEL, color: TEXT, fontSize: 13.5, fontWeight: 600, cursor: gpxBusy ? 'default' : 'pointer', marginBottom: 8, boxSizing: 'border-box' }}>
+        style={{ fontFamily: "'Manrope', sans-serif", width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 0', borderRadius: 10, border: `1px dashed #C9BEA9`, background: PANEL, color: TEXT, fontSize: 13.5, fontWeight: 600, cursor: gpxBusy ? 'default' : 'pointer', marginBottom: 8, boxSizing: 'border-box' }}>
         <Upload size={15} /> {gpxBusy ? 'Reading route…' : 'Import a route (GPX file)'}
       </button>
-      {gpxError && <div style={{ fontSize: 12, color: RED, marginBottom: 8 }}>{gpxError}</div>}
-      <div style={{ fontSize: 11.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
+      {gpxError && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: RED, marginBottom: 8 }}>{gpxError}</div>}
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
         Turns a real ride's elevation profile into an indoor power workout — climbs get harder targets, descents get easier ones, timed to roughly match real-world pace. Review it below before saving.
       </div>
 
       <input value={name} onChange={e => setName(e.target.value)} placeholder="Workout name"
-        style={{ width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 15, marginBottom: 8, boxSizing: 'border-box' }} />
+        style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 15, marginBottom: 8, boxSizing: 'border-box' }} />
       <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description"
-        style={{ width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
+        style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
       <select value={category} onChange={e => setCategory(e.target.value)}
-        style={{ width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' }}>
+        style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' }}>
         {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
       </select>
 
       {intervals.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <ProfileChart intervals={intervals} />
-          <div style={{ fontSize: 12, color: SUB, marginTop: 6 }}>{fmtLong(total)} total · {intervals.length} intervals</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginTop: 6 }}>{fmtLong(total)} total · {intervals.length} intervals</div>
         </div>
       )}
 
-      <div style={{ fontSize: 12, color: SUB, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.6 }}>Quick add</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Quick add</div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {QUICK_BLOCKS.map((b, i) => (
-          <button key={i} onClick={() => addBlock(b)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>
+          <button key={i} onClick={() => addBlock(b)} style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>
             <Plus size={13} /> {b.label}
           </button>
         ))}
       </div>
 
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Intervals</div>
       {intervals.map((it, idx) => (
         <IntervalRow key={it.id} interval={it}
           onChange={next => updateAt(idx, next)} onDelete={() => removeAt(idx)}
           onMoveUp={() => move(idx, -1)} onMoveDown={() => move(idx, 1)} onDuplicate={() => duplicateAt(idx)}
           first={idx === 0} last={idx === intervals.length - 1} />
       ))}
-      {intervals.length === 0 && <div style={{ color: SUB, fontSize: 13, textAlign: 'center', padding: '20px 0', border: `1px dashed ${LINE}`, borderRadius: 10, marginBottom: 16 }}>No intervals yet — tap a quick add block above to start.</div>}
+      {intervals.length === 0 && <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '20px 0', border: `1px dashed ${LINE}`, borderRadius: 10, marginBottom: 16 }}>No intervals yet — tap a quick add block above to start.</div>}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-        {editingWorkout && <button onClick={reset} style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: SUB, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>}
+        {editingWorkout && <button onClick={reset} style={{ fontFamily: "'Manrope', sans-serif", flex: 1, padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: SUB, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>}
         <button onClick={save} disabled={!name.trim() || intervals.length === 0}
-          style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: (!name.trim() || intervals.length === 0) ? MUTED : 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: (!name.trim() || intervals.length === 0) ? 'default' : 'pointer' }}>
+          style={{ fontFamily: "'Manrope', sans-serif", flex: 2, padding: '13px 0', borderRadius: 10, border: 'none', background: (!name.trim() || intervals.length === 0) ? MUTED : 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: (!name.trim() || intervals.length === 0) ? 'default' : 'pointer' }}>
           <Save size={17} /> {editingWorkout ? 'Save changes' : 'Save workout'}
         </button>
       </div>
 
       {customWorkouts.length > 0 && (
         <div style={{ marginTop: 30 }}>
-          <div style={{ fontSize: 12, color: SUB, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Your saved workouts</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Your saved workouts</div>
           {customWorkouts.map(w => (
             <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: TEXT, fontWeight: 600 }}>{w.name}</div>
-                <div style={{ fontSize: 12, color: SUB }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
+                <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, fontWeight: 600 }}>{w.name}</div>
+                <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
               </div>
               <IconBtn onClick={() => { setName(w.name); setCategory(w.category); setDescription(w.description); setIntervals(w.intervals.map(i => ({ ...i }))); }}><Edit3 size={15} /></IconBtn>
               <IconBtn onClick={() => deleteCustomWorkout(w.id)} danger><Trash2 size={15} /></IconBtn>
@@ -4157,34 +4161,34 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, fontWeight: 600, color: TEXT, letterSpacing: 0.3, marginBottom: 2 }}>Settings</div>
+        <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 26, color: TEXT, letterSpacing: -0.3, marginBottom: 2 }}>Settings</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {account && (
-            <button onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>
+            <button onClick={onLogout} style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>
               <LogOut size={14} /> Sign out
             </button>
           )}
           {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', padding: 4 }}><X size={22} /></button>}
         </div>
       </div>
-      <div style={{ fontSize: 13, color: SUB, marginBottom: 4 }}>Trainer, sounds and how the app looks.</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 4 }}>Trainer, sounds and how the app looks.</div>
 
       <SectionHeader icon={<Bluetooth size={16} color="var(--accent)" />} title="Trainer connectivity" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
-        <div style={{ flex: 1, fontSize: 14, color: TEXT }}>{statusLabel}</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 14, color: TEXT }}>{statusLabel}</div>
         {trainer.status === 'connected' ? (
-          <button onClick={trainer.disconnect} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
+          <button onClick={trainer.disconnect} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
         ) : (
-          <button onClick={trainer.connect} disabled={trainer.status === 'connecting'} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
+          <button onClick={trainer.connect} disabled={trainer.status === 'connecting'} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
         )}
       </div>
       {!trainer.supported && (
-        <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
           Bluetooth isn't available here. This works in Chrome on desktop or Android with a trainer that supports the FTMS standard — not in Safari or iOS.
         </div>
       )}
-      {trainer.errorMsg && <div style={{ fontSize: 12, color: RED, marginBottom: 6 }}>{trainer.errorMsg}</div>}
+      {trainer.errorMsg && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: RED, marginBottom: 6 }}>{trainer.errorMsg}</div>}
       <SettingRow label="ERG mode" sub="Trainer auto-sets resistance to match each interval's power target">
         <Switch checked={settings.ergMode} onChange={v => updateSetting('ergMode', v)} disabled={trainer.status !== 'connected' || !trainer.hasControl} />
       </SettingRow>
@@ -4195,23 +4199,23 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <SectionHeader icon={<HeartPulse size={16} color="var(--accent)" />} title="Heart rate monitor" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: hrStatusColor, flexShrink: 0 }} />
-        <div style={{ flex: 1, fontSize: 14, color: TEXT }}>{hrStatusLabel}</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 14, color: TEXT }}>{hrStatusLabel}</div>
         {heartRate.status === 'connected' ? (
-          <button onClick={heartRate.disconnect} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
+          <button onClick={heartRate.disconnect} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
         ) : (
-          <button onClick={heartRate.connect} disabled={heartRate.status === 'connecting'} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
+          <button onClick={heartRate.connect} disabled={heartRate.status === 'connecting'} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
         )}
       </div>
       {!heartRate.supported && (
-        <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
           Bluetooth isn't available here. Works with any standard BLE chest strap or armband — Polar, Wahoo, Garmin and most others.
         </div>
       )}
-      {heartRate.errorMsg && <div style={{ fontSize: 12, color: RED, marginBottom: 6 }}>{heartRate.errorMsg}</div>}
-      <div style={{ fontSize: 12, color: MUTED, marginBottom: 6, lineHeight: 1.5 }}>
+      {heartRate.errorMsg && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: RED, marginBottom: 6 }}>{heartRate.errorMsg}</div>}
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: MUTED, marginBottom: 6, lineHeight: 1.5 }}>
         Your heart rate is shown live while you ride and is included in any workout file you export. It is never saved to your Trbo account and never sent to Strava.
       </div>
-      <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
         Separate from your trainer — pair it here once and it'll show up alongside power during every ride.
       </div>
 
@@ -4220,14 +4224,14 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           <SectionHeader icon={<LinkIcon size={16} color="var(--accent)" />} title="Strava" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: stravaConnected ? '#8FC93A' : SUB, flexShrink: 0 }} />
-            <div style={{ flex: 1, fontSize: 14, color: TEXT }}>{stravaConnected ? 'Connected' : 'Not connected'}</div>
+            <div style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 14, color: TEXT }}>{stravaConnected ? 'Connected' : 'Not connected'}</div>
             {stravaConnected ? (
-              <button onClick={onDisconnectStrava} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
+              <button onClick={onDisconnectStrava} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
             ) : (
-              <button onClick={onConnectStrava} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
+              <button onClick={onConnectStrava} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
             )}
           </div>
-          <div style={{ fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
             Completed rides are pushed to your Strava account automatically once connected.
           </div>
         </>
@@ -4238,14 +4242,14 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <SettingRow label="3-2-1 countdown beep"><Switch checked={settings.soundCountdown} onChange={v => updateSetting('soundCountdown', v)} /></SettingRow>
       <SettingRow label="Completion sound"><Switch checked={settings.soundCompletion} onChange={v => updateSetting('soundCompletion', v)} /></SettingRow>
       <div style={{ padding: '10px 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: TEXT, marginBottom: 6 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', justifyContent: 'space-between', fontSize: 14, color: TEXT, marginBottom: 6 }}>
           <span>Volume</span><span style={{ color: SUB }}>{Math.round(settings.soundVolume * 100)}%</span>
         </div>
         <input type="range" min={0} max={1} step={0.05} value={settings.soundVolume}
           onChange={e => updateSetting('soundVolume', Number(e.target.value))}
           style={{ width: '100%', accentColor: settings.accentColor }} />
       </div>
-      <div style={{ fontSize: 12.5, color: SUB, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 14, marginBottom: 2 }}>Ride cues</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Ride cues</div>
       <SettingRow label="Distinct tone per zone" sub="Interval-change beep pitch matches the upcoming effort — low for recovery, sharp for anaerobic">
         <Switch checked={settings.soundZoneTones} onChange={v => updateSetting('soundZoneTones', v)} />
       </SettingRow>
@@ -4262,7 +4266,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
 
       <CollapsibleSection icon={<Sun size={16} color="var(--accent)" />} title="Visuals">
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
-        <div style={{ fontSize: 14, color: TEXT, marginBottom: 8 }}>Appearance</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 8 }}>Appearance</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Chip active={settings.theme === 'palette'} onClick={() => updateSetting('theme', 'palette')}>Default</Chip>
           <Chip active={settings.theme === 'dark'} onClick={() => updateSetting('theme', 'dark')}><Moon size={12} style={{ marginRight: 5, verticalAlign: -2 }} />Dark</Chip>
@@ -4270,24 +4274,24 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
         </div>
       </div>
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
-        <div style={{ fontSize: 14, color: TEXT, marginBottom: 8 }}>Interval targets show as</div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 8 }}>Interval targets show as</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Chip active={settings.targetDisplay === 'both'} onClick={() => updateSetting('targetDisplay', 'both')}>Watts + % FTP</Chip>
           <Chip active={settings.targetDisplay === 'watts'} onClick={() => updateSetting('targetDisplay', 'watts')}>Watts only</Chip>
           <Chip active={settings.targetDisplay === 'percent'} onClick={() => updateSetting('targetDisplay', 'percent')}>% FTP only</Chip>
         </div>
       </div>
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
-        <div style={{ fontSize: 14, color: TEXT, marginBottom: 2 }}>Default orientation</div>
-        <div style={{ fontSize: 12, color: SUB, marginBottom: 8, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 2 }}>Default orientation</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 8, lineHeight: 1.5 }}>
           Landscape is recommended — it's designed for a device mounted on your bars. Portrait works but some screens will feel cramped or stretched.
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Chip active={settings.preferredOrientation === 'landscape'} onClick={() => updateSetting('preferredOrientation', 'landscape')}>Landscape (recommended)</Chip>
           <Chip active={settings.preferredOrientation === 'portrait'} onClick={() => updateSetting('preferredOrientation', 'portrait')}>Portrait</Chip>
         </div>
       </div>
-      <div style={{ fontSize: 12.5, color: SUB, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 14, marginBottom: 2 }}>Ride cues</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Ride cues</div>
       <SettingRow label="Zone-colored background wash" sub="A subtle screen tint that shifts with the current effort zone">
         <Switch checked={settings.visualZoneWash} onChange={v => updateSetting('visualZoneWash', v)} />
       </SettingRow>
@@ -4309,14 +4313,14 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
         <>
           <SectionHeader icon={<Zap size={16} color="var(--accent)" />} title="Account & subscription" />
           <SettingRow label={account.name} sub={account.email}>
-            <button onClick={onLogout} style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Log out</button>
+            <button onClick={onLogout} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Log out</button>
           </SettingRow>
           <SettingRow
             label={compAccess ? 'Friends & family — free access' : subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
             sub={compAccess ? 'Complimentary access, no card on file' : subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}
           >
             {!subscribed && !compAccess && (
-              <button onClick={onShowPaywall} style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
+              <button onClick={onShowPaywall} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
             )}
           </SettingRow>
         </>
@@ -4326,26 +4330,26 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <SettingRow label="FTP" sub="Used to calculate watt targets from % FTP">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <FtpInput ftp={ftp} setFtp={setFtp}
-            style={{ width: 70, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 14 }} />
-          <span style={{ fontSize: 13, color: SUB }}>W</span>
+            style={{ width: 70, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 14, fontFamily: "'Space Grotesk', sans-serif" }} />
+          <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB }}>W</span>
         </div>
       </SettingRow>
       {ftpHistory && ftpHistory.length > 0 && (
         <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontSize: 14, color: TEXT }}>FTP test history</div>
-            <button onClick={onClearFtpHistory} style={{ background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT }}>FTP test history</div>
+            <button onClick={onClearFtpHistory} style={{ fontFamily: "'Manrope', sans-serif", background: 'none', border: 'none', color: SUB, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
               <Trash2 size={12} /> Clear
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {ftpHistory.slice().reverse().slice(0, 10).map(entry => (
-              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: PANEL, borderRadius: 8, padding: '8px 10px' }}>
+              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px' }}>
                 <div>
-                  <div style={{ fontSize: 13.5, color: TEXT, fontWeight: 600 }}>{entry.ftp}W</div>
-                  <div style={{ fontSize: 11.5, color: SUB }}>{entry.source}</div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13.5, color: TEXT, fontWeight: 600 }}>{entry.ftp}W</div>
+                  <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB }}>{entry.source}</div>
                 </div>
-                <div style={{ fontSize: 11.5, color: SUB }}>{new Date(entry.date).toLocaleDateString()}</div>
+                <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB }}>{new Date(entry.date).toLocaleDateString()}</div>
               </div>
             ))}
           </div>
@@ -4354,13 +4358,13 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <SettingRow label="Custom workouts saved" sub={`${customWorkouts.length} workout${customWorkouts.length === 1 ? '' : 's'}`}>
         {!confirmReset ? (
           <button onClick={() => setConfirmReset(true)} disabled={customWorkouts.length === 0}
-            style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: customWorkouts.length === 0 ? MUTED : RED, fontSize: 12.5, cursor: customWorkouts.length === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: customWorkouts.length === 0 ? MUTED : RED, fontSize: 12.5, cursor: customWorkouts.length === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <RefreshCw size={13} /> Clear all
           </button>
         ) : (
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => { onResetCustom(); setConfirmReset(false); }} style={{ padding: '7px 10px', borderRadius: 8, border: 'none', background: RED, color: '#fff', fontSize: 12.5, cursor: 'pointer' }}>Confirm</button>
-            <button onClick={() => setConfirmReset(false)} style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => { onResetCustom(); setConfirmReset(false); }} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 10px', borderRadius: 8, border: 'none', background: RED, color: '#fff', fontSize: 12.5, cursor: 'pointer' }}>Confirm</button>
+            <button onClick={() => setConfirmReset(false)} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
           </div>
         )}
       </SettingRow>
@@ -4380,12 +4384,12 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
               { label: 'Rides, last 7 days', value: ownerStats.rides_last_7_days },
             ].map((c, i) => (
               <div key={i} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10 }}>
-                <div style={{ fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{c.label}</div>
-                <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 18, fontWeight: 700, color: TEXT }}>{c.value ?? '–'}</div>
+                <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{c.label}</div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: TEXT }}>{c.value ?? '–'}</div>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 11.5, color: SUB, marginBottom: 6 }}>{ownerStats.total_rides_logged} rides logged in total, across everyone.</div>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 6 }}>{ownerStats.total_rides_logged} rides logged in total, across everyone.</div>
         </>
       )}
     </div>
