@@ -4395,13 +4395,35 @@ const AUTH = THEMES.palette;
 const AUTH_FONT_HEAD = "'Big Shoulders Display', sans-serif";
 const AUTH_FONT_BODY = "'Manrope', sans-serif";
 
+// The auth screen's brand lockup (mark + wordmark) scales with available
+// vertical room: full size on phone portrait and laptop, smaller on the
+// short-height cases (phone landscape, tablet) — matches the login screen
+// design spec's four reference sizes.
+function computeAuthLockup() {
+  if (typeof window === 'undefined') return { mark: 92, wordmark: 60 };
+  const h = window.innerHeight;
+  if (h < 500) return { mark: 60, wordmark: 40 }; // phone landscape
+  if (h < 650) return { mark: 76, wordmark: 50 }; // tablet
+  return { mark: 92, wordmark: 60 }; // phone portrait / laptop
+}
+function useAuthLockup() {
+  const [size, setSize] = useState(computeAuthLockup);
+  useEffect(() => {
+    const update = () => setSize(computeAuthLockup());
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return size;
+}
+
 function AuthShell({ children, footer }) {
+  const { mark, wordmark } = useAuthLockup();
   return (
     <div style={{ minHeight: '100%', background: AUTH.bg, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 20px', fontFamily: AUTH_FONT_BODY }}>
-      <div style={{ maxWidth: 380, width: '100%', margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
-          <TrboMark size={34} />
-          <div style={{ fontFamily: AUTH_FONT_HEAD, fontWeight: 900, textTransform: 'uppercase', fontSize: 22, color: AUTH.text, letterSpacing: -0.4 }}>Trbo</div>
+      <div style={{ maxWidth: 340, width: '100%', margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28 }}>
+          <TrboMark size={mark} />
+          <div style={{ fontFamily: AUTH_FONT_HEAD, fontWeight: 900, fontSize: wordmark, letterSpacing: -1.5, color: INK }}>TRBO</div>
         </div>
         {children}
         {footer && <div style={{ marginTop: 18, textAlign: 'center' }}>{footer}</div>}
@@ -4452,7 +4474,7 @@ function SocialAuthButtons({ onError }) {
 // Shared look for the big Big Shoulders Display headline used atop every
 // auth screen ("Log in", "Start your free trial", etc).
 function AuthTitle({ children, tight }) {
-  return <div style={{ fontFamily: AUTH_FONT_HEAD, fontWeight: 900, textTransform: 'uppercase', fontSize: 22, letterSpacing: -0.4, color: AUTH.text, marginBottom: tight ? 4 : 16, textAlign: 'center' }}>{children}</div>;
+  return <div style={{ fontFamily: AUTH_FONT_HEAD, fontWeight: 700, fontSize: 32, color: AUTH.text, marginBottom: tight ? 4 : 22, textAlign: 'center' }}>{children}</div>;
 }
 function AuthPrimaryButton({ children, submitting, ...props }) {
   return (
