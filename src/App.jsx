@@ -4,7 +4,7 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2, Smartphone,
+  Target, Flag, TrendingUp, Gamepad2, Smartphone, LogOut,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
@@ -4158,7 +4158,14 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 26, fontWeight: 600, color: TEXT, letterSpacing: 0.3, marginBottom: 2 }}>Settings</div>
-        {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', padding: 4 }}><X size={22} /></button>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {account && (
+            <button onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>
+              <LogOut size={14} /> Sign out
+            </button>
+          )}
+          {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', padding: 4 }}><X size={22} /></button>}
+        </div>
       </div>
       <div style={{ fontSize: 13, color: SUB, marginBottom: 4 }}>Trainer, sounds and how the app looks.</div>
 
@@ -4890,10 +4897,12 @@ function NavRow({ active, onClick, Icon, label }) {
 // primary nav plus the workout category filters underneath, in the same
 // chrome already used for category filtering elsewhere in the app.
 function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
+  const showCategories = view === 'library' || view === 'basics' || view === 'rides';
   return (
-    <div style={{
+    <div className="sidebar-nav" style={{
       width, flexShrink: 0, background: PANEL, borderRight: `1px solid ${LINE}`,
       display: 'flex', flexDirection: 'column', paddingLeft: 'env(safe-area-inset-left)',
+      position: 'sticky', top: 0, alignSelf: 'flex-start', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '18px 14px 16px' }}>
         <div style={{ width: 24, height: 24, borderRadius: 6, background: INK, flexShrink: 0 }} />
@@ -4904,12 +4913,14 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
           <NavRow key={key} active={view === key} onClick={() => onNavigate(key)} Icon={Icon} label={label} />
         ))}
       </div>
-      <div style={{ margin: '16px 10px 0', paddingTop: 10, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', minHeight: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: SUB, letterSpacing: 0.6, textTransform: 'uppercase', padding: '0 10px 4px' }}>Categories</div>
-        {CATEGORIES.concat('Custom').map(c => (
-          <NavRow key={c} active={view === 'library' && category === c} onClick={() => onSelectCategory(c)} label={c} />
-        ))}
-      </div>
+      {showCategories && (
+        <div style={{ margin: '16px 10px 0', paddingTop: 10, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: SUB, letterSpacing: 0.6, textTransform: 'uppercase', padding: '0 10px 4px' }}>Categories</div>
+          {CATEGORIES.concat('Custom').map(c => (
+            <NavRow key={c} active={view === 'library' && category === c} onClick={() => onSelectCategory(c)} label={c} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -5311,6 +5322,7 @@ export default function App() {
     // in-workout screen: fill the real viewport height so nothing needs to
     // scroll to be seen, and lay stats/controls out side-by-side once the
     // phone is rotated to landscape (mounted on the bars) instead of stacked
+    + " .sidebar-nav { height: 100vh; height: 100dvh; }"
     + " .player-screen { height: 100vh; height: 100dvh; box-sizing: border-box; }"
     + " .player-main { flex: 1; min-height: 0; overflow: auto; }"
     + " @media (orientation: landscape) { .player-main { flex-direction: row !important; align-items: center; justify-content: center; gap: 20px; } .player-stats { flex: 1 1 auto; max-width: 560px; } .player-controls { flex: 0 0 auto; } }"
