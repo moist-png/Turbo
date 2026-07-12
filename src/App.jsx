@@ -2439,7 +2439,7 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: 20, maxHeight: '85vh', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: 20, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))', maxHeight: 'min(85vh, calc(100dvh - 24px))', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{workout.name}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer' }}><X size={22} /></button>
@@ -4761,7 +4761,7 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email 
   if (!blocking) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
-        <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: '10px 20px 24px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: '18px 18px 0 0', border: `1px solid ${LINE}`, borderBottom: 'none', padding: '10px 20px 24px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))', maxHeight: 'min(90vh, calc(100dvh - 24px))', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {body}
         </div>
       </div>
@@ -4920,7 +4920,7 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
       {showCategories && (
         <div style={{ margin: '16px 10px 0', paddingTop: 10, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: SUB, letterSpacing: 0.6, textTransform: 'uppercase', padding: '0 10px 4px' }}>Categories</div>
-          {CATEGORIES.concat('Custom').map(c => (
+          {CATEGORIES.filter(c => c !== 'Rides' && c !== 'Basics').concat('Custom').map(c => (
             <NavRow key={c} active={view === 'library' && category === c} onClick={() => onSelectCategory(c)} label={c} />
           ))}
         </div>
