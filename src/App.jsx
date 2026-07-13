@@ -1894,7 +1894,7 @@ const LIBRARY = [
     ],
   },
 ];
-const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 'Sweet Spot', 'Threshold', 'VO2 Max', 'Anaerobic', 'FTP Test', 'Mixed'];
+const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 'Sweet Spot', 'Threshold', 'VO2 Max', 'FTP Test'];
 
 // ---------- audio ----------
 function useBeeper() {
@@ -3240,7 +3240,7 @@ function parseGpxToWorkout(xmlText, fileName) {
 
 function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, editingWorkout, clearEditing }) {
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Mixed');
+  const [category, setCategory] = useState('Endurance');
   const [description, setDescription] = useState('');
   const [intervals, setIntervals] = useState([]);
   const [gpxError, setGpxError] = useState(null);
@@ -3299,7 +3299,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       return out;
     });
   }
-  function reset() { setName(''); setCategory('Mixed'); setDescription(''); setIntervals([]); setGpxError(null); clearEditing(); }
+  function reset() { setName(''); setCategory('Endurance'); setDescription(''); setIntervals([]); setGpxError(null); clearEditing(); }
   function save() {
     if (!name.trim() || intervals.length === 0) return;
     saveCustomWorkout({ id: editingWorkout ? editingWorkout.id : 'custom-' + newId(), name: name.trim(), category, description: description.trim() || 'Custom workout.', intervals });
