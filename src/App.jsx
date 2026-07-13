@@ -211,7 +211,13 @@ function workoutIntensity(w) {
 }
 function formatTarget(it, ftp, mode) {
   if (it.type === 'free') return 'Free / rest';
-  if (it.type === 'rpe') return `RPE ${it.target} / 10`;
+  if (it.type === 'rpe') {
+    const pct = rpeToPct(it.target);
+    const watts = Math.round((ftp * pct) / 100);
+    if (mode === 'watts') return `RPE ${it.target}/10 · ${watts}W`;
+    if (mode === 'percent') return `RPE ${it.target}/10 · ~${pct}% FTP`;
+    return `RPE ${it.target}/10 · ~${pct}% FTP · ${watts}W`;
+  }
   const watts = Math.round((ftp * it.target) / 100);
   if (mode === 'watts') return `${watts}W`;
   if (mode === 'percent') return `${it.target}% FTP`;
@@ -1802,14 +1808,14 @@ const LIBRARY = [
     description: 'Maximal sprints climbing then dropping in length — 5 up to 20 seconds and back — with long full recoveries so every one is flat out.',
     intervals: [
       iv('Warm up', 480, 'power', 60),
-      iv('Primer sprint', 8, 'rpe', 9), iv('Easy spin', 172, 'power', 55),
-      iv('Sprint — 5s', 5, 'rpe', 10), iv('Full recovery', 235, 'power', 50),
-      iv('Sprint — 10s', 10, 'rpe', 10), iv('Full recovery', 230, 'power', 50),
-      iv('Sprint — 15s', 15, 'rpe', 10), iv('Full recovery', 225, 'power', 50),
-      iv('Sprint — 20s', 20, 'rpe', 10), iv('Full recovery', 240, 'power', 50),
-      iv('Sprint — 15s', 15, 'rpe', 10), iv('Full recovery', 225, 'power', 50),
-      iv('Sprint — 10s', 10, 'rpe', 10), iv('Full recovery', 230, 'power', 50),
-      iv('Sprint — 5s', 5, 'rpe', 10), iv('Full recovery', 235, 'power', 50),
+      iv('Primer sprint', 8, 'power', 120), iv('Easy spin', 172, 'power', 55),
+      iv('Sprint — 5s', 5, 'power', 170), iv('Full recovery', 235, 'power', 50),
+      iv('Sprint — 10s', 10, 'power', 160), iv('Full recovery', 230, 'power', 50),
+      iv('Sprint — 15s', 15, 'power', 150), iv('Full recovery', 225, 'power', 50),
+      iv('Sprint — 20s', 20, 'power', 140), iv('Full recovery', 240, 'power', 50),
+      iv('Sprint — 15s', 15, 'power', 150), iv('Full recovery', 225, 'power', 50),
+      iv('Sprint — 10s', 10, 'power', 160), iv('Full recovery', 230, 'power', 50),
+      iv('Sprint — 5s', 5, 'power', 170), iv('Full recovery', 235, 'power', 50),
       iv('Cool down', 420, 'power', 50),
     ],
   },
@@ -3976,11 +3982,15 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   }, [currentIndex]);
 
   // ERG mode: push power target to trainer on interval change (or when the
-  // rider dials the intensity up or down mid-ride)
+  // rider dials the intensity up or down mid-ride). RPE-typed intervals are
+  // converted to a %FTP target via rpeToPct so a "sprint" segment actually
+  // raises the trainer's resistance instead of silently holding whatever
+  // target the previous power-typed interval left in place.
   useEffect(() => {
     if (!settings.ergMode || trainer.status !== 'connected' || !trainer.hasControl) return;
     const current = intervals[currentIndex];
-    if (current.type === 'power') trainer.setErgTarget(Math.round((ftp * current.target * intensityAdjust) / 100));
+    const pct = current.type === 'power' ? current.target : current.type === 'rpe' ? rpeToPct(current.target) : null;
+    if (pct != null) trainer.setErgTarget(Math.round((ftp * pct * intensityAdjust) / 100));
   }, [currentIndex, settings.ergMode, trainer.status, trainer.hasControl, ftp, intensityAdjust]);
 
   // auto-pause if trainer disconnects mid-ride
