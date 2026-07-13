@@ -5084,7 +5084,7 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
       position: 'sticky', top: 0, alignSelf: 'flex-start', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '20px 14px 18px' }}>
-        <div style={{ width: 30, height: 30, borderRadius: 7, background: INK, flexShrink: 0 }} />
+        <TrboMark size={30} />
         <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 900, fontSize: 21, color: TEXT, letterSpacing: -0.3 }}>TRBO</span>
       </div>
       <div style={{ padding: '0 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
