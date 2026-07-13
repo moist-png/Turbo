@@ -454,3 +454,28 @@ drop policy if exists "Users can star workouts" on public.starred_workouts;
 create policy "Users can star workouts" on public.starred_workouts for insert with check (auth.uid() = user_id);
 drop policy if exists "Users can unstar workouts" on public.starred_workouts;
 create policy "Users can unstar workouts" on public.starred_workouts for delete using (auth.uid() = user_id);
+
+-- 17. Workout queue: an ordered list of workouts/rides (built-in or custom)
+--     a rider has lined up to roll through back-to-back, via the "Queue"
+--     button next to "Start workout" and managed from the Queue page.
+--     Unlike starred_workouts this needs an update policy too, since
+--     reordering the queue rewrites the position column on existing rows.
+create table if not exists public.queued_workouts (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  workout_id text not null,
+  position integer not null default 0,
+  created_at timestamptz default now(),
+  unique (user_id, workout_id)
+);
+create index if not exists queued_workouts_user_idx on public.queued_workouts (user_id, position);
+
+alter table public.queued_workouts enable row level security;
+drop policy if exists "Users can view own queue" on public.queued_workouts;
+create policy "Users can view own queue" on public.queued_workouts for select using (auth.uid() = user_id);
+drop policy if exists "Users can add to own queue" on public.queued_workouts;
+create policy "Users can add to own queue" on public.queued_workouts for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can reorder own queue" on public.queued_workouts;
+create policy "Users can reorder own queue" on public.queued_workouts for update using (auth.uid() = user_id);
+drop policy if exists "Users can remove from own queue" on public.queued_workouts;
+create policy "Users can remove from own queue" on public.queued_workouts for delete using (auth.uid() = user_id);

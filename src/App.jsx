@@ -4,7 +4,7 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2, Smartphone, LogOut, Star,
+  Target, Flag, TrendingUp, Gamepad2, Smartphone, LogOut, Star, ListOrdered,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
@@ -2422,7 +2422,7 @@ function FtpInput({ ftp, setFtp, style }) {
   );
 }
 
-function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled, presetMinutes, starred, onToggleStar }) {
+function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled, presetMinutes, starred, onToggleStar, inQueue, onToggleQueue }) {
   const originalTotal = totalDuration(workout.intervals);
   const scalable = !workout.fixedLength;
   const initialMinutes = scalable && presetMinutes ? Math.max(10, Math.round(presetMinutes)) : Math.max(10, Math.round(originalTotal / 60));
@@ -2479,10 +2479,16 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
           </div>
         )}
 
-        <button onClick={() => onStart({ ...workout, intervals: scaledIntervals })}
-          style={{ width: '100%', marginTop: 16, padding: '12px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
-          <Play size={18} fill={INK} /> Start workout
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button onClick={() => onStart({ ...workout, intervals: scaledIntervals })}
+            style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+            <Play size={18} fill={INK} /> Start workout
+          </button>
+          <button onClick={() => onToggleQueue(workout.id)} title={inQueue ? 'Remove from queue' : 'Add to queue'}
+            style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: `1px solid ${inQueue ? 'var(--accent)' : LINE}`, background: inQueue ? 'var(--accent)' : PANEL2, color: inQueue ? INK : TEXT, fontWeight: 700, fontSize: 13.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+            <ListOrdered size={16} /> {inQueue ? 'Queued' : 'Queue'}
+          </button>
+        </div>
 
         {needsFtp && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
@@ -3072,6 +3078,69 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
   );
 }
 
+// ---------- queue view ----------
+function QueueView({ queue, customWorkouts, onOpen, onRemove, onMove, onClear, onStartQueue }) {
+  const [confirmClear, setConfirmClear] = useState(false);
+  const resolved = useMemo(() => {
+    const all = LIBRARY.concat(customWorkouts);
+    return queue.map(id => all.find(w => w.id === id)).filter(Boolean);
+  }, [queue, customWorkouts]);
+  const totalSeconds = resolved.reduce((sum, w) => sum + totalDuration(w.intervals), 0);
+
+  return (
+    <div style={{ padding: '16px 16px 80px' }}>
+      <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 26, color: TEXT, letterSpacing: -0.3, marginBottom: 2 }}>Queue</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 16 }}>
+        {resolved.length === 0 ? 'Nothing queued yet.' : `${resolved.length} workout${resolved.length === 1 ? '' : 's'} · ${fmtLong(totalSeconds)} back-to-back`}
+      </div>
+
+      {resolved.length === 0 ? (
+        <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 20px', border: `1px dashed ${LINE}`, borderRadius: 10, lineHeight: 1.6 }}>
+          Add workouts or rides from Library, Basics or Rides — look for the <b style={{ color: TEXT }}>Queue</b> button next to Start workout. Queue two or more and they'll roll straight into each other, back to back.
+        </div>
+      ) : (
+        <>
+          <button onClick={() => onStartQueue(resolved)}
+            style={{ fontFamily: "'Manrope', sans-serif", width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', marginBottom: 16 }}>
+            <Play size={18} fill={INK} /> Start queue
+          </button>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {resolved.map((w, i) => (
+              <div key={w.id + '_' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}>
+                <div onClick={() => onOpen(w)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                  <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 }}>#{i + 1}</div>
+                  <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 15.5, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</div>
+                  <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginTop: 2 }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
+                </div>
+                <IconBtn onClick={() => onMove(w.id, -1)} disabled={i === 0}><ChevronUp size={16} /></IconBtn>
+                <IconBtn onClick={() => onMove(w.id, 1)} disabled={i === resolved.length - 1}><ChevronDown size={16} /></IconBtn>
+                <IconBtn onClick={() => onRemove(w.id)} danger><Trash2 size={15} /></IconBtn>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            {!confirmClear ? (
+              <button onClick={() => setConfirmClear(true)}
+                style={{ fontFamily: "'Manrope', sans-serif", padding: '9px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: RED, fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <RefreshCw size={13} /> Clear queue
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => { onClear(); setConfirmClear(false); }}
+                  style={{ fontFamily: "'Manrope', sans-serif", padding: '9px 14px', borderRadius: 8, border: 'none', background: RED, color: '#fff', fontSize: 12.5, cursor: 'pointer' }}>Confirm</button>
+                <button onClick={() => setConfirmClear(false)}
+                  style={{ fontFamily: "'Manrope', sans-serif", padding: '9px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---------- builder view ----------
 const QUICK_BLOCKS = [
   { label: 'Warm up', duration: 300, type: 'power', target: 55 },
@@ -3577,7 +3646,7 @@ function buildFit({ startedAt, series, sport = 2 }) {
 }
 
 // ---------- player ----------
-function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo }) {
+function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo, queueInfo, onQueueAdvance }) {
   const intervals = workout.intervals;
   const isRampTest = !!workout.autoStopTest;
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -3612,6 +3681,9 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   // Full end-of-ride numbers shown on the finish screen and used for the
   // .tcx/.fit export buttons — set once, right when the ride ends.
   const [finishSummary, setFinishSummary] = useState(null);
+  // Counts down once a queued workout finishes, then auto-advances into the
+  // next one — the rider can also jump ahead or stop early instead of waiting.
+  const [autoAdvanceIn, setAutoAdvanceIn] = useState(null);
   // Lets a rider scale back the remaining power targets if a ride is too
   // hard — session-only, always starts fresh at 100%. Hidden for the FTP
   // tests since dialing those down would just corrupt the result.
@@ -3666,6 +3738,22 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   useEffect(() => { trainerPowerRef.current = trainer.power; }, [trainer.power]);
   useEffect(() => { heartRateRef.current = heartRate ? heartRate.bpm : null; }, [heartRate && heartRate.bpm]);
   useEffect(() => { cadenceRef.current = trainer.cadence; }, [trainer.cadence]);
+
+  // Once this workout finishes and there's a next one queued up, count down
+  // to rolling into it automatically — cleared/cancelled by advancing or
+  // exiting manually before it reaches zero.
+  useEffect(() => {
+    if (!isDone || !queueInfo || !queueInfo.hasNext) return;
+    setAutoAdvanceIn(12);
+    const t = setInterval(() => {
+      setAutoAdvanceIn(s => {
+        if (s == null) return s;
+        if (s <= 1) { clearInterval(t); onQueueAdvance(); return null; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [isDone]);
 
   // Always keep this pointed at a fresh version of the auto-stop logic so
   // the ticking interval below can call it without needing to restart
@@ -3994,7 +4082,14 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
         <button onClick={() => requestAction('exit')} style={{ background: 'none', border: 'none', color: SUB, fontFamily: FONT_BODY, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}><X size={18} /> Exit</button>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 900, textTransform: 'uppercase', fontSize: 16, letterSpacing: -0.3, color: TEXT, textAlign: 'right', lineHeight: 1.1 }}>{workout.name}</div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 900, textTransform: 'uppercase', fontSize: 16, letterSpacing: -0.3, color: TEXT, lineHeight: 1.1 }}>{workout.name}</div>
+          {queueInfo && (
+            <div style={{ fontFamily: FONT_BODY, fontSize: 10.5, color: 'var(--accent)', fontWeight: 700, letterSpacing: 0.4, marginTop: 2 }}>
+              <ListOrdered size={11} style={{ verticalAlign: -1, marginRight: 3 }} /> {queueInfo.position + 1} of {queueInfo.total} queued
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="player-main" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
@@ -4109,6 +4204,25 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {isDone && queueInfo && queueInfo.hasNext && (
+            <div style={{ marginTop: 18, maxWidth: 420, margin: '18px auto 0', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 16, textAlign: 'left' }}>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 4 }}>
+                Up next · {queueInfo.position + 2} of {queueInfo.total}
+              </div>
+              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, color: TEXT, marginBottom: 12 }}>{queueInfo.nextName}</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => { setAutoAdvanceIn(null); onQueueAdvance(); }}
+                  style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontFamily: FONT_BODY, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                  Continue{autoAdvanceIn != null ? ` (${autoAdvanceIn}s)` : ''}
+                </button>
+                <button onClick={() => requestAction('exit')}
+                  style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontFamily: FONT_BODY, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                  End queue here
+                </button>
+              </div>
             </div>
           )}
 
@@ -4863,6 +4977,7 @@ const NAV_ITEMS = [
   { key: 'rides', label: 'Rides', Icon: Bike },
   { key: 'planner', label: 'Planner', Icon: CalendarDays },
   { key: 'builder', label: 'Builder', Icon: Wrench },
+  { key: 'queue', label: 'Queue', Icon: ListOrdered },
   { key: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
 // Sidebar-only inactive text color — a touch darker than the app's usual
@@ -4961,6 +5076,9 @@ export default function App() {
   const [settings, setSettingsState] = useState(DEFAULT_SETTINGS);
   const [customWorkouts, setCustomWorkouts] = useState([]);
   const [starredIds, setStarredIds] = useState(new Set());
+  const [queue, setQueue] = useState([]); // ordered array of workout ids lined up to ride back-to-back
+  const [activeQueue, setActiveQueue] = useState(null); // array of resolved workout objects while a queue is actively playing, or null
+  const [activeQueueIndex, setActiveQueueIndex] = useState(0);
   const [ftpHistory, setFtpHistory] = useState([]);
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [trainingPlan, setTrainingPlan] = useState(null); // active periodized plan (or null)
@@ -5052,7 +5170,7 @@ export default function App() {
   // Once we know who's logged in, load their profile + saved data from the database.
   const [ownerStats, setOwnerStats] = useState(null); // non-null only when logged in as the app owner
   useEffect(() => {
-    if (!user) { setProfile(null); setCustomWorkouts([]); setStarredIds(new Set()); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setArchivedPlans([]); setOwnerStats(null); return; }
+    if (!user) { setProfile(null); setCustomWorkouts([]); setStarredIds(new Set()); setQueue([]); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setArchivedPlans([]); setOwnerStats(null); return; }
     let mounted = true;
     (async () => {
       setProfileLoading(true);
@@ -5078,6 +5196,10 @@ export default function App() {
       // still loads fine — starring just quietly does nothing until it has.
       const { data: starred, error: starredErr } = await supabase.from('starred_workouts').select('workout_id').eq('user_id', user.id);
       if (mounted && !starredErr && starred) setStarredIds(new Set(starred.map(s => s.workout_id)));
+      // Wrapped the same way — degrades to an empty (but working) queue if
+      // queued_workouts hasn't been created yet.
+      const { data: queued, error: queuedErr } = await supabase.from('queued_workouts').select('workout_id').eq('user_id', user.id).order('position', { ascending: true });
+      if (mounted && !queuedErr && queued) setQueue(queued.map(q => q.workout_id));
       const { data: history } = await supabase.from('ftp_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
       if (mounted && history) setFtpHistory(history.map(h => ({ id: h.id, date: h.date, ftp: h.ftp, source: h.source })));
       const { data: sessions } = await supabase.from('workout_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
@@ -5300,6 +5422,67 @@ export default function App() {
     }
   }
 
+  // Queue is small (a handful of workouts at most) so the simplest correct
+  // way to keep positions in sync is to just replace the whole saved list
+  // after every change, rather than patching individual rows.
+  function persistQueue(ids) {
+    if (!user) return;
+    supabase.from('queued_workouts').delete().eq('user_id', user.id).then(() => {
+      if (ids.length === 0) return;
+      supabase.from('queued_workouts').insert(ids.map((workout_id, i) => ({ user_id: user.id, workout_id, position: i }))).then(() => {});
+    });
+  }
+  function toggleQueue(workoutId) {
+    setQueue(prev => {
+      const inQueue = prev.includes(workoutId);
+      const next = inQueue ? prev.filter(id => id !== workoutId) : [...prev, workoutId];
+      persistQueue(next);
+      return next;
+    });
+  }
+  function removeFromQueue(workoutId) {
+    setQueue(prev => {
+      const next = prev.filter(id => id !== workoutId);
+      persistQueue(next);
+      return next;
+    });
+  }
+  function moveQueueItem(workoutId, dir) {
+    setQueue(prev => {
+      const idx = prev.indexOf(workoutId);
+      const target = idx + dir;
+      if (idx === -1 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      persistQueue(next);
+      return next;
+    });
+  }
+  function clearQueue() {
+    setQueue([]);
+    if (user) supabase.from('queued_workouts').delete().eq('user_id', user.id).then(() => {});
+  }
+
+  // ---- active queue playback: rolls two or more workouts seamlessly into
+  // each other without dropping back to the library in between ----
+  function startQueue(workouts) {
+    if (!workouts || workouts.length === 0) return;
+    setActiveWorkout(null);
+    setActiveQueueIndex(0);
+    setActiveQueue(workouts);
+  }
+  function advanceQueue() {
+    setActiveQueueIndex(i => {
+      const next = i + 1;
+      if (!activeQueue || next >= activeQueue.length) { setActiveQueue(null); return 0; }
+      return next;
+    });
+  }
+  function exitQueue() {
+    setActiveQueue(null);
+    setActiveQueueIndex(0);
+  }
+
   function saveCustomWorkout(workout) {
     setCustomWorkouts(list => {
       const exists = list.some(w => w.id === workout.id);
@@ -5313,6 +5496,7 @@ export default function App() {
     setCustomWorkouts(list => list.filter(w => w.id !== id));
     if (user) supabase.from('custom_workouts').delete().eq('id', id).eq('user_id', user.id).then(() => {});
     if (starredIds.has(id)) toggleStar(id);
+    if (queue.includes(id)) removeFromQueue(id);
     setDetailWorkout(null);
   }
   function resetCustomWorkouts() {
@@ -5450,6 +5634,21 @@ export default function App() {
     );
   }
 
+  if (activeQueue) {
+    const current = activeQueue[activeQueueIndex];
+    const queueInfo = { position: activeQueueIndex, total: activeQueue.length, hasNext: activeQueueIndex < activeQueue.length - 1, nextName: activeQueueIndex < activeQueue.length - 1 ? activeQueue[activeQueueIndex + 1].name : null };
+    return (
+      <div style={wrapStyle}>
+        <style>{globalStyle}</style>
+        <OrientationGate preferredOrientation={settings.preferredOrientation}>
+          <PlayerView key={current.id + '_q' + activeQueueIndex} workout={current} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate}
+            onExit={exitQueue} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession}
+            queueInfo={queueInfo} onQueueAdvance={advanceQueue} />
+        </OrientationGate>
+      </div>
+    );
+  }
+
   if (activeWorkout) {
     return (
       <div style={wrapStyle}>
@@ -5498,6 +5697,7 @@ export default function App() {
             {view === 'games' && <MiniGamesView onPlay={setActiveGame} />}
             {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} archivedPlans={archivedPlans} onArchivePlan={archivePlan} onDeleteArchivedPlan={deleteArchivedPlan} />}
             {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} />}
+            {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onMove={moveQueueItem} onClear={clearQueue} onStartQueue={startQueue} />}
             {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
             {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
             {view === 'settings' && (
@@ -5518,6 +5718,7 @@ export default function App() {
             presetMinutes={detailPresetMinutes}
             isCustom={customWorkouts.some(w => w.id === detailWorkout.id)}
             starred={starredIds.has(detailWorkout.id)} onToggleStar={toggleStar}
+            inQueue={queue.includes(detailWorkout.id)} onToggleQueue={toggleQueue}
             onClose={() => { setDetailWorkout(null); setDetailPresetMinutes(null); }}
             onStart={(w) => { setActiveWorkout(w); setDetailWorkout(null); setDetailPresetMinutes(null); }}
             onEdit={() => { setEditingWorkout(detailWorkout); setDetailWorkout(null); setDetailPresetMinutes(null); setView('builder'); }}
