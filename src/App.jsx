@@ -81,6 +81,7 @@ const DEFAULT_SETTINGS = {
   soundHalfwayFinal: true,
   soundRichFanfare: true,
   soundOffTargetNudge: false,
+  soundPersonalBest: true,
   targetDisplay: 'both',
   showNextPreview: true,
   compactLabels: false,
@@ -155,6 +156,19 @@ function zoneFor(interval) {
 // without looking at the screen — low and mellow for recovery, sharp and
 // high for anaerobic efforts.
 const ZONE_TONE_FREQ = { Recovery: 520, Endurance: 660, Tempo: 760, Threshold: 880, 'VO2 Max': 1020, Anaerobic: 1180, Free: 700 };
+// Synthesized workout cues, tuned by ear in the Trbo Sound Lab sandbox so
+// every alert in the app shares one consistent sonic identity rather than
+// a grab-bag of arbitrary beeps. Each cue is a waveform + base pitch + a
+// short pattern of notes (ratio of the base pitch, offset in ms from the
+// trigger, and a duration multiplier of the base length).
+const SOUND_CUES = {
+  intervalStart: { wave: 'triangle', freq: 380, dur: 160, pattern: [{ ratio: 1, offset: 0, mult: 0.6 }, { ratio: 1.333, offset: 90, mult: 0.7 }] },
+  countdownTick: { wave: 'sine', freq: 820, dur: 100, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+  restStart: { wave: 'sine', freq: 550, dur: 780, pattern: [{ ratio: 1, offset: 0, mult: 0.5 }, { ratio: 0.75, offset: 180, mult: 0.6 }] },
+  workoutComplete: { wave: 'sine', freq: 490, dur: 810, pattern: [{ ratio: 1, offset: 0, mult: 0.35 }, { ratio: 1.25, offset: 150, mult: 0.35 }, { ratio: 1.5, offset: 300, mult: 0.6 }] },
+  offTargetAlarm: { wave: 'sine', freq: 335, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 0.3 }, { ratio: 1, offset: 180, mult: 0.3 }, { ratio: 1, offset: 360, mult: 0.3 }] },
+  personalBest: { wave: 'sine', freq: 350, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 0.25 }, { ratio: 1.25, offset: 80, mult: 0.25 }, { ratio: 1.5, offset: 160, mult: 0.25 }, { ratio: 2, offset: 240, mult: 0.5 }] },
+};
 // Confetti palette for the finish-line celebration — reuses the same
 // bright, high-contrast colors as the zone system so it feels on-brand.
 const CONFETTI_COLORS = ['#C9F031', '#FF9F40', '#4FB8A6', '#FF6B4A', '#5AA9E6', '#FF4D4D'];
@@ -1909,13 +1923,13 @@ function useBeeper() {
     if (ctxRef.current && ctxRef.current.state === 'suspended') ctxRef.current.resume();
     return ctxRef.current;
   }
-  function beep(freq, duration, gainVal) {
+  function beep(freq, duration, gainVal, wave = 'sine') {
     const ctx = ensure();
     if (!ctx || gainVal <= 0) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.frequency.value = freq;
-    osc.type = 'sine';
+    osc.type = wave;
     gain.gain.value = gainVal;
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -1925,9 +1939,19 @@ function useBeeper() {
   // Plays a short sequence of notes, each with its own delay (ms) from now
   // — used for the richer finish fanfare and the halfway/final chimes.
   function chime(notes, gainVal) {
-    notes.forEach(n => setTimeout(() => beep(n.freq, n.duration, gainVal), n.delay));
+    notes.forEach(n => setTimeout(() => beep(n.freq, n.duration, gainVal, n.wave), n.delay));
   }
-  return { beep, chime };
+  // Plays one of the designed workout cues (see SOUND_CUES) — a waveform,
+  // base pitch, and a short pattern of notes expressed as a ratio of that
+  // pitch, an offset in ms, and a duration multiplier. Tuned in the Trbo
+  // Sound Lab sandbox so every alert in the app shares one sonic identity.
+  function playCue(def, gainVal) {
+    if (!def || gainVal <= 0) return;
+    def.pattern.forEach(note => {
+      setTimeout(() => beep(def.freq * note.ratio, (def.dur / 1000) * note.mult, gainVal, def.wave), note.offset);
+    });
+  }
+  return { beep, chime, playCue };
 }
 
 // ---------- trainer connectivity (Web Bluetooth FTMS) ----------
@@ -3648,7 +3672,7 @@ function buildFit({ startedAt, series, sport = 2 }) {
 }
 
 // ---------- player ----------
-function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo, queueInfo, onQueueAdvance }) {
+function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo, queueInfo, onQueueAdvance, workoutHistory }) {
   const intervals = workout.intervals;
   const isRampTest = !!workout.autoStopTest;
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -3693,7 +3717,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const [intensityAdjust, setIntensityAdjust] = useState(1);
   const [showIntensityAdjust, setShowIntensityAdjust] = useState(false);
   const canAdjustIntensity = !workout.fixedLength;
-  const { beep, chime } = useBeeper();
+  const { beep, chime, playCue } = useBeeper();
 
   // Elapsed time in seconds up to a given point in the workout — used both
   // for the on-screen progress bar and for what gets logged to history.
@@ -3715,6 +3739,16 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     const np = powerSamples.length ? normalizedPower(powerSamples) : null;
     const tss = computeTss(np, ftp, dur);
     const calories = estimateCalories(avgPower, dur);
+    // A personal best on average or peak power for this ride, measured
+    // against every previously completed ride — celebrated with its own
+    // cue rather than folding it into the generic finish sound. Only
+    // fires when there's an actual prior best to have beaten.
+    if (completed && settings.soundPersonalBest) {
+      const priorPr = computePersonalRecords(workoutHistory);
+      const beatAvg = priorPr && priorPr.bestAvgPower && avgPower != null && avgPower > priorPr.bestAvgPower.avgPower;
+      const beatPeak = priorPr && priorPr.bestPeakPower && maxPower != null && maxPower > priorPr.bestPeakPower.maxPower;
+      if (beatAvg || beatPeak) playCue(SOUND_CUES.personalBest, 0.3 * settings.soundVolume);
+    }
     setFinishSummary({
       avgPower, maxPower, avgHr, maxHr, np, tss, calories, duration: dur,
       series: sessionSeriesRef.current.slice(),
@@ -3780,7 +3814,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
         const next = prev - 1;
         if (settings.soundCountdown && next > 0 && next <= 3 && !beepedRef.current.has(currentIndex + '_' + next)) {
           beepedRef.current.add(currentIndex + '_' + next);
-          beep(660, 0.08, 0.08 * settings.soundVolume);
+          playCue(SOUND_CUES.countdownTick, 0.35 * settings.soundVolume);
         }
         // Halfway-through-the-ride chime — fires once, whenever elapsed
         // time first crosses the midpoint of the whole workout.
@@ -3815,7 +3849,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           if (dev > 0.15) {
             offTargetStreakRef.current += 1;
             if (offTargetStreakRef.current >= 6) {
-              beep(320, 0.06, 0.12 * settings.soundVolume);
+              playCue(SOUND_CUES.offTargetAlarm, 0.35 * settings.soundVolume);
               offTargetStreakRef.current = 0;
             }
           } else {
@@ -3859,8 +3893,15 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     if (currentIndex < intervals.length - 1) {
       if (settings.soundIntervalBeep) {
         const upcomingZone = zoneFor(intervals[currentIndex + 1]);
-        const freq = settings.soundZoneTones ? (ZONE_TONE_FREQ[upcomingZone.name] || 880) : 880;
-        beep(freq, 0.2, 0.2 * settings.soundVolume);
+        if (upcomingZone.name === 'Recovery') {
+          // Recovery gets its own dedicated, softer descending cue —
+          // always, regardless of the per-zone pitch setting below.
+          playCue(SOUND_CUES.restStart, 0.25 * settings.soundVolume);
+        } else {
+          const cue = SOUND_CUES.intervalStart;
+          const cueFreq = settings.soundZoneTones ? (ZONE_TONE_FREQ[upcomingZone.name] || cue.freq) : cue.freq;
+          playCue({ ...cue, freq: cueFreq }, 0.3 * settings.soundVolume);
+        }
       }
       if (isRampTest) {
         const finishedStep = intervals[currentIndex];
@@ -3886,14 +3927,11 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     } else {
       if (settings.soundCompletion) {
         if (settings.soundRichFanfare) {
-          chime([
-            { freq: 784, duration: 0.16, delay: 0 },
-            { freq: 988, duration: 0.16, delay: 140 },
-            { freq: 1175, duration: 0.16, delay: 280 },
-            { freq: 1568, duration: 0.5, delay: 420 },
-          ], 0.2 * settings.soundVolume);
+          playCue(SOUND_CUES.workoutComplete, 0.3 * settings.soundVolume);
         } else {
-          beep(1046, 0.45, 0.25 * settings.soundVolume);
+          const cue = SOUND_CUES.workoutComplete;
+          const lastNote = cue.pattern[cue.pattern.length - 1];
+          beep(cue.freq * lastNote.ratio, (cue.dur / 1000) * lastNote.mult, 0.3 * settings.soundVolume, cue.wave);
         }
       }
       if (settings.visualCelebration) {
@@ -4418,6 +4456,9 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       </SettingRow>
       <SettingRow label="Off-target power nudge" sub="A subtle tick if your power drifts well off target for a few seconds">
         <Switch checked={settings.soundOffTargetNudge} onChange={v => updateSetting('soundOffTargetNudge', v)} />
+      </SettingRow>
+      <SettingRow label="Personal best chime" sub="A distinct cue when a finished ride beats your average or peak power">
+        <Switch checked={settings.soundPersonalBest} onChange={v => updateSetting('soundPersonalBest', v)} />
       </SettingRow>
       </CollapsibleSection>
 
@@ -5691,7 +5732,7 @@ export default function App() {
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
           <PlayerView key={current.id + '_q' + activeQueueIndex} workout={current} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate}
             onExit={exitQueue} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession}
-            queueInfo={queueInfo} onQueueAdvance={advanceQueue} />
+            queueInfo={queueInfo} onQueueAdvance={advanceQueue} workoutHistory={workoutHistory} />
         </OrientationGate>
       </div>
     );
@@ -5702,7 +5743,7 @@ export default function App() {
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
-          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => setActiveWorkout(null)} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} />
+          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => setActiveWorkout(null)} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} workoutHistory={workoutHistory} />
         </OrientationGate>
       </div>
     );
