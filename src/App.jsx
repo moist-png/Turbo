@@ -4938,7 +4938,7 @@ const LOADING_GIFS = [
 function LoadingView() {
   const [gif] = useState(() => LOADING_GIFS[Math.floor(Math.random() * LOADING_GIFS.length)]);
   return (
-    <div style={{ minHeight: '100%', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ height: '100dvh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <img src={gif} alt="" width={128} height={128} style={{ imageRendering: 'pixelated' }} />
     </div>
   );
@@ -5083,9 +5083,9 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
       display: 'flex', flexDirection: 'column', paddingLeft: 'env(safe-area-inset-left)',
       position: 'sticky', top: 0, alignSelf: 'flex-start', overflowY: 'auto',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '18px 14px 16px' }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: INK, flexShrink: 0 }} />
-        <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 900, fontSize: 16, color: TEXT, letterSpacing: -0.3 }}>TRBO</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '20px 14px 18px' }}>
+        <div style={{ width: 30, height: 30, borderRadius: 7, background: INK, flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 900, fontSize: 21, color: TEXT, letterSpacing: -0.3 }}>TRBO</span>
       </div>
       <div style={{ padding: '0 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {NAV_ITEMS.map(({ key, label, Icon }) => (
