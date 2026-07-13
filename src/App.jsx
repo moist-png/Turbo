@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
+import { currentPlanWeek, PHASE } from './planner';
 import { TrboMark } from './PublicPages';
 import { MiniGamesView, MiniGamePlayer } from './MiniGames';
 import {
@@ -2746,15 +2747,33 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
   const workoutCount = LIBRARY.filter(w => w.category === 'Basics').length;
   const rideCount = LIBRARY.filter(w => w.category === 'Rides').length;
 
+  // Approximate "sessions done this week" from logged history within the
+  // current plan week's date range — the plan itself doesn't track
+  // per-day completion, so this is a best-effort read rather than a
+  // stored fact.
+  const planWeekNum = trainingPlan ? currentPlanWeek(trainingPlan) : null;
+  const planWeekData = trainingPlan && trainingPlan.weeks ? trainingPlan.weeks[planWeekNum - 1] : null;
+  const planPhase = planWeekData ? PHASE[planWeekData.phase] : null;
+  let planSessionsDone = 0;
+  if (trainingPlan && trainingPlan.createdAt && planWeekData) {
+    const start = new Date(trainingPlan.createdAt).getTime() + (planWeekNum - 1) * 7 * 86400000;
+    const end = start + 7 * 86400000;
+    planSessionsDone = Math.min(
+      (workoutHistory || []).filter(w => w.completed && new Date(w.date).getTime() >= start && new Date(w.date).getTime() < end).length,
+      planWeekData.days.length
+    );
+  }
+  const planPct = planWeekData && planWeekData.days.length ? Math.round((planSessionsDone / planWeekData.days.length) * 100) : 0;
+
   const plannerCaption = trainingPlan
-    ? `${trainingPlan.goalLabel} · ${trainingPlan.totalWeeks}-week plan in progress`
-    : 'Build a periodized plan around your goal and schedule';
+    ? `Week ${planWeekNum} of ${trainingPlan.totalWeeks}`
+    : 'Build a plan';
 
   const heroes = [
-    { key: 'basics', label: 'Workouts', caption: `${workoutCount} structured sessions · intervals, sweet spot, VO2`, icon: Dumbbell, photo: '/images/home-workouts.jpg', photoPos: 'center 45%', ink: 'var(--hero1-ink)', chip: 'var(--hero1-chip)' },
-    { key: 'rides', label: 'Rides', caption: `${rideCount} long routes · mixed-terrain, real-world feel`, icon: Bike, photo: '/images/home-rides.jpg', photoPos: 'center 74%', ink: 'var(--hero2-ink)', chip: 'var(--hero2-chip)' },
+    { key: 'basics', label: 'Workouts', caption: `${workoutCount} sessions`, icon: Dumbbell, photo: '/images/home-workouts.jpg', photoPos: 'center 45%', ink: 'var(--hero1-ink)', chip: 'var(--hero1-chip)' },
+    { key: 'rides', label: 'Rides', caption: `${rideCount} routes`, icon: Bike, photo: '/images/home-rides.jpg', photoPos: 'center 74%', ink: 'var(--hero2-ink)', chip: 'var(--hero2-chip)' },
     { key: 'planner', label: 'Planner', caption: plannerCaption, icon: CalendarDays, photo: '/images/home-planner.jpg', surface: 'var(--hero3)', photoPos: 'center 45%', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
-    { key: 'games', label: 'Mini Games', caption: 'Short, replayable power games \u00b7 chase, survive, beat the pros', icon: Gamepad2, surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
+    { key: 'games', label: 'Mini Games', caption: '5 games', icon: Gamepad2, surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
   ];
   const slim = [
     { key: 'builder', label: 'Builder', icon: Wrench },
@@ -2784,6 +2803,20 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
           )}
         </div>
 
+        {/* plan progress */}
+        {trainingPlan && planWeekData && (
+          <div style={{ ...cardBase, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+              <div style={kick}>Plan · week {planWeekNum} of {trainingPlan.totalWeeks}</div>
+              {planPhase && <div style={{ fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>{planPhase.label} phase</div>}
+            </div>
+            <div style={{ height: 5, background: LINE, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ width: `${planPct}%`, height: '100%', background: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: 10.5, color: SUB }}>{planSessionsDone} of {planWeekData.days.length} sessions done this week</div>
+          </div>
+        )}
+
         {/* 3-up stat strip */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 22 }}>
           <div style={cardBase}>
@@ -2810,28 +2843,30 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
           </div>
         </div>
 
+        <TrainingLoadPanel workoutHistory={workoutHistory} includePower={false} />
+        <PersonalRecordsPanel workoutHistory={workoutHistory} />
+
         <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 600, color: TEXT, marginBottom: 14 }}>What are we riding?</div>
 
-        {/* hero cards */}
-        {heroes.map(h => (
-          <button key={h.key} onClick={() => onNavigate(h.key)} style={{ width: '100%', padding: 0, border: `1px solid ${LINE}`, borderRadius: 20, overflow: 'hidden', cursor: 'pointer', background: PANEL, marginBottom: 14, display: 'block', textAlign: 'left' }}>
-            <div style={{ position: 'relative', height: 132, ...(h.photo ? { backgroundImage: `url(${h.photo})`, backgroundSize: 'cover', backgroundPosition: h.photoPos } : { background: h.surface }), display: 'flex', alignItems: 'flex-end' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: h.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 14px 14px' }}>
-                <h.icon size={21} color={h.ink} />
+        {/* hero cards — 2-column grid, since primary navigation already lives in the sidebar/tab bar */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          {heroes.map(h => (
+            <button key={h.key} onClick={() => onNavigate(h.key)} style={{ padding: 0, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', background: PANEL, display: 'block', textAlign: 'left', minWidth: 0 }}>
+              <div style={{ position: 'relative', height: 84, ...(h.photo ? { backgroundImage: `url(${h.photo})`, backgroundSize: 'cover', backgroundPosition: h.photoPos } : { background: h.surface }), display: 'flex', alignItems: 'flex-end' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: h.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 10px 10px' }}>
+                  <h.icon size={16} color={h.ink} />
+                </div>
+                {h.key === 'planner' && trainingPlan && (
+                  <div style={{ position: 'absolute', top: 8, right: 8, background: 'var(--accent)', color: INK, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase', borderRadius: 5, padding: '2px 6px' }}>Active</div>
+                )}
               </div>
-              {h.key === 'planner' && trainingPlan && (
-                <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--accent)', color: INK, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', borderRadius: 6, padding: '3px 8px' }}>Active</div>
-              )}
-            </div>
-            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 18, fontWeight: 600, color: TEXT }}>{h.label}</div>
-                <div style={{ fontSize: 11.5, color: SUB, marginTop: 2 }}>{h.caption}</div>
+              <div style={{ padding: '10px 12px' }}>
+                <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 14.5, fontWeight: 600, color: TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.label}</div>
+                <div style={{ fontSize: 10.5, color: SUB, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.caption}</div>
               </div>
-              <ChevronRight size={18} color={SUB} style={{ flexShrink: 0 }} />
-            </div>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
 
         {/* slim row */}
         <div style={{ display: 'flex', gap: 12 }}>
@@ -2887,7 +2922,7 @@ function PersonalRecordsPanel({ workoutHistory }) {
 // power trend across recent rides — gives a sense of whether load is
 // trending up, flat, or dropping, alongside the single-ride personal
 // records above. Rides logged before TSS existed simply contribute 0.
-function TrainingLoadPanel({ workoutHistory }) {
+function TrainingLoadPanel({ workoutHistory, includePower = true }) {
   const completed = (workoutHistory || []).filter(w => w.completed);
   if (completed.length === 0) return null;
 
@@ -2903,7 +2938,7 @@ function TrainingLoadPanel({ workoutHistory }) {
   const maxVal = Math.max(1, ...values);
   const hasAnyLoad = values.some(v => v > 0);
 
-  const withPower = completed.filter(w => w.avgPower != null).slice(-10);
+  const withPower = includePower ? completed.filter(w => w.avgPower != null).slice(-10) : [];
   const powerValues = withPower.map(w => w.avgPower);
 
   if (!hasAnyLoad && powerValues.length < 2) return null;
