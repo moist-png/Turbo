@@ -1,6 +1,6 @@
 -- Trbo: database setup
 -- Paste this whole thing into Supabase SQL Editor and click "Run".
--- Safe to re-run in full any time \u2014 every statement below either checks
+-- Safe to re-run in full any time — every statement below either checks
 -- "if exists"/"if not exists" first or uses "create or replace", so running
 -- it again after a previous run (or after this file gets new sections
 -- added) won't error out on things that already exist.
@@ -138,7 +138,7 @@ alter table public.workout_history drop column if exists max_hr;
 --    other account gets nothing back, and the dashboard simply won't
 --    appear in their app.
 --
---    Already set below to freddiesmuscles@gmail.com \u2014 if you ever log into
+--    Already set below to freddiesmuscles@gmail.com — if you ever log into
 --    Trbo with a different email, update the address in the line below
 --    to match, then re-run this file.
 create or replace function public.admin_dashboard_stats()
