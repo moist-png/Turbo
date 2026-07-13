@@ -4,7 +4,7 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2, Smartphone, LogOut,
+  Target, Flag, TrendingUp, Gamepad2, Smartphone, LogOut, Star,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
@@ -2422,7 +2422,7 @@ function FtpInput({ ftp, setFtp, style }) {
   );
 }
 
-function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled, presetMinutes }) {
+function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled, presetMinutes, starred, onToggleStar }) {
   const originalTotal = totalDuration(workout.intervals);
   const scalable = !workout.fixedLength;
   const initialMinutes = scalable && presetMinutes ? Math.max(10, Math.round(presetMinutes)) : Math.max(10, Math.round(originalTotal / 60));
@@ -2442,7 +2442,12 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
       <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: 18, border: `1px solid ${LINE}`, padding: 20, maxHeight: 'min(85vh, calc(100dvh - 48px))', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{workout.name}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer' }}><X size={22} /></button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <button onClick={() => onToggleStar(workout.id)} title={starred ? 'Unstar' : 'Star'} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}>
+              <Star size={20} color={starred ? 'var(--accent)' : SUB} fill={starred ? 'var(--accent)' : 'none'} />
+            </button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', padding: 0 }}><X size={22} /></button>
+          </div>
         </div>
         <div style={{ fontSize: 13, color: SUB, marginBottom: 14 }}>{workout.description}</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, fontSize: 12, color: SUB, flexWrap: 'wrap' }}>
@@ -2994,8 +2999,9 @@ const LIBRARY_SORTS = [
   { key: 'long', label: 'Longest' },
   { key: 'easy', label: 'Easiest' },
   { key: 'hard', label: 'Hardest' },
+  { key: 'starred', label: 'Starred' },
 ];
-function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, category, onCategoryChange }) {
+function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, category, onCategoryChange, starredIds, onToggleStar }) {
   const [query, setQuery] = useState('');
   const [localCat, setLocalCat] = useState(lockedCategory || 'All');
   // Category can be driven externally (the sidebar's category list on wide
@@ -3012,15 +3018,16 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
     const list = withFlag.filter(w => (activeCat === 'All' || activeCat === 'Custom' ? true : w.category === activeCat) && (activeCat !== 'Custom' || w.custom))
       .filter(w => w.name.toLowerCase().includes(query.toLowerCase()));
     if (sort === 'default') return list;
-    const withMeta = list.map(w => ({ w, dur: totalDuration(w.intervals), intensity: workoutIntensity(w) }));
+    const withMeta = list.map(w => ({ w, dur: totalDuration(w.intervals), intensity: workoutIntensity(w), starred: starredIds.has(w.id) ? 1 : 0 }));
     const cmp = {
       short: (a, b) => a.dur - b.dur,
       long: (a, b) => b.dur - a.dur,
       easy: (a, b) => a.intensity - b.intensity,
       hard: (a, b) => b.intensity - a.intensity,
+      starred: (a, b) => b.starred - a.starred,
     }[sort];
     return withMeta.sort(cmp).map(m => m.w);
-  }, [query, cat, customWorkouts, lockedCategory, sort]);
+  }, [query, cat, customWorkouts, lockedCategory, sort, starredIds]);
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
@@ -3043,10 +3050,15 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {all.map(w => {
           const total = totalDuration(w.intervals);
+          const starred = starredIds.has(w.id);
           return (
             <div key={w.id} onClick={() => onOpen(w)} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
                 <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 17, color: TEXT, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+                <button onClick={e => { e.stopPropagation(); onToggleStar(w.id); }} title={starred ? 'Unstar' : 'Star'}
+                  style={{ background: 'none', border: 'none', padding: 2, margin: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  <Star size={16} color={starred ? 'var(--accent)' : SUB} fill={starred ? 'var(--accent)' : 'none'} />
+                </button>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--accent)', flexShrink: 0 }}>{fmtLong(total)}</div>
               </div>
               <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, marginBottom: 10 }}>{w.description}</div>
@@ -4948,6 +4960,7 @@ export default function App() {
   const [ftp, setFtpState] = useState(200);
   const [settings, setSettingsState] = useState(DEFAULT_SETTINGS);
   const [customWorkouts, setCustomWorkouts] = useState([]);
+  const [starredIds, setStarredIds] = useState(new Set());
   const [ftpHistory, setFtpHistory] = useState([]);
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [trainingPlan, setTrainingPlan] = useState(null); // active periodized plan (or null)
@@ -5039,7 +5052,7 @@ export default function App() {
   // Once we know who's logged in, load their profile + saved data from the database.
   const [ownerStats, setOwnerStats] = useState(null); // non-null only when logged in as the app owner
   useEffect(() => {
-    if (!user) { setProfile(null); setCustomWorkouts([]); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setArchivedPlans([]); setOwnerStats(null); return; }
+    if (!user) { setProfile(null); setCustomWorkouts([]); setStarredIds(new Set()); setFtpHistory([]); setWorkoutHistory([]); setTrainingPlan(null); setArchivedPlans([]); setOwnerStats(null); return; }
     let mounted = true;
     (async () => {
       setProfileLoading(true);
@@ -5060,6 +5073,11 @@ export default function App() {
       }
       const { data: workouts } = await supabase.from('custom_workouts').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
       if (mounted && workouts) setCustomWorkouts(workouts.map(w => w.workout));
+      // Wrapped so that if starred_workouts hasn't been created yet (older
+      // database not re-run against the latest supabase-setup.sql), the app
+      // still loads fine — starring just quietly does nothing until it has.
+      const { data: starred, error: starredErr } = await supabase.from('starred_workouts').select('workout_id').eq('user_id', user.id);
+      if (mounted && !starredErr && starred) setStarredIds(new Set(starred.map(s => s.workout_id)));
       const { data: history } = await supabase.from('ftp_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
       if (mounted && history) setFtpHistory(history.map(h => ({ id: h.id, date: h.date, ftp: h.ftp, source: h.source })));
       const { data: sessions } = await supabase.from('workout_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
@@ -5269,6 +5287,19 @@ export default function App() {
     if (user) supabase.from('workout_history').delete().eq('user_id', user.id).then(() => {});
   }
 
+  function toggleStar(workoutId) {
+    const wasStarred = starredIds.has(workoutId);
+    setStarredIds(prev => {
+      const next = new Set(prev);
+      if (wasStarred) next.delete(workoutId); else next.add(workoutId);
+      return next;
+    });
+    if (user) {
+      if (wasStarred) supabase.from('starred_workouts').delete().eq('user_id', user.id).eq('workout_id', workoutId).then(() => {});
+      else supabase.from('starred_workouts').insert({ user_id: user.id, workout_id: workoutId }).then(() => {});
+    }
+  }
+
   function saveCustomWorkout(workout) {
     setCustomWorkouts(list => {
       const exists = list.some(w => w.id === workout.id);
@@ -5281,6 +5312,7 @@ export default function App() {
   function deleteCustomWorkout(id) {
     setCustomWorkouts(list => list.filter(w => w.id !== id));
     if (user) supabase.from('custom_workouts').delete().eq('id', id).eq('user_id', user.id).then(() => {});
+    if (starredIds.has(id)) toggleStar(id);
     setDetailWorkout(null);
   }
   function resetCustomWorkouts() {
@@ -5460,9 +5492,9 @@ export default function App() {
             {!hasFullAccess && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
 
             {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} />}
-            {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} category={libCategory} onCategoryChange={setLibCategory} />}
-            {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" />}
-            {view === 'rides' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Rides" title="Rides" />}
+            {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} category={libCategory} onCategoryChange={setLibCategory} starredIds={starredIds} onToggleStar={toggleStar} />}
+            {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" starredIds={starredIds} onToggleStar={toggleStar} />}
+            {view === 'rides' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Rides" title="Rides" starredIds={starredIds} onToggleStar={toggleStar} />}
             {view === 'games' && <MiniGamesView onPlay={setActiveGame} />}
             {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} archivedPlans={archivedPlans} onArchivePlan={archivePlan} onDeleteArchivedPlan={deleteArchivedPlan} />}
             {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} />}
@@ -5485,6 +5517,7 @@ export default function App() {
             workout={detailWorkout} ftp={ftp} setFtp={setFtp} settings={settings}
             presetMinutes={detailPresetMinutes}
             isCustom={customWorkouts.some(w => w.id === detailWorkout.id)}
+            starred={starredIds.has(detailWorkout.id)} onToggleStar={toggleStar}
             onClose={() => { setDetailWorkout(null); setDetailPresetMinutes(null); }}
             onStart={(w) => { setActiveWorkout(w); setDetailWorkout(null); setDetailPresetMinutes(null); }}
             onEdit={() => { setEditingWorkout(detailWorkout); setDetailWorkout(null); setDetailPresetMinutes(null); setView('builder'); }}

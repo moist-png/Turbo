@@ -431,3 +431,26 @@ begin
   return coalesce(is_revoked, false);
 end;
 $$ language plpgsql security definer;
+
+-- 16. Starred workouts: lets a rider star/favorite any workout or ride
+--     (built-in or their own custom one) and pull them up quickly, including
+--     via the "Starred" sort in the library. One row per star; starring
+--     again does nothing (unique constraint), unstarring just deletes the
+--     row. No update policy needed since it's always insert-to-star /
+--     delete-to-unstar, never edited in place.
+create table if not exists public.starred_workouts (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  workout_id text not null,
+  created_at timestamptz default now(),
+  unique (user_id, workout_id)
+);
+create index if not exists starred_workouts_user_idx on public.starred_workouts (user_id);
+
+alter table public.starred_workouts enable row level security;
+drop policy if exists "Users can view own starred workouts" on public.starred_workouts;
+create policy "Users can view own starred workouts" on public.starred_workouts for select using (auth.uid() = user_id);
+drop policy if exists "Users can star workouts" on public.starred_workouts;
+create policy "Users can star workouts" on public.starred_workouts for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can unstar workouts" on public.starred_workouts;
+create policy "Users can unstar workouts" on public.starred_workouts for delete using (auth.uid() = user_id);
