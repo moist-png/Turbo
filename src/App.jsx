@@ -4786,11 +4786,11 @@ function AuthLink({ children, ...props }) {
   return <button {...props} style={{ background: 'none', border: 'none', color: AUTH.accent, fontFamily: AUTH_FONT_BODY, fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: 13 }}>{children}</button>;
 }
 
-function LoginView({ onLogin, goSignup, goForgot }) {
+function LoginView({ onLogin, goSignup, goForgot, initialMsg }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [socialMsg, setSocialMsg] = useState('');
+  const [socialMsg, setSocialMsg] = useState(initialMsg || '');
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(e) {
@@ -5297,6 +5297,25 @@ export default function App() {
   const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'signup' | 'forgot'
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [deviceRevoked, setDeviceRevoked] = useState(false); // this device got signed out for exceeding MAX_ACTIVE_DEVICES
+  const [oauthBlockedMsg, setOauthBlockedMsg] = useState(''); // set if a Google/Apple sign-in came back rejected instead of a session
+
+  // If someone hits "Continue with Google/Apple" for a brand-new account
+  // while signups are paused, the database rejects it (see supabase-setup.sql
+  // section 18) and Supabase sends them back here with an error in the URL
+  // instead of a session, rather than the app ever seeing a signup happen.
+  // Catch that and show a plain explanation instead of leaving the login
+  // screen looking like nothing happened.
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const search = new URLSearchParams(window.location.search);
+    const errorDesc = hash.get('error_description') || search.get('error_description') || hash.get('error') || search.get('error');
+    if (!errorDesc) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    const isPausedError = /paused|database error saving new user|unexpected_failure/i.test(errorDesc);
+    setOauthBlockedMsg(isPausedError
+      ? "New signups aren't open yet. Already have an account? Log in the same way you originally signed up."
+      : "That sign-in didn't complete. Please try again.");
+  }, []);
 
   // Watch for an existing/changing Supabase session (login, logout, token
   // refresh, or arriving here from a "reset your password" email link).
@@ -5777,7 +5796,7 @@ export default function App() {
     return (
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
-        {authScreen === 'login' && <LoginView onLogin={handleLogin} goSignup={() => setAuthScreen('signup')} goForgot={() => setAuthScreen('forgot')} />}
+        {authScreen === 'login' && <LoginView onLogin={handleLogin} goSignup={() => setAuthScreen('signup')} goForgot={() => setAuthScreen('forgot')} initialMsg={oauthBlockedMsg} />}
         {authScreen === 'signup' && <SignupView onSignup={handleSignup} goLogin={() => setAuthScreen('login')} />}
         {authScreen === 'forgot' && <ForgotPasswordView onReset={handleForgotPassword} goLogin={() => setAuthScreen('login')} />}
       </div>

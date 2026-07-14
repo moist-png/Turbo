@@ -479,3 +479,65 @@ drop policy if exists "Users can reorder own queue" on public.queued_workouts;
 create policy "Users can reorder own queue" on public.queued_workouts for update using (auth.uid() = user_id);
 drop policy if exists "Users can remove from own queue" on public.queued_workouts;
 create policy "Users can remove from own queue" on public.queued_workouts for delete using (auth.uid() = user_id);
+
+-- 18. Enforce the signup pause at the database level, not just in the app.
+--     SIGNUPS_PAUSED in src/App.jsx only blocks the email/password form and
+--     the in-app "Start your free trial" screen -- it never touched
+--     "Continue with Google" / "Continue with Apple" on the LOG IN screen,
+--     because those call supabase.auth.signInWithOAuth() directly and, for
+--     a brand-new Google/Apple identity, that creates a real account with
+--     no app code in the loop at all. This closes that door for good,
+--     regardless of which signup path someone finds.
+--
+--     invited_at is only ever set on users created via the Supabase
+--     dashboard's "Invite user" (or the admin inviteUserByEmail API) --
+--     never on a self-serve signup, email or OAuth. So this blocks all
+--     self-serve signups while leaving your manual test-account invites
+--     working exactly as before. It also never affects existing users
+--     logging back in (via any method) -- this trigger only runs on a new
+--     row being inserted into auth.users, not on a login to an account
+--     that already exists.
+--
+--     IMPORTANT: this is a second flag, separate from SIGNUPS_PAUSED in
+--     src/App.jsx. Flip both together at relaunch -- run this again with
+--     `select false;` swapped in below.
+create or replace function public.signups_paused()
+returns boolean as $$
+  select true; -- keep in sync with SIGNUPS_PAUSED in src/App.jsx
+$$ language sql immutable;
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  norm_email text;
+  domain_part text;
+  already_seen boolean;
+  is_disposable boolean;
+  effective_trial_start timestamptz;
+begin
+  if public.signups_paused() and new.invited_at is null then
+    raise exception 'Signups are currently paused.' using errcode = 'P0001';
+  end if;
+
+  norm_email := public.normalize_trial_email(new.email);
+  domain_part := split_part(norm_email, '@', 2);
+  is_disposable := public.is_disposable_email_domain(domain_part);
+
+  select exists(
+    select 1 from public.trial_history where email_normalized = norm_email
+  ) into already_seen;
+
+  if already_seen or is_disposable then
+    effective_trial_start := now() - interval '30 days'; -- reads as trial already used up
+  else
+    effective_trial_start := now();
+  end if;
+
+  insert into public.profiles (id, name, trial_start)
+  values (new.id, coalesce(new.raw_user_meta_data->>'name', ''), effective_trial_start);
+
+  insert into public.trial_history (email_normalized) values (norm_email);
+
+  return new;
+end;
+$$ language plpgsql security definer;
