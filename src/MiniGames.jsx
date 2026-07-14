@@ -100,6 +100,7 @@ function MeterBar({ pct, color, height = 14, label }) {
 // =============================================================================
 const lavaGame = {
   id: 'lava',
+  active: false, // deactivated — kept in code, hidden from UI until it gets its own animated visuals
   title: 'The Floor is Lava',
   tagline: 'The floor keeps rising. Don\u2019t touch it.',
   durationLabel: '3\u201315 min',
@@ -171,6 +172,7 @@ const lavaGame = {
 // =============================================================================
 const chaseGame = {
   id: 'chase',
+  active: false, // deactivated — kept in code, hidden from UI until it gets its own animated visuals
   title: 'Chase Car',
   tagline: 'It starts slow. It doesn\u2019t stay slow.',
   durationLabel: '3\u201315 min',
@@ -237,6 +239,7 @@ const chaseGame = {
 // =============================================================================
 const bridgeGame = {
   id: 'bridge',
+  active: false, // deactivated — kept in code, hidden from UI until it gets its own animated visuals
   title: 'Bridge the Gap',
   tagline: 'They\u2019re 15 seconds up the road. Go get them.',
   durationLabel: '2\u20138 min',
@@ -299,6 +302,7 @@ const bridgeGame = {
 // =============================================================================
 const attackGame = {
   id: 'attack',
+  active: false, // deactivated — kept in code, hidden from UI until it gets its own animated visuals
   title: 'Pro Attack',
   tagline: 'Sit in. Stay alert. When it goes, it GOES.',
   durationLabel: '~7 min',
@@ -411,6 +415,7 @@ const PRO_START_W = 150;  // gentle rolling-start wattage
 
 const prosGame = {
   id: 'pros',
+  active: true,
   title: 'Beat the Pros',
   tagline: 'Real pro watts. Not scaled to you. Good luck.',
   durationLabel: '17 s \u2013 10 min',
@@ -525,6 +530,11 @@ const prosGame = {
 
 export const MINI_GAMES = [lavaGame, chaseGame, bridgeGame, attackGame, prosGame];
 
+// Beat the Pros is the only game currently exposed in the UI — the rest stay
+// registered above (fully working) so they can be switched back on later by
+// flipping `active` to true, once each has its own animated visuals.
+export const BEAT_THE_PROS = prosGame;
+
 // =============================================================================
 // Landing page — the Mini Games library
 // =============================================================================
@@ -540,7 +550,7 @@ export function MiniGamesView({ onPlay }) {
         <div style={{ fontSize: 12.5, color: SUB, lineHeight: 1.55, marginBottom: 18 }}>
           Short, replayable power games — proper training in disguise. Jump on, pick one, and see how long you last.
         </div>
-        {MINI_GAMES.map(g => {
+        {MINI_GAMES.filter(g => g.active !== false).map(g => {
           // for variant games, surface the best PB across variants
           let pbLine = null;
           if (g.variants) {

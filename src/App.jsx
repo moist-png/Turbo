@@ -4,13 +4,13 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2, Smartphone, LogOut, Star, ListOrdered,
+  Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
 import { currentPlanWeek, PHASE } from './planner';
 import { TrboMark } from './PublicPages';
-import { MiniGamesView, MiniGamePlayer } from './MiniGames';
+import { MiniGamesView, MiniGamePlayer, BEAT_THE_PROS } from './MiniGames';
 import {
   isNative, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
 } from './nativeBle';
@@ -2732,7 +2732,7 @@ function HistoryRow({ entry }) {
   );
 }
 
-function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigate }) {
+function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigate, onPlayGame }) {
   const hour = new Date().getHours();
   const greeting = hour < 5 ? 'Late one' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const firstName = (account && account.name ? account.name.split(' ')[0] : '') || 'Rider';
@@ -2780,7 +2780,7 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
     { key: 'basics', label: 'Workouts', caption: `${workoutCount} sessions`, icon: Dumbbell, photo: '/images/home-workouts.jpg', photoPos: 'center 45%', ink: 'var(--hero1-ink)', chip: 'var(--hero1-chip)' },
     { key: 'rides', label: 'Rides', caption: `${rideCount} routes`, icon: Bike, photo: '/images/home-rides.jpg', photoPos: 'center 74%', ink: 'var(--hero2-ink)', chip: 'var(--hero2-chip)' },
     { key: 'planner', label: 'Planner', caption: plannerCaption, icon: CalendarDays, photo: '/images/home-planner.jpg', surface: 'var(--hero3)', photoPos: 'center 45%', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
-    { key: 'games', label: 'Mini Games', caption: '5 games', icon: Gamepad2, surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
+    { key: 'games', label: 'Race the Pros', caption: '5 pro efforts', icon: Mountain, surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
   ];
   const slim = [
     { key: 'builder', label: 'Builder', icon: Wrench },
@@ -2858,7 +2858,7 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
         {/* hero cards — 2-column grid, since primary navigation already lives in the sidebar/tab bar */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           {heroes.map(h => (
-            <button key={h.key} onClick={() => onNavigate(h.key)} style={{ padding: 0, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', background: PANEL, display: 'block', textAlign: 'left', minWidth: 0 }}>
+            <button key={h.key} onClick={() => h.key === 'games' ? onPlayGame(BEAT_THE_PROS) : onNavigate(h.key)} style={{ padding: 0, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', background: PANEL, display: 'block', textAlign: 'left', minWidth: 0 }}>
               <div style={{ position: 'relative', height: 84, ...(h.photo ? { backgroundImage: `url(${h.photo})`, backgroundSize: 'cover', backgroundPosition: h.photoPos } : { background: h.surface }), display: 'flex', alignItems: 'flex-end' }}>
                 <div style={{ width: 32, height: 32, borderRadius: 10, background: h.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 10px 10px' }}>
                   <h.icon size={16} color={h.ink} />
@@ -5831,7 +5831,7 @@ export default function App() {
           <div style={isSidebar ? { flex: 1, minWidth: 0 } : undefined}>
             {!hasFullAccess && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
 
-            {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} />}
+            {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} onPlayGame={setActiveGame} />}
             {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} category={libCategory} onCategoryChange={setLibCategory} starredIds={starredIds} onToggleStar={toggleStar} />}
             {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" starredIds={starredIds} onToggleStar={toggleStar} />}
             {view === 'rides' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Rides" title="Rides" starredIds={starredIds} onToggleStar={toggleStar} />}
