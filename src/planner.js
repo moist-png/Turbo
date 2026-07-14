@@ -39,7 +39,10 @@
 // Purposes:
 //   recovery   — very easy, flush the legs, no real stress
 //   endurance  — long steady aerobic (Zone 2), builds the base
-//   tempo      — sustained moderate (sweet spot lives here too)
+//   tempo      — sustained moderate, controlled-hard pace
+//   sweetspot  — structured blocks just under threshold (~88-94% FTP) —
+//                harder and more targeted than tempo, a notch below
+//                threshold work itself
 //   threshold  — sustained efforts around FTP
 //   vo2max     — short hard intervals well above threshold
 //   anaerobic  — very short maximal / sprint work
@@ -53,7 +56,7 @@ export const WORKOUT_PURPOSE = {
   'ftp-test-20': 'test',
   'endurance-hour': 'endurance',
   'rolling-endurance': 'endurance',
-  'sweet-spot-builder': 'tempo',
+  'sweet-spot-builder': 'sweetspot',
   'threshold-2x20': 'threshold',
   'vo2-5x3': 'vo2max',
   'tabata-torch': 'anaerobic',
@@ -124,7 +127,7 @@ export const WORKOUT_PURPOSE = {
   'ride-hill-repeats': 'climbing',
   'ride-punchy-climb-express': 'climbing',
   // --- New: real-world tempo ride (tempo previously had no Rides option) ---
-  'ride-valley-sweetspot': 'tempo',
+  'ride-valley-sweetspot': 'sweetspot',
   // --- New: recovery ride, and a longer VO2 grinder ---
   'ride-country-recovery': 'recovery',
   'ride-vo2-furnace': 'vo2max',
@@ -140,7 +143,8 @@ export const WORKOUT_PURPOSE = {
 export const PURPOSE_LABEL = {
   recovery: 'Recovery',
   endurance: 'Endurance',
-  tempo: 'Tempo / sweet spot',
+  tempo: 'Tempo',
+  sweetspot: 'Sweet Spot',
   threshold: 'Threshold',
   vo2max: 'VO2 max',
   anaerobic: 'Anaerobic / sprint',
@@ -283,13 +287,19 @@ export const TERRAIN_LABEL = {
 };
 
 // Which purposes count as "high stress" for the hard/easy spacing rule.
-const HIGH_STRESS = new Set(['threshold', 'vo2max', 'anaerobic', 'race']);
+// Sweet spot (~88-94% FTP structured blocks) is meaningfully more fatiguing
+// than tempo and belongs in the same tier as threshold, not with the
+// easy/moderate purposes below.
+const HIGH_STRESS = new Set(['threshold', 'vo2max', 'anaerobic', 'race', 'sweetspot']);
 export function isHighStress(purpose) { return HIGH_STRESS.has(purpose); }
 
 // Purposes whose duration we freely scale after picking (see enforceTimeBudget
 // and the scaling pass in the generator). Because these get resized to fit the
 // week anyway, the picker's duration-fit term (rule 5) should NOT apply to them
 // — only to the fixed-length quality sessions we keep at native length.
+// Sweet spot stays OUT of this set deliberately: like threshold, it's
+// structured block work that shouldn't be arbitrarily trimmed the way a
+// flowing tempo or endurance ride can be.
 const FIXED_LENGTH_EXEMPT = new Set(['endurance', 'recovery', 'tempo']);
 
 // ---------------------------------------------------------------------------
@@ -340,19 +350,21 @@ export const GOALS = {
     blurb: 'Build all-round cycling fitness with no fixed event date.',
     hasEvent: false,
     // Balanced blend; nothing dominates.
-    emphasis: { endurance: 3, tempo: 2, threshold: 2, vo2max: 1 },
+    emphasis: { endurance: 3, tempo: 1, sweetspot: 1, threshold: 2, vo2max: 1 },
   },
   'ftp-builder': {
     label: 'FTP builder',
     blurb: 'Raise your threshold power over a block of focused training.',
     hasEvent: false,
-    emphasis: { threshold: 3, tempo: 3, endurance: 2, vo2max: 1 },
+    // Sweet spot is the classic FTP-raising tool, so it gets the larger
+    // share of what was one combined 'tempo' weight.
+    emphasis: { threshold: 3, tempo: 1, sweetspot: 2, endurance: 2, vo2max: 1 },
   },
   'century': {
     label: 'Century / gran fondo',
     blurb: 'Prepare for a long endurance day in the saddle.',
     hasEvent: true,
-    emphasis: { endurance: 4, tempo: 2, threshold: 1 },
+    emphasis: { endurance: 4, tempo: 1, sweetspot: 1, threshold: 1 },
     // A 100-mile route usually has some real elevation. This doesn't compete
     // with the weighted mix above (which already guarantees the tempo/
     // threshold day every week) — it's an occasional extra, swapped in on
@@ -375,7 +387,7 @@ export const GOALS = {
     label: 'Time trial',
     blurb: 'Sustainable threshold power for a flat-out effort against the clock.',
     hasEvent: true,
-    emphasis: { threshold: 4, tempo: 2, endurance: 1, vo2max: 1 },
+    emphasis: { threshold: 4, tempo: 1, sweetspot: 1, endurance: 1, vo2max: 1 },
   },
   'triathlon-bike': {
     label: 'Triathlon (bike leg)',
@@ -383,6 +395,9 @@ export const GOALS = {
     hasEvent: true,
     // Endurance-led and deliberately gentler on top-end (see multi-sport
     // conservatism applied in generatePlan) so it doesn't wreck run days.
+    // Sweet spot deliberately excluded here (not just left at a low weight)
+    // — it's a genuinely harder stimulus than tempo, which cuts against the
+    // "gentler" intent of this goal.
     emphasis: { endurance: 4, tempo: 2, threshold: 2 },
   },
 };
@@ -705,10 +720,11 @@ export function pickWorkoutForPurpose(purpose, library, usedIdsThisWeek, usedTer
   if (!candidates.length) {
     // Fallback chain so a slot is never empty.
     const fallbackOrder = {
-      recovery: ['endurance'], tempo: ['endurance', 'threshold'],
-      threshold: ['tempo', 'vo2max'], vo2max: ['threshold', 'race'],
-      anaerobic: ['vo2max', 'race'], climbing: ['threshold', 'endurance'],
-      race: ['vo2max', 'threshold'], endurance: ['tempo'],
+      recovery: ['endurance'], tempo: ['sweetspot', 'endurance', 'threshold'],
+      sweetspot: ['tempo', 'threshold'], threshold: ['sweetspot', 'tempo', 'vo2max'],
+      vo2max: ['threshold', 'race'], anaerobic: ['vo2max', 'race'],
+      climbing: ['threshold', 'endurance'], race: ['vo2max', 'threshold'],
+      endurance: ['tempo'],
     };
     for (const alt of (fallbackOrder[purpose] || [])) {
       const altCands = library.filter(w => WORKOUT_PURPOSE[w.id] === alt);

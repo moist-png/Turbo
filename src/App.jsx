@@ -1953,13 +1953,12 @@ const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 
 // match a workout's real training purpose, not its top-level category --
 // every built-in library workout is tagged 'Rides' or 'Basics' at that top
 // level, with the actual training type living in WORKOUT_PURPOSE (planner.js)
-// instead. Tempo and Sweet Spot intentionally share one purpose bucket
-// ('tempo') since the workout data doesn't currently distinguish them.
+// instead.
 const CATEGORY_TO_PURPOSE = {
   'Recovery': 'recovery',
   'Endurance': 'endurance',
   'Tempo': 'tempo',
-  'Sweet Spot': 'tempo',
+  'Sweet Spot': 'sweetspot',
   'Threshold': 'threshold',
   'VO2 Max': 'vo2max',
   'FTP Test': 'test',
