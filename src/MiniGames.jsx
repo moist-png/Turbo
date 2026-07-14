@@ -423,7 +423,7 @@ const prosGame = {
   variants: [
     { id: 'sprint', name: 'Finish-line Sprint', watts: 1070, seconds: 17, note: 'Sam Bennett averaged 1,070W over 17 seconds to win a stage at the 2018 Giro d\u2019Italia, peaking above 1,480W.' },
     { id: 'tt', name: 'Time Trial Tempo', watts: 520, seconds: 150, note: 'Filippo Ganna averaged 520W over the final 2.5km (2:28) to win the 2022 Tirreno-Adriatico opening time trial.' },
-    { id: 'climb', name: 'Plateau de Beille Pace', watts: 445, seconds: 300, note: 'Tadej Poga\u010dar\u2019s Stage 15 win at the 2024 Tour de France: an estimated 442\u2013445W for the full 39:50 climb to Plateau de Beille. Here\u2019s a 5-minute taste.' },
+    { id: 'climb', name: 'GC King Pace', watts: 445, seconds: 300, note: 'Tadej Poga\u010dar\u2019s Stage 15 win at the 2024 Tour de France: an estimated 442\u2013445W for the full 39:50 climb to Plateau de Beille. Here\u2019s a 5-minute taste.' },
     { id: 'attack', name: 'Summit Attack', watts: 414, seconds: 420, note: 'Team Sky released Chris Froome\u2019s data from Stage 10 of the 2015 Tour de France: 414W average for the full 41:30 climb to La Pierre-Saint-Martin, launched with an attack 6.4km from the line. Here\u2019s a 7-minute taste.' },
     { id: 'hour', name: 'Hour Record Pace', watts: 355, seconds: 600, note: 'Dan Bigham held ~355W for the full hour to set the UCI Hour Record (55.548km) in 2022. Here\u2019s a 10-minute taste.' },
   ],
