@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useContext } from 'react';
 import {
   Play, Pause, SkipForward, SkipBack, RotateCcw, X, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight,
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
@@ -2514,11 +2514,13 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
       <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: 18, border: `1px solid ${LINE}`, padding: 20, maxHeight: 'min(85vh, calc(100dvh - 48px))', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{workout.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <button onClick={() => onToggleStar(workout.id)} title={starred ? 'Unstar' : 'Star'} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+            <button onClick={() => onToggleStar(workout.id)} title={starred ? 'Unstar' : 'Star'} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, padding: 0 }}>
               <Star size={20} color={starred ? 'var(--accent)' : SUB} fill={starred ? 'var(--accent)' : 'none'} />
             </button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', padding: 0 }}><X size={22} /></button>
+            <button onClick={onClose} title="Close" style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, padding: 0 }}>
+              <X size={20} />
+            </button>
           </div>
         </div>
         <div style={{ fontSize: 13, color: SUB, marginBottom: 14 }}>{workout.description}</div>
@@ -3264,6 +3266,33 @@ function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDup
   const z = zoneFor(interval, cvd);
   const mins = Math.floor(interval.duration / 60);
   const secs = interval.duration % 60;
+
+  // The minutes/seconds fields need their own "what's currently typed"
+  // state, separate from the derived mins/secs above. As a plain controlled
+  // number, clearing the field becomes 0 immediately (Number('') || 0) and
+  // it re-fills with "0" before you can type a new value -- you can never
+  // get an empty field. Same fix already used for FtpInput: keep a draft
+  // string while focused, only reconcile with the real duration on blur.
+  const [minsDraft, setMinsDraft] = useState(String(mins));
+  const [minsFocused, setMinsFocused] = useState(false);
+  useEffect(() => { if (!minsFocused) setMinsDraft(String(mins)); }, [mins, minsFocused]);
+  const [secsDraft, setSecsDraft] = useState(String(secs));
+  const [secsFocused, setSecsFocused] = useState(false);
+  useEffect(() => { if (!secsFocused) setSecsDraft(String(secs)); }, [secs, secsFocused]);
+
+  function commitMins() {
+    const n = parseInt(minsDraft, 10);
+    const clamped = Number.isFinite(n) ? Math.max(0, n) : 0;
+    onChange({ ...interval, duration: clamped * 60 + secs });
+    setMinsDraft(String(clamped));
+  }
+  function commitSecs() {
+    const n = parseInt(secsDraft, 10);
+    const clamped = Number.isFinite(n) ? Math.min(59, Math.max(0, n)) : 0;
+    onChange({ ...interval, duration: mins * 60 + clamped });
+    setSecsDraft(String(clamped));
+  }
+
   return (
     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -3277,10 +3306,18 @@ function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDup
       </div>
       <div style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <label style={{ fontSize: 12, color: SUB }}>Duration</label>
-        <input type="number" min="0" value={mins} onChange={e => onChange({ ...interval, duration: Math.max(0, Number(e.target.value) || 0) * 60 + secs })}
+        <input type="text" inputMode="numeric" value={minsDraft}
+          onFocus={() => setMinsFocused(true)}
+          onChange={e => setMinsDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+          onBlur={() => { setMinsFocused(false); commitMins(); }}
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           style={{ fontFamily: "'Space Grotesk', sans-serif", width: 48, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
         <span style={{ color: SUB, fontSize: 12 }}>m</span>
-        <input type="number" min="0" max="59" value={secs} onChange={e => onChange({ ...interval, duration: mins * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)) })}
+        <input type="text" inputMode="numeric" value={secsDraft}
+          onFocus={() => setSecsFocused(true)}
+          onChange={e => setSecsDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+          onBlur={() => { setSecsFocused(false); commitSecs(); }}
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           style={{ fontFamily: "'Space Grotesk', sans-serif", width: 48, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '5px 6px', fontSize: 13 }} />
         <span style={{ color: SUB, fontSize: 12 }}>s</span>
         <select value={interval.type} onChange={e => {
@@ -3426,6 +3463,54 @@ function parseGpxToWorkout(xmlText, fileName) {
   };
 }
 
+// A themed replacement for a native <select>. iOS Safari always renders a
+// native <select>'s open state as its own OS wheel picker no matter how the
+// closed button is styled, so anywhere the dropdown itself needs to stay in
+// the Trbo theme (colors, font, rounded panel) has to be built from scratch
+// like this instead.
+function ThemedSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    function onOutside(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', onOutside);
+    document.addEventListener('touchstart', onOutside);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      document.removeEventListener('touchstart', onOutside);
+    };
+  }, [open]);
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
+      <button type="button" onClick={() => setOpen(o => !o)} style={{
+        fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8,
+        color: TEXT, padding: '10px 12px', fontSize: 13, boxSizing: 'border-box', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left',
+      }}>
+        <span>{value}</span>
+        <ChevDown size={15} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0, marginLeft: 8, color: SUB }} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: PANEL, border: `1px solid ${LINE}`,
+          borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 30, maxHeight: 260, overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', padding: 4,
+        }}>
+          {options.map(opt => (
+            <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false); }} style={{
+              width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: 6, background: opt === value ? PANEL2 : 'transparent',
+              border: 'none', color: TEXT, fontFamily: "'Manrope', sans-serif", fontSize: 13, fontWeight: opt === value ? 700 : 500, cursor: 'pointer',
+            }}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, editingWorkout, clearEditing }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Endurance');
@@ -3515,10 +3600,9 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
         style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 15, marginBottom: 8, boxSizing: 'border-box' }} />
       <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description"
         style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
-      <select value={category} onChange={e => setCategory(e.target.value)}
-        style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' }}>
-        {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
-      </select>
+      <div style={{ marginBottom: 14 }}>
+        <ThemedSelect value={category} onChange={setCategory} options={CATEGORIES.filter(c => c !== 'All' && c !== 'FTP Test')} />
+      </div>
 
       {intervals.length > 0 && (
         <div style={{ marginBottom: 14 }}>
@@ -5192,6 +5276,35 @@ function useNavLayout() {
   return layout;
 }
 
+// Gives each nav tab ('home', 'rides', 'basics', 'queue', etc.) its own
+// independent scroll position instead of one shared position bleeding
+// across all of them. Pass a ref to the scrollable content container in
+// sidebar mode (where content scrolls inside its own div), or null in
+// bottom-tab-bar mode (where the page/window itself scrolls).
+function useScrollMemory(view, containerRef) {
+  const positions = useRef({}); // { [view]: last scroll offset }
+
+  // Restore this tab's saved position (0 if never visited/scrolled) the
+  // moment we switch to it, before the browser paints.
+  useLayoutEffect(() => {
+    const el = containerRef && containerRef.current;
+    const saved = positions.current[view] || 0;
+    if (el) el.scrollTop = saved; else window.scrollTo(0, saved);
+  }, [view]);
+
+  // Keep a live record of the current tab's scroll position as the person
+  // scrolls, so switching away and back returns them to the same spot.
+  useEffect(() => {
+    const el = containerRef && containerRef.current;
+    const target = el || window;
+    function onScroll() {
+      positions.current[view] = el ? el.scrollTop : window.scrollY;
+    }
+    target.addEventListener('scroll', onScroll, { passive: true });
+    return () => target.removeEventListener('scroll', onScroll);
+  }, [view, containerRef && containerRef.current]);
+}
+
 function NavRow({ active, onClick, Icon, label }) {
   return (
     <button onClick={onClick} style={{
@@ -5214,7 +5327,14 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
     <div className="sidebar-nav" style={{
       width, flexShrink: 0, background: PANEL, borderRight: `1px solid ${LINE}`,
       display: 'flex', flexDirection: 'column', paddingLeft: 'env(safe-area-inset-left)',
-      position: 'sticky', top: 0, alignSelf: 'flex-start', overflowY: 'auto',
+      // Bounded to the viewport height with its own overflow, rather than
+      // relying on position:sticky within the page's scroll -- that made
+      // this share a single scroll region with the main content, which is
+      // why scrolling the workout list used to drag the sidebar along with
+      // it (and why iOS rubber-banding at the bottom of a list visibly
+      // "jumped" the sidebar too). overscrollBehavior stops that bounce
+      // from chaining into the content area next to it.
+      height: '100dvh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '20px 14px 18px' }}>
         <TrboMark size={30} />
@@ -5271,6 +5391,13 @@ export default function App() {
   const [activeGame, setActiveGame] = useState(null); // a mini game currently being played (or null)
   const [libCategory, setLibCategory] = useState('All'); // shared with the sidebar's category filters on wide viewports
   const navLayout = useNavLayout(); // 'bottombar' (portrait phone) or 'sidebar' (landscape phone/tablet/laptop)
+  // Each nav tab remembers its own scroll position independently, instead of
+  // sharing one scroll position across Basics/Rides/Queue/etc. A tab starts
+  // at the top the first time it's opened; if you scroll down yourself and
+  // switch away, coming back restores exactly where you left off (e.g.
+  // comparing a ride between the Rides and Basics tabs).
+  const contentScrollRef = useRef(null);
+  useScrollMemory(view, navLayout.mode === 'sidebar' ? contentScrollRef : null);
   // Public, signed-out preview — reached via a link ending in ?demo=ride
   // (the entry-point button on the login screen is added separately).
   // Takes priority over everything else, including an active session,
@@ -5884,11 +6011,14 @@ export default function App() {
     <div style={{ ...wrapStyle, position: 'relative', ...(isSidebar ? {} : { paddingBottom: 'calc(54px + env(safe-area-inset-bottom))' }) }}>
       <style>{globalStyle}</style>
       <OrientationGate preferredOrientation={settings.preferredOrientation}>
-        <div style={isSidebar ? { display: 'flex', minHeight: '100%' } : undefined}>
+        <div style={isSidebar ? { display: 'flex', height: '100dvh', overflow: 'hidden' } : undefined}>
           {isSidebar && (
             <SidebarNav view={view} onNavigate={handleNavigate} width={navLayout.width} category={libCategory} onSelectCategory={handleSelectCategory} />
           )}
-          <div style={isSidebar ? { flex: 1, minWidth: 0 } : undefined}>
+          <div
+            ref={isSidebar ? contentScrollRef : undefined}
+            style={isSidebar ? { flex: 1, minWidth: 0, height: '100dvh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } : undefined}
+          >
             {!hasFullAccess && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
 
             {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} onPlayGame={setActiveGame} />}
