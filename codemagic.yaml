@@ -42,8 +42,7 @@ workflows:
       - name: Bump build number
         script: |
           cd ios/App
-          LATEST=$(app-store-connect get-latest-build-number "$BUNDLE_ID" || echo 0)
-          agvtool new-version -all $(($LATEST + 1))
+          agvtool new-version -all $BUILD_NUMBER
       - name: Build .ipa
         script: |
           xcode-project build-ipa \
