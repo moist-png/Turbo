@@ -2239,11 +2239,15 @@ function LiveTimeline({ intervals, elapsed, total, cvd }) {
   const nowX = Math.max(0, Math.min(total, elapsed)) * TIMELINE_PX_PER_SEC;
 
   // Re-center on "now" every time elapsed ticks forward, as long as the
-  // rider hasn't grabbed the strip to look around.
-  useEffect(() => {
+  // rider hasn't grabbed the strip to look around. Runs before paint
+  // (useLayoutEffect, not useEffect) so the strip never flashes at the old
+  // scroll position first — and skips while the container hasn't been
+  // measured yet (clientWidth 0, e.g. the very first frame it mounts),
+  // since scrolling against an unmeasured width would land in the wrong spot.
+  useLayoutEffect(() => {
     if (!following) return;
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || el.clientWidth === 0) return;
     const maxScroll = Math.max(0, totalWidth - el.clientWidth);
     const target = Math.max(0, Math.min(maxScroll, nowX - el.clientWidth * TIMELINE_FOLLOW_RATIO));
     el.scrollLeft = target;
@@ -3863,12 +3867,43 @@ function buildFit({ startedAt, series, sport = 2 }) {
 }
 
 // ---------- player ----------
-function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo, queueInfo, onQueueAdvance, workoutHistory }) {
+// ---------- in-progress ride persistence ----------
+// A rider's position in a workout (and which tab they're on) has to survive
+// the app being backgrounded and reclaimed by iOS, or the page being fully
+// reloaded — otherwise a phone call or a low-memory background kill wipes
+// out a ride that's minutes from finishing. This is a small localStorage
+// snapshot of just enough state to resume exactly where they left off:
+// which workout (or queue) was active, which interval, and how much time
+// was left on it. It intentionally does NOT try to preserve live sensor
+// history across a relaunch — a fresh page load means a fresh Bluetooth
+// connection anyway — it only protects the timer position itself.
+const ACTIVE_SESSION_KEY = 'trbo_active_session_v1';
+const ACTIVE_SESSION_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6h — beyond this, treat it as an abandoned ride rather than resuming into it unannounced
+function saveActiveSession(snapshot) {
+  try { localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({ ...snapshot, savedAt: Date.now() })); } catch (e) {}
+}
+function loadActiveSession() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if (!raw) return null;
+    const snap = JSON.parse(raw);
+    if (!snap || !snap.savedAt || Date.now() - snap.savedAt > ACTIVE_SESSION_MAX_AGE_MS) {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+      return null;
+    }
+    return snap;
+  } catch (e) { return null; }
+}
+function clearActiveSession() {
+  try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch (e) {}
+}
+
+function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo, queueInfo, onQueueAdvance, workoutHistory, resume, sessionMeta }) {
   const intervals = workout.intervals;
   const isRampTest = !!workout.autoStopTest;
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(intervals[0].duration);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(() => (resume && resume.index < intervals.length ? resume.index : 0));
+  const [timeLeft, setTimeLeft] = useState(() => (resume && resume.index < intervals.length ? resume.timeLeft : intervals[0].duration));
+  const [isPlaying, setIsPlaying] = useState(false); // always resumes paused — the rider taps play when ready, rather than the trainer surprising them
   const [isDone, setIsDone] = useState(false);
   const [testResult, setTestResult] = useState(null); // { ftp, auto } once a ramp test ends
   const [ftpApplied, setFtpApplied] = useState(false);
@@ -3905,7 +3940,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   // Lets a rider scale back the remaining power targets if a ride is too
   // hard — session-only, always starts fresh at 100%. Hidden for the FTP
   // tests since dialing those down would just corrupt the result.
-  const [intensityAdjust, setIntensityAdjust] = useState(1);
+  const [intensityAdjust, setIntensityAdjust] = useState(() => (resume && typeof resume.intensityAdjust === 'number' ? resume.intensityAdjust : 1));
   const [showIntensityAdjust, setShowIntensityAdjust] = useState(false);
   const canAdjustIntensity = !workout.fixedLength;
   const { beep, chime, playCue } = useBeeper();
@@ -3966,6 +4001,32 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   useEffect(() => { trainerPowerRef.current = trainer.power; }, [trainer.power]);
   useEffect(() => { heartRateRef.current = heartRate ? heartRate.bpm : null; }, [heartRate && heartRate.bpm]);
   useEffect(() => { cadenceRef.current = trainer.cadence; }, [trainer.cadence]);
+
+  // Keep a resumable snapshot of exactly where this ride is, so it survives
+  // the app being backgrounded and killed by iOS (or a plain page reload).
+  // Demo rides (no account) aren't worth persisting. Re-saves on every
+  // interval/time-left change (so roughly once a second while riding), plus
+  // right away whenever the app is backgrounded — belt and suspenders,
+  // since a background kill can happen before the next tick lands.
+  const sessionSnapshotRef = useRef(null);
+  useEffect(() => {
+    if (isDemo || isDone) return;
+    sessionSnapshotRef.current = { ...sessionMeta, workout, currentIndex, timeLeft, intensityAdjust };
+    saveActiveSession(sessionSnapshotRef.current);
+  }, [isDemo, isDone, workout, currentIndex, timeLeft, intensityAdjust, sessionMeta]);
+  useEffect(() => {
+    if (isDemo) return;
+    function persistNow() { if (sessionSnapshotRef.current) saveActiveSession(sessionSnapshotRef.current); }
+    function onVisibility() { if (document.hidden) persistNow(); }
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', persistNow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', persistNow);
+    };
+  }, [isDemo]);
+  // Once the ride is actually finished, there's nothing left to resume.
+  useEffect(() => { if (isDone) clearActiveSession(); }, [isDone]);
 
   // Once this workout finishes and there's a next one queued up, count down
   // to rolling into it automatically — cleared/cancelled by advancing or
@@ -4250,6 +4311,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     setPendingAction(null);
     if (action === 'exit') {
       if (!isDone) logSession(false);
+      clearActiveSession();
       onExit();
     } else if (action === 'restart') {
       if (!isDone) logSession(false);
@@ -4300,15 +4362,18 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 
   function StatChip({ label, value, valueColor }) {
     return (
-      <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: isPortrait ? '8px 10px' : '8px 14px', minWidth: 80, width: isPortrait ? 150 : undefined, boxSizing: 'border-box' }}>
+      <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: isPortrait ? '8px 10px' : '8px 14px', minWidth: 80, width: isPortrait ? 'min(220px, 72vw)' : undefined, boxSizing: 'border-box' }}>
         <div style={{ fontFamily: FONT_BODY, fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</div>
-        <div style={{ fontFamily: FONT_NUM, fontSize: 18, fontWeight: 600, color: valueColor || TEXT, marginTop: 2, whiteSpace: 'nowrap' }}>{value}</div>
+        {/* "Both" target mode (e.g. "RPE 10/10 · ~130% FTP · 260W") can run
+            longer than the box — wrap it instead of overflowing off the
+            edge of the screen like it used to. */}
+        <div style={{ fontFamily: FONT_NUM, fontSize: 18, fontWeight: 600, color: valueColor || TEXT, marginTop: 2, wordBreak: 'break-word' }}>{value}</div>
       </div>
     );
   }
 
   const targetChip = canAdjustIntensity ? (
-    <div style={{ position: 'relative', width: isPortrait ? 150 : undefined }}>
+    <div style={{ position: 'relative', width: isPortrait ? 'min(220px, 72vw)' : undefined }}>
       {isDemo && !showIntensityAdjust && (
         <div style={{
           position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 8,
@@ -4338,7 +4403,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const gaugeSize = isPortrait ? { width: 150, height: 80, radius: 62, stroke: 10 } : { width: 120, height: 64, radius: 48, stroke: 9 };
 
   return (
-    <div className="player-screen" style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
+    <div className="player-screen" style={{ padding: '14px 16px calc(16px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
       {settings.visualZoneWash && (
         <div style={{ position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none', transition: 'background 1s ease', background: `radial-gradient(ellipse 80% 55% at 50% 15%, ${hexToRgba(z.color, isDone ? 0.08 : 0.22)} 0%, transparent 70%)` }} />
       )}
@@ -5398,14 +5463,29 @@ function BottomTabBar({ view, onNavigate }) {
 
 // ---------- app ----------
 export default function App() {
-  const [view, setView] = useState('home');
+  // A saved in-progress ride (see saveActiveSession/PlayerView) is read once,
+  // synchronously, before the very first render — so a relaunch after the
+  // app was backgrounded and killed lands the rider straight back in their
+  // workout instead of on the home tab with the ride gone. Stashed in a ref
+  // (rather than re-read on every render) and consumed once by whichever
+  // PlayerView mounts first; a later queue advance mounts a fresh PlayerView
+  // with no resume payload, same as normal.
+  const initialSessionRef = useRef(loadActiveSession());
+  const initialSession = initialSessionRef.current;
+
+  // Likewise, which tab (and library category) a rider was looking at is
+  // kept in localStorage so reopening the app doesn't dump them back on
+  // Home. Read synchronously on mount; written back out on every change.
+  const [view, setView] = useState(() => {
+    try { return localStorage.getItem('trbo_last_view') || 'home'; } catch (e) { return 'home'; }
+  });
   const [ftp, setFtpState] = useState(200);
   const [settings, setSettingsState] = useState(DEFAULT_SETTINGS);
   const [customWorkouts, setCustomWorkouts] = useState([]);
   const [starredIds, setStarredIds] = useState(new Set());
   const [queue, setQueue] = useState([]); // ordered array of workout ids lined up to ride back-to-back
-  const [activeQueue, setActiveQueue] = useState(null); // array of resolved workout objects while a queue is actively playing, or null
-  const [activeQueueIndex, setActiveQueueIndex] = useState(0);
+  const [activeQueue, setActiveQueue] = useState(() => (initialSession && initialSession.kind === 'queue' ? initialSession.queueWorkouts : null)); // array of resolved workout objects while a queue is actively playing, or null
+  const [activeQueueIndex, setActiveQueueIndex] = useState(() => (initialSession && initialSession.kind === 'queue' ? initialSession.queueIndex : 0));
   const [ftpHistory, setFtpHistory] = useState([]);
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [trainingPlan, setTrainingPlan] = useState(null); // active periodized plan (or null)
@@ -5413,9 +5493,19 @@ export default function App() {
   const [detailWorkout, setDetailWorkout] = useState(null);
   const [detailPresetMinutes, setDetailPresetMinutes] = useState(null); // set when opening from the planner
   const [editingWorkout, setEditingWorkout] = useState(null);
-  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [activeWorkout, setActiveWorkout] = useState(() => (initialSession && initialSession.kind === 'single' ? initialSession.workout : null));
   const [activeGame, setActiveGame] = useState(null); // a mini game currently being played (or null)
-  const [libCategory, setLibCategory] = useState('All'); // shared with the sidebar's category filters on wide viewports
+  const [libCategory, setLibCategory] = useState(() => {
+    try { return localStorage.getItem('trbo_last_category') || 'All'; } catch (e) { return 'All'; }
+  }); // shared with the sidebar's category filters on wide viewports
+
+  // Persist tab + library category as they change; consume the one-time
+  // resume payload shortly after mount so a later, unrelated PlayerView
+  // mount (e.g. advancing to the next workout in a queue) never reapplies
+  // an old saved position to the wrong workout.
+  useEffect(() => { try { localStorage.setItem('trbo_last_view', view); } catch (e) {} }, [view]);
+  useEffect(() => { try { localStorage.setItem('trbo_last_category', libCategory); } catch (e) {} }, [libCategory]);
+  useEffect(() => { initialSessionRef.current = null; }, []);
   const navLayout = useNavLayout(); // 'bottombar' (portrait phone) or 'sidebar' (landscape phone/tablet/laptop)
   // Each nav tab remembers its own scroll position independently, instead of
   // sharing one scroll position across Basics/Rides/Queue/etc. A tab starts
@@ -5884,7 +5974,11 @@ export default function App() {
   const themeCss = Object.entries(themeVars).map(([k, v]) => `${k}:${v};`).join('');
   const globalStyle = "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Space+Mono:wght@700&family=Inter:wght@400;500;600&display=swap');"
     + " :root { " + themeCss + " }"
-    + " html, body, #root { height: 100%; }"
+    // 100% (rather than 100dvh) doesn't track iOS Safari/WKWebView's real
+    // visible viewport as the browser chrome shows/hides, which is what
+    // left a white gap below shorter screens (e.g. the login form) — the
+    // page was sized to a stale, taller-than-actual 100%.
+    + " html, body, #root { height: 100%; height: 100dvh; }"
     + " input:focus, select:focus { outline: 1px solid var(--accent); }"
     + " ::-webkit-scrollbar { width: 4px; height: 4px; } ::-webkit-scrollbar-thumb { background: " + LINE + "; border-radius: 4px; }"
     // bottom tab bar: keep clear of notches / home-indicator gestures in
@@ -5990,24 +6084,28 @@ export default function App() {
   if (activeQueue) {
     const current = activeQueue[activeQueueIndex];
     const queueInfo = { position: activeQueueIndex, total: activeQueue.length, hasNext: activeQueueIndex < activeQueue.length - 1, nextName: activeQueueIndex < activeQueue.length - 1 ? activeQueue[activeQueueIndex + 1].name : null };
+    const resume = initialSession && initialSession.kind === 'queue' ? { index: initialSession.currentIndex, timeLeft: initialSession.timeLeft, intensityAdjust: initialSession.intensityAdjust } : null;
     return (
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
           <PlayerView key={current.id + '_q' + activeQueueIndex} workout={current} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate}
             onExit={exitQueue} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession}
-            queueInfo={queueInfo} onQueueAdvance={advanceQueue} workoutHistory={workoutHistory} />
+            queueInfo={queueInfo} onQueueAdvance={advanceQueue} workoutHistory={workoutHistory}
+            resume={resume} sessionMeta={{ kind: 'queue', queueWorkouts: activeQueue, queueIndex: activeQueueIndex }} />
         </OrientationGate>
       </div>
     );
   }
 
   if (activeWorkout) {
+    const resume = initialSession && initialSession.kind === 'single' ? { index: initialSession.currentIndex, timeLeft: initialSession.timeLeft, intensityAdjust: initialSession.intensityAdjust } : null;
     return (
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
-          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => setActiveWorkout(null)} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} workoutHistory={workoutHistory} />
+          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => { clearActiveSession(); setActiveWorkout(null); }} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} workoutHistory={workoutHistory}
+            resume={resume} sessionMeta={{ kind: 'single' }} />
         </OrientationGate>
       </div>
     );
