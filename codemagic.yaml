@@ -54,9 +54,13 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
-        # Set to true once you want internal testers auto-notified on each build.
-        beta_groups: []
+        # Internal testers (you, as the account holder) get access to a
+        # processed build automatically — no submission/review needed.
+        # submit_to_testflight only matters for *external* testers, which
+        # triggers Apple's Beta App Review and needs contact info filled in
+        # at appstoreconnect.apple.com/apps/6790720581/testflight/test-info.
+        # Leave this off until you actually want outside testers.
+        submit_to_testflight: false
 
 # ---------------------------------------------------------------------------
 # One-time setup (Hubert, in the Codemagic web dashboard — no code involved):
