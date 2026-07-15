@@ -541,3 +541,132 @@ begin
   return new;
 end;
 $$ language plpgsql security definer;
+
+-- 19. Rate limiting: stops one runaway script (a buggy loop, a hostile
+--     script using a stolen session, or a scraper hitting the checkout/
+--     Strava endpoints) from hammering the database or the Vercel
+--     functions and running up usage. This is enforced entirely on the
+--     server side -- inside Postgres and inside the Vercel functions
+--     themselves -- so nothing running in someone's browser can turn it
+--     off or raise its own limit.
+--
+--     One shared counter table, one shared "check and count" function.
+--     Every write below is counted twice: once against the signed-in
+--     person (so one account can't spam even from many devices) and once
+--     against their network address (so a script that keeps creating new
+--     trial accounts can't just spam under a fresh account each time).
+--     A "bucket" is just a label like "workout_history:user:<their id>"
+--     or "create-checkout-session:ip:<their address>" plus a time window,
+--     so each person/address/action combination gets its own counter that
+--     resets on its own every window.
+create table if not exists public.rate_limits (
+  bucket text primary key,
+  count integer not null default 0,
+  window_start timestamptz not null
+);
+
+-- Adds one to a bucket's counter for the current time window and reports
+-- back whether that bucket is still under its limit. Also does a tiny bit
+-- of self-cleanup (roughly 1 in 100 calls) so this table never grows
+-- without bound -- no separate scheduled job needed.
+create or replace function public.bump_rate_limit(p_bucket text, p_limit int, p_window_seconds int)
+returns boolean as $$
+declare
+  w timestamptz;
+  current_count integer;
+begin
+  w := to_timestamp(floor(extract(epoch from now()) / p_window_seconds) * p_window_seconds);
+
+  insert into public.rate_limits (bucket, count, window_start)
+  values (p_bucket || ':' || extract(epoch from w)::text, 1, w)
+  on conflict (bucket) do update
+    set count = public.rate_limits.count + 1
+  returning count into current_count;
+
+  if random() < 0.01 then
+    delete from public.rate_limits where window_start < now() - interval '1 day';
+  end if;
+
+  return current_count <= p_limit;
+end;
+$$ language plpgsql security definer;
+
+-- Deliberately NOT callable directly by the app (only by the trigger
+-- below, and by the Vercel functions using the service-role key, both of
+-- which bypass this restriction). Without this, someone could call this
+-- function directly, as fast as they like, with a made-up bucket name --
+-- which would just move the spam problem from the real tables onto this
+-- one instead of stopping it.
+revoke execute on function public.bump_rate_limit(text, int, int) from public, anon, authenticated;
+
+-- Attach this trigger to any table with `before insert` or `before update`
+-- to rate-limit writes to it. Pass the action name, the per-person limit,
+-- the time window in seconds, and (optionally) the per-network-address
+-- limit as the trigger's arguments -- see the table-by-table setup below
+-- for real examples. Reads the requester's network address the same way
+-- Supabase's own docs recommend (via the X-Forwarded-For request header),
+-- so this works for genuine spam without needing anything from the client.
+create or replace function public.rate_limit_trigger()
+returns trigger as $$
+declare
+  action text := TG_ARGV[0];
+  user_limit int := TG_ARGV[1]::int;
+  window_seconds int := TG_ARGV[2]::int;
+  ip_limit int := nullif(TG_ARGV[3], '')::int;
+  uid uuid := auth.uid();
+  client_ip text;
+  allowed boolean;
+begin
+  if uid is not null then
+    allowed := public.bump_rate_limit(action || ':user:' || uid::text, user_limit, window_seconds);
+    if not allowed then
+      raise exception 'You''re doing that too fast -- please wait a bit and try again.' using errcode = 'P0001';
+    end if;
+  end if;
+
+  if ip_limit is not null then
+    client_ip := split_part(coalesce(current_setting('request.headers', true)::json->>'x-forwarded-for', ''), ',', 1);
+    if client_ip <> '' then
+      allowed := public.bump_rate_limit(action || ':ip:' || client_ip, ip_limit, window_seconds);
+      if not allowed then
+        raise exception 'Too many requests from this network -- please wait a bit and try again.' using errcode = 'P0001';
+      end if;
+    end if;
+  end if;
+
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Table-by-table limits. Numbers are generous for a genuine rider (nobody
+-- legitimately finishes 60 workouts an hour) but tight enough to stop a
+-- spam loop from doing real damage. All safe to re-run, and safe to tune
+-- any time by re-running this file with different numbers below.
+drop trigger if exists rl_workout_history on public.workout_history;
+create trigger rl_workout_history before insert on public.workout_history
+  for each row execute function public.rate_limit_trigger('workout_history', '60', '3600', '200');
+
+drop trigger if exists rl_ftp_history on public.ftp_history;
+create trigger rl_ftp_history before insert on public.ftp_history
+  for each row execute function public.rate_limit_trigger('ftp_history', '20', '3600', '60');
+
+drop trigger if exists rl_custom_workouts on public.custom_workouts;
+create trigger rl_custom_workouts before insert on public.custom_workouts
+  for each row execute function public.rate_limit_trigger('custom_workouts', '40', '3600', '150');
+
+drop trigger if exists rl_archived_plans on public.archived_plans;
+create trigger rl_archived_plans before insert on public.archived_plans
+  for each row execute function public.rate_limit_trigger('archived_plans', '15', '3600', '50');
+
+drop trigger if exists rl_starred_workouts on public.starred_workouts;
+create trigger rl_starred_workouts before insert on public.starred_workouts
+  for each row execute function public.rate_limit_trigger('starred_workouts', '200', '3600', '600');
+
+drop trigger if exists rl_queued_workouts on public.queued_workouts;
+create trigger rl_queued_workouts before insert on public.queued_workouts
+  for each row execute function public.rate_limit_trigger('queued_workouts', '200', '3600', '600');
+
+drop trigger if exists rl_profiles_update on public.profiles;
+create trigger rl_profiles_update before update on public.profiles
+  for each row execute function public.rate_limit_trigger('profiles_update', '120', '3600', '400');
+

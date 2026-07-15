@@ -3,6 +3,7 @@
 // alongside someone's outdoor rides. Refreshes their Strava access token
 // first if it's expired, using the stored refresh token.
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from './_rateLimit.js';
 
 const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -28,6 +29,15 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
+
+  // A real rider finishes at most a few rides an hour -- this just stops a
+  // script from spamming Strava's activity-upload endpoint through us.
+  const ok = await checkRateLimit(supabaseAdmin, req, res, 'strava-upload', {
+    limit: 30,
+    windowSeconds: 3600,
+  });
+  if (!ok) return;
+
   try {
     // Heart rate is deliberately not accepted here. Trbo shows it live but
     // never stores or forwards it, so it is not part of the Strava payload.

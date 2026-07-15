@@ -3,6 +3,7 @@
 // on that person's profile row using the service role key -- so the tokens
 // never have to pass through or live in the browser.
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from './_rateLimit.js';
 
 const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -12,6 +13,15 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
+
+  // Connecting/disconnecting Strava is a rare, deliberate action -- this
+  // just stops a script from spamming Strava's token endpoint through us.
+  const ok = await checkRateLimit(supabaseAdmin, req, res, 'strava-connect', {
+    limit: 15,
+    windowSeconds: 3600,
+  });
+  if (!ok) return;
+
   try {
     const { userId, code, disconnect } = req.body || {};
     if (!userId) {

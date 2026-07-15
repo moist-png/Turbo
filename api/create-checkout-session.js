@@ -15,8 +15,15 @@
 //      runs an eligibility review before it's usable. Until that's done,
 //      Checkout Sessions created with managed_payments.enabled will fail.
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from './_rateLimit.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Same project used everywhere else -- only used here to count requests
+// for rate limiting, never to read or write anyone's actual data.
+const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
+const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // The Managed Payments preview version this integration was built against.
 const MANAGED_PAYMENTS_API_VERSION = '2026-02-25.preview';
@@ -34,6 +41,14 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
+
+  // Nobody legitimately needs to start more than a handful of checkouts an
+  // hour -- this just stops a script from spamming Stripe session creation.
+  const ok = await checkRateLimit(supabaseAdmin, req, res, 'create-checkout-session', {
+    limit: 10,
+    windowSeconds: 3600,
+  });
+  if (!ok) return;
 
   try {
     const { userId, email, plan } = req.body || {};
