@@ -62,6 +62,50 @@ workflows:
         # Leave this off until you actually want outside testers.
         submit_to_testflight: false
 
+  trbo-android:
+    name: Trbo Android (Play Internal Testing)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - trbo-android-signing
+      groups:
+        - google_play
+      vars:
+        PACKAGE_NAME: "app.trbo.trainer"
+      node: 22
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Build web app
+        script: npm run build
+      - name: Capacitor sync (copy web build + plugins into Android project)
+        script: npx cap sync android
+      - name: Set Android SDK location
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Bump version code
+        script: |
+          cd android
+          LATEST=$(google-play get-latest-build-number --package-name "$PACKAGE_NAME" --tracks internal || echo "")
+          if [ -z "$LATEST" ]; then NEW_CODE=$BUILD_NUMBER; else NEW_CODE=$((LATEST + 1)); fi
+          sed -i "s/versionCode 1/versionCode $NEW_CODE/" app/build.gradle
+      - name: Build signed .aab
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+
 # ---------------------------------------------------------------------------
 # One-time setup (Hubert, in the Codemagic web dashboard — no code involved):
 #
@@ -76,4 +120,35 @@ workflows:
 #    iOS app and uploads it straight to TestFlight automatically.
 # 6. Install the TestFlight app on your iPhone, accept the email invite that
 #    App Store Connect sends once the build finishes processing, and install.
+#
+# ---------------------------------------------------------------------------
+# One-time setup — ANDROID (Hubert, mostly clicking through web dashboards):
+#
+# 1. Sign up for a Google Play Developer account at play.google.com/console
+#    ($25 one-time, personal ID verification can take a few hours-2 days).
+# 2. In Play Console, create the app: name "Trbo", package app.trbo.trainer.
+#    You don't need a finished store listing yet — Internal Testing works
+#    with a bare-minimum/placeholder listing.
+# 3. Upload the keystore Claude generated (trbo-release.keystore) in
+#    Codemagic > Team settings > Code signing identities > Android keystores.
+#    Use the store/key passwords from the file Claude gave you, alias
+#    "trbo-upload", and name the reference exactly: trbo-android-signing
+#    Store the actual .keystore file + passwords somewhere safe (e.g. a
+#    password manager) — Codemagic can't hand it back to you once uploaded,
+#    and every future release must be signed with this same key.
+# 4. In Google Cloud Console (console.cloud.google.com), create a service
+#    account, grant it access to your Play Console under Users and
+#    permissions (as "Release manager" is enough), and generate a JSON key.
+# 5. In Codemagic > Team settings > Environment variables: create a variable
+#    named GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS, paste in the full JSON
+#    key contents, mark it Secret, and put it in a group named google_play.
+# 6. Push to main (or click "Start new build" in Codemagic, trbo-android
+#    workflow) — first build produces a signed .aab as a downloadable
+#    artifact. Download it and upload it manually ONE time in Play Console
+#    (Internal testing > Create release) — Google requires that first upload
+#    by hand before it'll accept automated ones.
+# 7. After that, every push to main auto-publishes straight to your Internal
+#    Testing track. In Play Console > Internal testing > Testers, add your
+#    own Google account email, grab the opt-in link, open it on your Android
+#    phone, and install from Play Store like any real app.
 # ---------------------------------------------------------------------------
