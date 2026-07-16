@@ -29,6 +29,17 @@ async function apiFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
+// Every column the app's UI actually reads off a profile row. Deliberately
+// leaves out strava_access_token, strava_refresh_token, and
+// strava_token_expires_at -- those are live Strava credentials that only
+// ever need to be read or written server-side (api/strava-connect.js,
+// api/strava-upload.js, using the service-role key), never by the browser.
+// Also leaves out stripe_customer_id/stripe_subscription_id and
+// created_at, which the UI never reads either. Row Level Security limits
+// *which row* someone can read, not which columns in it, so naming exactly
+// the columns wanted here is what keeps those tokens out of the browser.
+const PROFILE_COLUMNS = 'id, name, ftp, trial_start, subscribed, settings, strava_athlete_id, training_plan, comp_access';
+
 // ---------- palette ----------
 // TEXT/SUB/PANEL/PANEL2/LINE/RED/BG/MUTED resolve through CSS custom
 // properties (set on the app's root wrapper from THEMES below) so every
@@ -5695,12 +5706,12 @@ export default function App() {
     let mounted = true;
     (async () => {
       setProfileLoading(true);
-      let { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      let { data: prof } = await supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
       if (!prof) {
         // Fallback in case the sign-up trigger hasn't caught up yet.
         const { data: created } = await supabase.from('profiles')
           .insert({ id: user.id, name: user.user_metadata?.name || '', trial_start: new Date().toISOString() })
-          .select().maybeSingle();
+          .select(PROFILE_COLUMNS).maybeSingle();
         prof = created;
       }
       if (!mounted) return;
@@ -5836,7 +5847,7 @@ export default function App() {
     let attempts = 0;
     const poll = setInterval(async () => {
       attempts += 1;
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      const { data: prof } = await supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
       if (prof?.subscribed) {
         setProfile(prof);
         setShowPaywallModal(false);
@@ -5867,7 +5878,7 @@ export default function App() {
           body: JSON.stringify({ code }),
         });
         if (res.ok) {
-          const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+          const { data: prof } = await supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
           if (prof) setProfile(prof);
         }
       } catch (e) {}
