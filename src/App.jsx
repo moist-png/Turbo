@@ -39,7 +39,7 @@ async function apiFetch(url, options = {}) {
 // created_at, which the UI never reads either. Row Level Security limits
 // *which row* someone can read, not which columns in it, so naming exactly
 // the columns wanted here is what keeps those tokens out of the browser.
-const PROFILE_COLUMNS = 'id, name, ftp, trial_start, subscribed, settings, strava_athlete_id, training_plan, comp_access';
+const PROFILE_COLUMNS = 'id, name, ftp, trial_start, subscribed, settings, strava_athlete_id, training_plan, comp_access, comp_expires_at';
 
 // ---------- palette ----------
 // TEXT/SUB/PANEL/PANEL2/LINE/RED/BG/MUTED resolve through CSS custom
@@ -4633,7 +4633,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 }
 
 // ---------- settings view ----------
-function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
+function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, testerCompActive, testerCompDaysLeft, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const cvd = settings.colorblindMode;
   const connectedColor = cvd ? '#009E73' : '#8FC93A';
@@ -4808,8 +4808,8 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
             <button onClick={onLogout} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Log out</button>
           </SettingRow>
           <SettingRow
-            label={compAccess ? 'Friends & family — free access' : subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
-            sub={compAccess ? 'Complimentary access, no card on file' : subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}
+            label={compAccess ? 'Friends & family — free access' : testerCompActive ? `Tester access — ${testerCompDaysLeft} day${testerCompDaysLeft === 1 ? '' : 's'} left` : subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+            sub={compAccess ? 'Complimentary access, no card on file' : testerCompActive ? 'Thanks for testing — this expires automatically, no action needed' : subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}
           >
             {!subscribed && !compAccess && (
               <button onClick={onShowPaywall} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
@@ -6160,7 +6160,13 @@ export default function App() {
   const account = { name: profile.name || user.user_metadata?.name || 'Rider', email: user.email };
   const subscribed = !!profile.subscribed;
   const compAccess = !!profile.comp_access; // friends & family: free, permanent access, no card ever
-  const hasFullAccess = subscribed || compAccess;
+  // Tester comp: free access that expires on its own -- granted automatically
+  // (see handle_new_user in supabase-setup.sql) to anyone who signs up via a
+  // Supabase "Invite user" invite, i.e. a hand-picked, approved tester.
+  const testerCompExpiresAt = profile.comp_expires_at ? new Date(profile.comp_expires_at).getTime() : null;
+  const testerCompActive = testerCompExpiresAt != null && testerCompExpiresAt > Date.now();
+  const testerCompDaysLeft = testerCompActive ? Math.max(1, Math.ceil((testerCompExpiresAt - Date.now()) / 86400000)) : 0;
+  const hasFullAccess = subscribed || compAccess || testerCompActive;
   const daysLeft = daysLeftInTrial(profile.trial_start);
   const trialExpired = daysLeft <= 0;
 
@@ -6253,7 +6259,7 @@ export default function App() {
               <SettingsView
                 settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer} heartRate={heartRate}
                 customWorkouts={customWorkouts} onResetCustom={resetCustomWorkouts} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory}
-                account={account} daysLeft={daysLeft} subscribed={subscribed} compAccess={compAccess} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
+                account={account} daysLeft={daysLeft} subscribed={subscribed} compAccess={compAccess} testerCompActive={testerCompActive} testerCompDaysLeft={testerCompDaysLeft} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
                 ownerStats={ownerStats}
                 stravaConnected={!!(profile && profile.strava_athlete_id)} onConnectStrava={connectStrava} onDisconnectStrava={disconnectStrava}
               />

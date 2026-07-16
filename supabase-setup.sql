@@ -346,6 +346,20 @@ create trigger on_auth_user_created
 alter table public.profiles add column if not exists comp_access boolean default false;
 revoke update (comp_access) on public.profiles from authenticated;
 
+-- 14b. Tester comp: free access that expires on its own, separate from the
+--     permanent comp_access above. Set automatically (see handle_new_user
+--     in section 18 below) for anyone who signs up via a Supabase "Invite
+--     user" invite -- since that's only ever you, personally inviting an
+--     approved tester, "invited" already means "approved" here. No manual
+--     revoke needed: once comp_expires_at is in the past, the app treats
+--     them like anyone else whose trial has run out. To extend someone
+--     manually (swap in their real email):
+--
+--       update public.profiles set comp_expires_at = now() + interval '30 days'
+--       where id = (select id from auth.users where email = 'their@email.com');
+alter table public.profiles add column if not exists comp_expires_at timestamptz;
+revoke update (comp_expires_at) on public.profiles from authenticated;
+
 -- 15. Device cap: stops one paid (or trialing) account being used on lots of
 --     devices at once. Each browser/app install gets a random id, generated
 --     by the app and stored only on that device, which "checks in" here.
@@ -514,6 +528,7 @@ declare
   already_seen boolean;
   is_disposable boolean;
   effective_trial_start timestamptz;
+  tester_comp_expires timestamptz;
 begin
   if public.signups_paused() and new.invited_at is null then
     raise exception 'Signups are currently paused.' using errcode = 'P0001';
@@ -533,8 +548,19 @@ begin
     effective_trial_start := now();
   end if;
 
-  insert into public.profiles (id, name, trial_start)
-  values (new.id, coalesce(new.raw_user_meta_data->>'name', ''), effective_trial_start);
+  -- Anyone who lands here with invited_at set got there through a Supabase
+  -- "Invite user" invite -- and since that's a manual action only you ever
+  -- take, per person, invited already means approved tester. Give them 30
+  -- days of free access starting the moment they accept the invite and set
+  -- a password, no separate approval step on top of the invite itself.
+  if new.invited_at is not null then
+    tester_comp_expires := now() + interval '30 days';
+  else
+    tester_comp_expires := null;
+  end if;
+
+  insert into public.profiles (id, name, trial_start, comp_expires_at)
+  values (new.id, coalesce(new.raw_user_meta_data->>'name', ''), effective_trial_start, tester_comp_expires);
 
   insert into public.trial_history (email_normalized) values (norm_email);
 
