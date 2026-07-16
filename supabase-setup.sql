@@ -565,6 +565,16 @@ create table if not exists public.rate_limits (
   window_start timestamptz not null
 );
 
+-- Locked down completely -- unlike every other table above, this one has
+-- no policies at all, on purpose. Nobody signed in with the app's public
+-- key (anon or authenticated) has any reason to read or write this table
+-- directly; the only things that ever touch it are the SECURITY DEFINER
+-- functions below (which run with elevated rights that RLS doesn't apply
+-- to) and the Vercel functions using the service-role key (which bypasses
+-- RLS by design). Enabling RLS with zero policies means "nobody via the
+-- public API, ever" -- exactly what's wanted here.
+alter table public.rate_limits enable row level security;
+
 -- Adds one to a bucket's counter for the current time window and reports
 -- back whether that bucket is still under its limit. Also does a tiny bit
 -- of self-cleanup (roughly 1 in 100 calls) so this table never grows
