@@ -68,18 +68,6 @@ function trialDay0(ctx) {
     ),
   };
 }
-function trialDay1(ctx) {
-  return {
-    subject: 'The thing that makes Trbo different: ERG mode',
-    html: wrap(
-      h1('No more guessing your gear'),
-      p(`${ctx.firstName}, most trainer apps leave you shifting to hit a power number. Trbo\u2019s ERG mode does that for you — set an interval, and your trainer adjusts resistance automatically to hold it, whatever cadence you ride at.`) +
-      p('It\u2019s the difference between "riding along" and actually training.') +
-      button('Browse workouts', SITE),
-      ctx.unsubscribeUrl
-    ),
-  };
-}
 function trialDay3(ctx) {
   return {
     subject: 'Still there? Here\u2019s a 20-minute starter',
@@ -87,18 +75,6 @@ function trialDay3(ctx) {
       h1(`No rush, ${ctx.firstName}`) +
       p('Haven\u2019t hopped on yet — totally fine. If you\u2019ve got 20 minutes, that\u2019s enough to get a feel for how Trbo rides. Pick anything under "Basics" and just go.') +
       button('Find a 20-min ride', SITE),
-      ctx.unsubscribeUrl
-    ),
-  };
-}
-function trialDay5(ctx) {
-  return {
-    subject: 'Have you raced the pros yet?',
-    html: wrap(
-      h1('Race the Pros') +
-      p(`${ctx.firstName}, this is the one people end up loving most: real efforts from real races — Sam Bennett\u2019s Giro sprint, Pogačar\u2019s Plateau de Beille climb, Ganna\u2019s hour-record pace — and you against the clock they actually rode.`) +
-      p('It\u2019s short, it hurts a bit, and it\u2019s genuinely fun.') +
-      button('Race the Pros', SITE),
       ctx.unsubscribeUrl
     ),
   };
@@ -185,18 +161,7 @@ function subDay3(ctx) {
     ),
   };
 }
-function subDay7(ctx) {
-  return {
-    subject: 'One week in — how\u2019s it going?',
-    html: wrap(
-      h1(`Hey ${ctx.firstName}`) +
-      p('One week down. If anything\u2019s felt off, confusing, or like it\u2019s missing — the Feedback tab goes straight to us, and we actually read it.') +
-      button('Leave feedback', `${SITE}`),
-      ctx.unsubscribeUrl
-    ),
-  };
-}
-function subDay10(ctx) {
+function subDay9(ctx) {
   return {
     subject: 'Have you raced the pros yet?',
     html: wrap(
@@ -231,10 +196,9 @@ function subDay14(ctx) {
 }
 
 const TEMPLATES = {
-  trial_day0: trialDay0, trial_day1: trialDay1, trial_day3: trialDay3,
-  trial_day5: trialDay5, trial_day6: trialDay6, trial_day7: trialDay7,
+  trial_day0: trialDay0, trial_day3: trialDay3, trial_day6: trialDay6, trial_day7: trialDay7,
   nonconvert_day8: nonconvertDay8, nonconvert_day11: nonconvertDay11, nonconvert_day14: nonconvertDay14,
-  sub_day0: subDay0, sub_day3: subDay3, sub_day7: subDay7, sub_day10: subDay10, sub_day14: subDay14,
+  sub_day0: subDay0, sub_day3: subDay3, sub_day9: subDay9, sub_day14: subDay14,
 };
 
 export function buildEmail(sequenceKey, ctx) {

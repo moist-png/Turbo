@@ -16,9 +16,9 @@ const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const TRIAL_DAYS = [0, 1, 3, 5, 6, 7];
+const TRIAL_DAYS = [0, 3, 6, 7];
 const NONCONVERT_DAYS = [8, 11, 14];
-const SUB_DAYS = [0, 3, 7, 10, 14];
+const SUB_DAYS = [0, 3, 9, 14];
 
 export default async function handler(req, res) {
   // Only Vercel's own scheduler -- which automatically sends this same
