@@ -99,6 +99,7 @@ export function FeedbackHeroCard({ onNavigate }) {
 export default function FeedbackView({ userId }) {
   const [items, setItems] = useState(null); // null = loading
   const [myVotes, setMyVotes] = useState(new Set());
+  const [myPostIds, setMyPostIds] = useState(new Set()); // which posts are mine (author ids are never sent to the browser)
   const [error, setError] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [body, setBody] = useState('');
@@ -111,15 +112,22 @@ export default function FeedbackView({ userId }) {
 
   async function load() {
     setError('');
+    // Note: user_id is intentionally NOT requested here. The board is
+    // anonymous, and the database now refuses to hand that column to the
+    // browser at all (see supabase-setup.sql, section 20a-i). Which posts
+    // are the signed-in person's own comes from my_feedback_ids() below.
     const { data: rows, error: itemsErr } = await supabase
       .from('feedback_items')
-      .select('id, user_id, body, photo_paths, created_at, upvote_count')
+      .select('id, body, photo_paths, created_at, upvote_count')
       .order('upvote_count', { ascending: false })
       .order('created_at', { ascending: false });
     if (itemsErr) { setError("Couldn't load feedback — try refreshing."); setItems([]); return; }
 
     const { data: votes } = await supabase.from('feedback_votes').select('feedback_id').eq('user_id', userId);
     setMyVotes(new Set((votes || []).map(v => v.feedback_id)));
+
+    const { data: mineIds } = await supabase.rpc('my_feedback_ids');
+    setMyPostIds(new Set((mineIds || []).map(Number)));
 
     // Resolve every photo across every post in one batch signed-url call,
     // rather than one request per thumbnail.
@@ -189,7 +197,10 @@ export default function FeedbackView({ userId }) {
 
   async function deleteOwn(item) {
     if (!window.confirm('Delete this feedback post? This can\u2019t be undone.')) return;
-    await supabase.from('feedback_items').delete().eq('id', item.id).eq('user_id', userId);
+    // No user_id filter here on purpose: the row-level security delete policy
+    // (auth.uid() = user_id) already guarantees you can only ever delete your
+    // own post, and user_id is no longer readable by the browser anyway.
+    await supabase.from('feedback_items').delete().eq('id', item.id);
     if (item.photo_paths && item.photo_paths.length) supabase.storage.from(BUCKET).remove(item.photo_paths).then(() => {});
     setItems(prev => (prev || []).filter(it => it.id !== item.id));
   }
@@ -284,7 +295,7 @@ export default function FeedbackView({ userId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {(items || []).map(item => {
             const voted = myVotes.has(item.id);
-            const mine = item.user_id === userId;
+            const mine = myPostIds.has(item.id);
             return (
               <div key={item.id} style={cardBase}>
                 <div style={{ display: 'flex', gap: 12 }}>

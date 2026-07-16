@@ -91,7 +91,7 @@ begin
   values (new.id, coalesce(new.raw_user_meta_data->>'name', ''), now());
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -268,7 +268,7 @@ begin
 
   return result;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- 9. Strava connection: run this once too. Stores each person's own Strava
 --    tokens so completed rides can be pushed to their Strava account.
@@ -425,7 +425,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -523,7 +523,7 @@ begin
 
   return coalesce(is_revoked, false);
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- Called periodically while the app is open, to catch a device that gets
 -- revoked because a *different* device registered after it -- without this,
@@ -543,7 +543,7 @@ begin
   into is_revoked;
   return coalesce(is_revoked, false);
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- 16. Starred workouts: lets a rider star/favorite any workout or ride
 --     (built-in or their own custom one) and pull them up quickly, including
@@ -665,7 +665,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- 19. Rate limiting: stops one runaway script (a buggy loop, a hostile
 --     script using a stolen session, or a scraper hitting the checkout/
@@ -724,7 +724,7 @@ begin
 
   return current_count <= p_limit;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- Deliberately NOT callable directly by the app (only by the trigger
 -- below, and by the Vercel functions using the service-role key, both of
@@ -771,7 +771,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- Table-by-table limits. Numbers are generous for a genuine rider (nobody
 -- legitimately finishes 60 workouts an hour) but tight enough to stop a
@@ -870,7 +870,7 @@ begin
   end if;
   return null;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists trg_feedback_upvote_count on public.feedback_votes;
 create trigger trg_feedback_upvote_count
@@ -886,6 +886,37 @@ create trigger rl_feedback_items before insert on public.feedback_items
 drop trigger if exists rl_feedback_votes on public.feedback_votes;
 create trigger rl_feedback_votes before insert on public.feedback_votes
   for each row execute function public.rate_limit_trigger('feedback_votes', '200', '3600', '600');
+
+-- 20a-i. Keep the board genuinely anonymous. The RLS SELECT policy above
+--     lets any signed-in tester read every post -- that's intended, the
+--     board is shared -- but "shared" must not mean "you can see who wrote
+--     what." A row-level policy can't hide a single column, so this does it
+--     at the grant level instead: revoke the blanket table read, then hand
+--     back read access to every column EXCEPT user_id. After this, a tester
+--     asking for the author of someone else's post (even by crafting the
+--     request by hand in dev tools) simply gets a permission error on that
+--     column -- the id never leaves the database.
+--
+--     Safe to re-run: revoke/grant are idempotent. Whenever you add a new
+--     column to feedback_items later, add it to the grant list below too,
+--     or it won't be readable by the app.
+revoke select on public.feedback_items from anon, authenticated;
+grant select (id, body, photo_paths, status, upvote_count, created_at)
+  on public.feedback_items to anon, authenticated;
+
+-- With user_id no longer readable, the app can't tell on its own which
+-- posts are the signed-in person's own (needed to show the "You" label and
+-- their delete button). This function answers exactly that and nothing
+-- more: it runs with elevated rights so it can look at user_id internally,
+-- but only ever returns the ids of posts belonging to whoever is calling
+-- it -- never anyone else's, and never the ids themselves mapped to names.
+create or replace function public.my_feedback_ids()
+returns setof bigint as $$
+  select id from public.feedback_items where user_id = auth.uid();
+$$ language sql stable security definer set search_path = public;
+
+revoke execute on function public.my_feedback_ids() from public;
+grant execute on function public.my_feedback_ids() to authenticated;
 
 -- Storage bucket for feedback photos. Private (not public) -- only
 -- signed-in people can view or upload, matching the "testers only, never
