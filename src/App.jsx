@@ -1972,7 +1972,7 @@ const LIBRARY = [
     ],
   },
 ];
-const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 'Sweet Spot', 'Climbing', 'Threshold', 'VO2 Max', 'Race', 'FTP Test'];
+const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 'Sweet Spot', 'Threshold', 'VO2 Max', 'FTP Test'];
 
 // Training-type filter chips (Recovery/Endurance/Tempo/.../FTP Test) need to
 // match a workout's real training purpose, not its top-level category --
@@ -1984,18 +1984,26 @@ const CATEGORY_TO_PURPOSE = {
   'Endurance': 'endurance',
   'Tempo': 'tempo',
   'Sweet Spot': 'sweetspot',
-  'Climbing': 'climbing',
   'Threshold': 'threshold',
   'VO2 Max': 'vo2max',
-  'Race': 'race',
   'FTP Test': 'test',
 };
 
 // Anaerobic is only 3 workouts — too thin to justify its own chip, which
 // would look near-empty most of the time. Folded into VO2 Max instead, so
 // picking VO2 Max surfaces both under one "high intensity" chip.
+//
+// Climbing and Race are dropped as standalone chips too (display only —
+// planner.js's WORKOUT_PURPOSE tagging, which the plan generator actually
+// keys off, is untouched). Climbing workouts are long sustained blocks in
+// the 80-98% FTP range, the same character as Threshold's sustained
+// near-FTP efforts, just longer-form. Race workouts are repeated short,
+// sharp accelerations well above threshold, the same character as VO2
+// Max's short hard intervals.
 const PURPOSE_CHIP_ALIASES = {
   'anaerobic': 'vo2max',
+  'climbing': 'threshold',
+  'race': 'vo2max',
 };
 
 // ---------- audio ----------
