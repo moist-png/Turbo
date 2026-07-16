@@ -680,3 +680,106 @@ drop trigger if exists rl_profiles_update on public.profiles;
 create trigger rl_profiles_update before update on public.profiles
   for each row execute function public.rate_limit_trigger('profiles_update', '120', '3600', '400');
 
+-- 20. Feedback board: testers post feedback (with up to 3 photos) and
+--     upvote each other's posts. Gated to signed-in people only, never
+--     public -- since signups are paused and only approved testers can
+--     currently create an account, "signed in" already means "a confirmed
+--     tester" for now. Posts show anonymously to other testers (nobody but
+--     you, reading the table directly, can see who wrote what); voting
+--     uses each person's own account so it can't be stacked, and
+--     un-upvoting is just deleting the vote row.
+create table if not exists public.feedback_items (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  body text not null,
+  photo_paths text[] not null default '{}'::text[] check (coalesce(array_length(photo_paths, 1), 0) <= 3),
+  status text not null default 'new',
+  upvote_count integer not null default 0,
+  created_at timestamptz default now()
+);
+create index if not exists feedback_items_rank_idx on public.feedback_items (upvote_count desc, created_at desc);
+
+create table if not exists public.feedback_votes (
+  id bigint generated always as identity primary key,
+  feedback_id bigint references public.feedback_items(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  created_at timestamptz default now(),
+  unique (feedback_id, user_id)
+);
+create index if not exists feedback_votes_feedback_idx on public.feedback_votes (feedback_id);
+
+alter table public.feedback_items enable row level security;
+alter table public.feedback_votes enable row level security;
+
+-- Any signed-in person can see and post feedback (never anonymous/public),
+-- but can only delete their own post. No update policy for regular users --
+-- upvote_count only ever changes via the trigger below (security definer
+-- bypasses RLS), and status is only ever changed by you, directly in
+-- Supabase, when triaging.
+drop policy if exists "Signed-in users can view feedback" on public.feedback_items;
+create policy "Signed-in users can view feedback" on public.feedback_items for select using (auth.uid() is not null);
+drop policy if exists "Signed-in users can post feedback" on public.feedback_items;
+create policy "Signed-in users can post feedback" on public.feedback_items for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can delete own feedback" on public.feedback_items;
+create policy "Users can delete own feedback" on public.feedback_items for delete using (auth.uid() = user_id);
+
+drop policy if exists "Signed-in users can view votes" on public.feedback_votes;
+create policy "Signed-in users can view votes" on public.feedback_votes for select using (auth.uid() is not null);
+drop policy if exists "Users can upvote" on public.feedback_votes;
+create policy "Users can upvote" on public.feedback_votes for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can remove own upvote" on public.feedback_votes;
+create policy "Users can remove own upvote" on public.feedback_votes for delete using (auth.uid() = user_id);
+
+-- Keeps upvote_count on feedback_items in sync automatically, so ranking
+-- the list is just "order by upvote_count desc" -- no counting joins
+-- needed on every read.
+create or replace function public.sync_feedback_upvote_count()
+returns trigger as $$
+begin
+  if (TG_OP = 'INSERT') then
+    update public.feedback_items set upvote_count = upvote_count + 1 where id = new.feedback_id;
+    return new;
+  elsif (TG_OP = 'DELETE') then
+    update public.feedback_items set upvote_count = greatest(0, upvote_count - 1) where id = old.feedback_id;
+    return old;
+  end if;
+  return null;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_feedback_upvote_count on public.feedback_votes;
+create trigger trg_feedback_upvote_count
+  after insert or delete on public.feedback_votes
+  for each row execute function public.sync_feedback_upvote_count();
+
+-- Same spam protection pattern as every other write in this file --
+-- generous for genuine use, tight enough to stop abuse.
+drop trigger if exists rl_feedback_items on public.feedback_items;
+create trigger rl_feedback_items before insert on public.feedback_items
+  for each row execute function public.rate_limit_trigger('feedback_items', '20', '3600', '60');
+
+drop trigger if exists rl_feedback_votes on public.feedback_votes;
+create trigger rl_feedback_votes before insert on public.feedback_votes
+  for each row execute function public.rate_limit_trigger('feedback_votes', '200', '3600', '600');
+
+-- Storage bucket for feedback photos. Private (not public) -- only
+-- signed-in people can view or upload, matching the "testers only, never
+-- public" rule for the whole board. Uploads are required to live under a
+-- folder named after the uploader's own user id (enforced below), which is
+-- what lets the delete-your-own-photo policy work without a lookup table.
+insert into storage.buckets (id, name, public)
+values ('feedback-photos', 'feedback-photos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Signed-in users can view feedback photos" on storage.objects;
+create policy "Signed-in users can view feedback photos" on storage.objects
+  for select using (bucket_id = 'feedback-photos' and auth.uid() is not null);
+
+drop policy if exists "Signed-in users can upload feedback photos" on storage.objects;
+create policy "Signed-in users can upload feedback photos" on storage.objects
+  for insert with check (bucket_id = 'feedback-photos' and auth.uid() is not null and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Users can delete own feedback photos" on storage.objects;
+create policy "Users can delete own feedback photos" on storage.objects
+  for delete using (bucket_id = 'feedback-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+

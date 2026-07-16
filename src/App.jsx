@@ -4,13 +4,14 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered,
+  Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered, MessageSquare,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
 import { currentPlanWeek, PHASE, WORKOUT_PURPOSE } from './planner';
 import { TrboMark } from './PublicPages';
 import { MiniGamesView, MiniGamePlayer, BEAT_THE_PROS } from './MiniGames';
+import FeedbackView, { FeedbackHeroCard } from './Feedback';
 import {
   isNative, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
 } from './nativeBle';
@@ -2930,6 +2931,8 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
         <TrainingLoadPanel workoutHistory={workoutHistory} includePower={false} />
         <PersonalRecordsPanel workoutHistory={workoutHistory} />
 
+        <FeedbackHeroCard onNavigate={onNavigate} />
+
         <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 600, color: TEXT, marginBottom: 14 }}>What are we riding?</div>
 
         {/* hero cards — 2-column grid, since primary navigation already lives in the sidebar/tab bar */}
@@ -5422,6 +5425,7 @@ const NAV_ITEMS = [
   { key: 'planner', label: 'Planner', Icon: CalendarDays },
   { key: 'builder', label: 'Builder', Icon: Wrench },
   { key: 'queue', label: 'Queue', Icon: ListOrdered },
+  { key: 'feedback', label: 'Feedback', Icon: MessageSquare },
   { key: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
 // Sidebar-only inactive text color — a touch darker than the app's usual
@@ -6244,6 +6248,7 @@ export default function App() {
             {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onMove={moveQueueItem} onClear={clearQueue} onStartQueue={startQueue} />}
             {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
             {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
+            {view === 'feedback' && <FeedbackView userId={user.id} />}
             {view === 'settings' && (
               <SettingsView
                 settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer} heartRate={heartRate}
