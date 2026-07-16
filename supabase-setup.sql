@@ -105,15 +105,55 @@ alter table public.profiles add column if not exists stripe_subscription_id text
 create index if not exists profiles_stripe_subscription_id_idx on public.profiles (stripe_subscription_id);
 
 -- IMPORTANT: Row Level Security (above) only controls which *rows* a
--- logged-in user can touch -- not which *columns*. Without the line below,
+-- logged-in user can touch -- not which *columns*. Without something below,
 -- a technically-minded user could open their browser's developer tools and
--- set their own "subscribed" to true for free, without ever paying. This
--- revokes their ability to write to the three billing columns directly;
--- only the server-side webhook (api/stripe-webhook.js), which connects
--- with a special key that ignores this restriction entirely, is able to
--- set them. Everything else users already relied on -- name, ftp, settings
--- is untouched.
-revoke update (subscribed, stripe_customer_id, stripe_subscription_id) on public.profiles from authenticated;
+-- set their own "subscribed" to true for free, without ever paying.
+--
+-- NOTE: a plain "revoke update (col) ... from authenticated" does NOT work
+-- for this on Supabase, even though it looks like it should. Supabase
+-- grants full table-level UPDATE to the authenticated/anon roles by
+-- default, and a table-level grant overrides any column-specific revoke --
+-- so those revoke lines (if you're seeing this comment in an old version of
+-- this file) were silently doing nothing this whole time. The actual
+-- protection is the trigger in section 6b below, which covers this column
+-- along with comp_access, comp_expires_at, and the Strava token columns
+-- added in section 9.
+
+-- 6b. The actual protection for subscribed, stripe_customer_id,
+--     stripe_subscription_id, comp_access, comp_expires_at, and the Strava
+--     token columns (added in section 9): a trigger that blocks any write
+--     to these specific columns unless it comes from "postgres" (you,
+--     running SQL directly here or in the SQL Editor) or "service_role"
+--     (our own backend functions -- api/stripe-webhook.js,
+--     api/strava-connect.js, api/strava-upload.js -- which authenticate
+--     with the service role key). Everyone else -- meaning every rider's
+--     own signed-in browser session, which connects as "authenticated" --
+--     gets a clean error if they try to touch these columns directly,
+--     no matter what request they send. Normal fields like name, ftp, and
+--     settings are completely unaffected.
+create or replace function public.protect_service_only_columns()
+returns trigger as $$
+begin
+  if current_user not in ('postgres', 'service_role') then
+    if new.subscribed is distinct from old.subscribed
+       or new.stripe_customer_id is distinct from old.stripe_customer_id
+       or new.stripe_subscription_id is distinct from old.stripe_subscription_id
+       or new.comp_access is distinct from old.comp_access
+       or new.comp_expires_at is distinct from old.comp_expires_at
+       or new.strava_access_token is distinct from old.strava_access_token
+       or new.strava_refresh_token is distinct from old.strava_refresh_token
+       or new.strava_token_expires_at is distinct from old.strava_token_expires_at then
+      raise exception 'This field can only be changed by the server.';
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security invoker set search_path = public;
+
+drop trigger if exists protect_service_only_columns_trigger on public.profiles;
+create trigger protect_service_only_columns_trigger
+before update on public.profiles
+for each row execute function public.protect_service_only_columns();
 
 -- 7. Personal records: average/peak power captured per ride (only present on
 --    rides done with a trainer connected), used to work out personal bests on
@@ -169,18 +209,16 @@ end;
 $$ language plpgsql security definer;
 
 -- 9. Strava connection: run this once too. Stores each person's own Strava
---    tokens so completed rides can be pushed to their Strava account. These
---    are protected the same way as everything else above (RLS: only the
---    owning user's row), since a leaked Strava token here only affects that
---    one person's own Strava account, not billing or anyone else's data.
+--    tokens so completed rides can be pushed to their Strava account.
+--    strava_athlete_id is harmless (just an ID, not a credential) and stays
+--    readable/writable like any normal profile field. The three actual
+--    token columns are covered by the protection trigger in section 6b
+--    above, so only api/strava-connect.js and api/strava-upload.js
+--    (running with the service role key) can ever write them.
 alter table public.profiles add column if not exists strava_athlete_id text;
 alter table public.profiles add column if not exists strava_access_token text;
 alter table public.profiles add column if not exists strava_refresh_token text;
 alter table public.profiles add column if not exists strava_token_expires_at bigint;
--- Same reasoning as the billing columns above: only the server-side
--- functions (api/strava-connect.js, api/strava-upload.js), which use the
--- service role key, can write the actual token values.
-revoke update (strava_access_token, strava_refresh_token, strava_token_expires_at) on public.profiles from authenticated;
 
 -- 10. Training load: an estimated Training Stress Score and calorie count
 --     computed once when each ride finishes (using the FTP active at the
@@ -339,12 +377,11 @@ create trigger on_auth_user_created
 --       update public.profiles set comp_access = true
 --       where id = (select id from auth.users where email = 'their@email.com');
 --
---     Revoke it the same way with "= false". Protected the same way as the
---     billing columns in section 6 -- only you, running SQL directly, can
---     change it, so nobody can grant themselves free access from their
---     browser's dev tools.
+--     Revoke it the same way with "= false". Protected by the trigger in
+--     section 6b above -- only you, running SQL directly, or the server
+--     itself can change it, so nobody can grant themselves free access from
+--     their browser's dev tools.
 alter table public.profiles add column if not exists comp_access boolean default false;
-revoke update (comp_access) on public.profiles from authenticated;
 
 -- 14b. Tester comp: free access that expires on its own, separate from the
 --     permanent comp_access above. Set automatically (see handle_new_user
@@ -358,7 +395,7 @@ revoke update (comp_access) on public.profiles from authenticated;
 --       update public.profiles set comp_expires_at = now() + interval '30 days'
 --       where id = (select id from auth.users where email = 'their@email.com');
 alter table public.profiles add column if not exists comp_expires_at timestamptz;
-revoke update (comp_expires_at) on public.profiles from authenticated;
+-- Protected by the same trigger in section 6b.
 
 -- 15. Device cap: stops one paid (or trialing) account being used on lots of
 --     devices at once. Each browser/app install gets a random id, generated

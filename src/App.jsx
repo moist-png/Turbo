@@ -146,7 +146,7 @@ const MAX_ACTIVE_DEVICES = 2;
 // Get this from https://www.strava.com/settings/api after creating an API
 // application, then paste it in here. Until it's set, the Strava section
 // in Settings stays hidden instead of showing a broken "Connect" button.
-const STRAVA_CLIENT_ID = '';
+const STRAVA_CLIENT_ID = '265504';
 function daysLeftInTrial(trialStart) {
   if (!trialStart) return 0;
   const start = new Date(trialStart).getTime();
