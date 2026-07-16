@@ -48,6 +48,13 @@ function PlannerSetup({ ftp, recentWeeklyTss, onGenerate }) {
   const [days, setDays] = useState(4);
   const [hours, setHours] = useState(6);
   const [multiSport, setMultiSport] = useState(false);
+  const [weightDay, setWeightDay] = useState(false);
+  const [weightedDayIndex, setWeightedDayIndex] = useState(days - 1); // defaults to the last session of the week
+
+  // If the day count changes while the weighted-day picker is showing a now
+  // out-of-range session number, pull it back in range rather than pointing
+  // at a session that no longer exists.
+  useEffect(() => { setWeightedDayIndex(i => Math.min(i, days - 1)); }, [days]);
 
   const goal = GOALS[goalKey];
 
@@ -91,6 +98,25 @@ function PlannerSetup({ ftp, recentWeeklyTss, onGenerate }) {
         ))}
       </div>
 
+      {/* Weighted day: one session bigger than the rest, e.g. a big Saturday ride */}
+      <div style={sectionLabel}>Want one session bigger than the rest?</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: weightDay ? 10 : 22, flexWrap: 'wrap' }}>
+        <button onClick={() => setWeightDay(false)} style={chip(!weightDay)}>Even sessions</button>
+        <button onClick={() => setWeightDay(true)} style={chip(weightDay)}>One big session</button>
+      </div>
+      {weightDay && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: SUB, marginBottom: 10, lineHeight: 1.5 }}>
+            Which session should be the big one? It'll be a longer endurance ride, with the rest of the week trimmed a bit to balance it out — your total weekly hours stay the same.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {Array.from({ length: days }, (_, i) => i).map(i => (
+              <button key={i} onClick={() => setWeightedDayIndex(i)} style={chip(weightedDayIndex === i)}>Session {i + 1}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Weekly hours */}
       <div style={sectionLabel}>Roughly how many hours a week?</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
@@ -119,7 +145,7 @@ function PlannerSetup({ ftp, recentWeeklyTss, onGenerate }) {
           : <>. Once you've logged a few rides, plans will also tune to your recent training load.</>}
       </div>
 
-      <button onClick={() => onGenerate({ goalKey, weeks, days, hours, multiSport })}
+      <button onClick={() => onGenerate({ goalKey, weeks, days, hours, multiSport, weightedDayIndex: weightDay ? weightedDayIndex : null })}
         style={{ fontFamily: FONT_BODY, width: '100%', padding: '13px 0', borderRadius: 12, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <CalendarDays size={18} /> Build my plan
       </button>
@@ -142,7 +168,10 @@ function DayRow({ day, library, onOpen, onSwap }) {
     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div onClick={() => workout && onOpen(workout, day.plannedSeconds)} style={{ flex: 1, minWidth: 0, cursor: workout ? 'pointer' : 'default' }}>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 }}>{PURPOSE_LABEL[day.purpose] || day.purpose}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{PURPOSE_LABEL[day.purpose] || day.purpose}</span>
+            {day.isWeightedDay && <span style={{ fontFamily: FONT_BODY, fontSize: 9.5, color: INK, background: 'var(--accent)', borderRadius: 5, padding: '1px 6px', fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>Big day</span>}
+          </div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 13.5, color: TEXT, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{day.name}</div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: SUB, marginTop: 2 }}>{fmtLong(day.plannedSeconds)} · ~{day.plannedTss} TSS</div>
         </div>
@@ -251,10 +280,10 @@ export default function PlannerView({ plan, ftp, recentWeeklyTss, library, onSav
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan && plan.createdAt, currentWeek]);
 
-  function handleGenerate({ goalKey, weeks, days, hours, multiSport }) {
+  function handleGenerate({ goalKey, weeks, days, hours, multiSport, weightedDayIndex }) {
     const p = generatePlan({
       goalKey, totalWeeks: weeks, daysPerWeek: days, weeklyHours: hours,
-      currentFtp: ftp, recentWeeklyTss, multiSport, library,
+      currentFtp: ftp, recentWeeklyTss, multiSport, library, weightedDayIndex,
     });
     onSavePlan(p);
   }

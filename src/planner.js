@@ -817,6 +817,41 @@ export function swapOptionsForPurpose(purpose, library) {
   return library.filter(w => WORKOUT_PURPOSE[w.id] === purpose && WORKOUT_PURPOSE[w.id] !== 'test');
 }
 
+// A rider can ask for one session a week to be the big one (e.g. "8 hours a
+// week, but 4 of those in one big Saturday session"). This redistributes
+// time WITHIN the week's already-flexible (length-adjustable) days --
+// giving the chosen day a bigger share of that pool and shrinking the other
+// flexible days to compensate -- rather than adding extra time on top, so
+// the week's total planned time (and therefore its TSS target) is
+// unaffected. Fixed-length interval sessions are never touched, since their
+// structure can't be resized. Mutates nothing; returns a new `days` array.
+const WEIGHTED_DAY_SHARE = 0.5; // the big day's target share of the flexible time pool
+function applyWeightedDay(days, weightedDayIndex) {
+  if (weightedDayIndex == null || weightedDayIndex < 0 || weightedDayIndex >= days.length) return days;
+  const isFlex = d => !d.fixedLength && (d.purpose === 'endurance' || d.purpose === 'recovery' || d.purpose === 'tempo');
+  const flexIndices = days.map((d, i) => (isFlex(d) ? i : -1)).filter(i => i >= 0);
+  // Need the target day itself, plus at least one other flexible day to
+  // shrink -- otherwise there's nothing to redistribute from/to.
+  if (!flexIndices.includes(weightedDayIndex) || flexIndices.length < 2) return days;
+
+  const flexTotal = flexIndices.reduce((sum, i) => sum + days[i].plannedSeconds, 0);
+  const bigSeconds = Math.max(1200, Math.min(18000, Math.round(flexTotal * WEIGHTED_DAY_SHARE)));
+  const remainingSeconds = Math.max(0, flexTotal - bigSeconds);
+  const otherIndices = flexIndices.filter(i => i !== weightedDayIndex);
+  const otherOriginalTotal = otherIndices.reduce((sum, i) => sum + days[i].plannedSeconds, 0) || 1;
+
+  const next = days.slice();
+  otherIndices.forEach(i => {
+    const proportion = days[i].plannedSeconds / otherOriginalTotal;
+    const newSeconds = Math.max(1200, Math.round(remainingSeconds * proportion));
+    const ratio = newSeconds / days[i].plannedSeconds;
+    next[i] = { ...days[i], plannedSeconds: newSeconds, plannedTss: Math.round(days[i].plannedTss * ratio) };
+  });
+  const bigRatio = bigSeconds / days[weightedDayIndex].plannedSeconds;
+  next[weightedDayIndex] = { ...days[weightedDayIndex], plannedSeconds: bigSeconds, plannedTss: Math.round(days[weightedDayIndex].plannedTss * bigRatio), isWeightedDay: true };
+  return next;
+}
+
 // Mutates `days` in place so their total planned time fits `budgetSeconds`.
 // Strategy: first trim the length-flexible aerobic rides down toward a floor;
 // if that still isn't enough (a week packed with fixed interval sessions),
@@ -864,7 +899,7 @@ function enforceTimeBudget(days, budgetSeconds) {
 // ---------------------------------------------------------------------------
 export function generatePlan({
   goalKey, totalWeeks, daysPerWeek, weeklyHours,
-  currentFtp, recentWeeklyTss, multiSport, library,
+  currentFtp, recentWeeklyTss, multiSport, library, weightedDayIndex = null,
 }) {
   const goal = GOALS[goalKey] || GOALS['general-fitness'];
   const hasEvent = goal.hasEvent;
@@ -910,6 +945,13 @@ export function generatePlan({
     const isRecovery = recoveryFlags[wi];
     let purposeSlots = weekPurposeSlots({ phase, daysPerWeek: effectiveDays, goal, isRecovery, multiSport, library, weeklySecondsBudget });
     purposeSlots = maybeInjectPeriodicPurpose(purposeSlots, goal, phaseByWeek, recoveryFlags, wi);
+    // The weighted "big day" is always an endurance session -- the one
+    // purpose type that's both length-flexible and safe to scale up without
+    // piling extra fatigue onto a high-intensity day.
+    if (weightedDayIndex != null && weightedDayIndex >= 0 && weightedDayIndex < purposeSlots.length) {
+      purposeSlots = purposeSlots.slice();
+      purposeSlots[weightedDayIndex] = 'endurance';
+    }
     const usedIds = new Set();
     const usedTerrain = new Set();
     const targetTss = loadTargets[wi];
@@ -944,11 +986,16 @@ export function generatePlan({
       return { ...d, plannedSeconds, plannedTss };
     });
 
-    // Enforce the weekly time budget.
-    enforceTimeBudget(days, weeklySecondsBudget);
+    // Give the designated big day (if any) a bigger share of the week's
+    // flexible time, shrinking the other flexible days to compensate so
+    // the week's total time -- and therefore its TSS target -- is unchanged.
+    const weightedDays = applyWeightedDay(days, weightedDayIndex);
 
-    const weekTss = days.reduce((a, d) => a + d.plannedTss, 0);
-    const weekSeconds = days.reduce((a, d) => a + d.plannedSeconds, 0);
+    // Enforce the weekly time budget.
+    enforceTimeBudget(weightedDays, weeklySecondsBudget);
+
+    const weekTss = weightedDays.reduce((a, d) => a + d.plannedTss, 0);
+    const weekSeconds = weightedDays.reduce((a, d) => a + d.plannedSeconds, 0);
 
     return {
       weekNumber: wi + 1,
@@ -957,7 +1004,7 @@ export function generatePlan({
       targetTss,
       plannedTss: weekTss,
       plannedSeconds: weekSeconds,
-      days,
+      days: weightedDays,
     };
   });
 
@@ -971,6 +1018,7 @@ export function generatePlan({
     weeklyHours,
     currentFtp,
     multiSport,
+    weightedDayIndex,
     createdAt: new Date().toISOString(),
     startWeeklyTss,
     weeks,
@@ -1143,6 +1191,10 @@ export function rebuildWeekWorkouts(plan, library, fromWeek) {
     }
     let purposeSlots = weekPurposeSlots({ phase: w.phase, daysPerWeek: plan.daysPerWeek, goal, isRecovery: w.isRecovery, multiSport: plan.multiSport, library, weeklySecondsBudget });
     purposeSlots = maybeInjectPeriodicPurpose(purposeSlots, goal, phaseByWeek, recoveryFlags, wi);
+    if (plan.weightedDayIndex != null && plan.weightedDayIndex >= 0 && plan.weightedDayIndex < purposeSlots.length) {
+      purposeSlots = purposeSlots.slice();
+      purposeSlots[plan.weightedDayIndex] = 'endurance';
+    }
     const usedIds = new Set();
     const usedTerrain = new Set();
     const rawDays = purposeSlots.map(purpose => {
@@ -1164,12 +1216,13 @@ export function rebuildWeekWorkouts(plan, library, fromWeek) {
       const ratio = plannedSeconds / d.nativeSeconds;
       return { ...d, plannedSeconds, plannedTss: Math.round(d.nativeTss * ratio) };
     });
-    enforceTimeBudget(days, weeklySecondsBudget);
+    const weightedDays = applyWeightedDay(days, plan.weightedDayIndex);
+    enforceTimeBudget(weightedDays, weeklySecondsBudget);
     return {
       ...w,
-      plannedTss: days.reduce((a, d) => a + d.plannedTss, 0),
-      plannedSeconds: days.reduce((a, d) => a + d.plannedSeconds, 0),
-      days,
+      plannedTss: weightedDays.reduce((a, d) => a + d.plannedTss, 0),
+      plannedSeconds: weightedDays.reduce((a, d) => a + d.plannedSeconds, 0),
+      days: weightedDays,
     };
   });
   return { ...plan, weeks };
