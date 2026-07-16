@@ -21,11 +21,14 @@ const NONCONVERT_DAYS = [8, 11, 14];
 const SUB_DAYS = [0, 3, 9, 14];
 
 export default async function handler(req, res) {
-  // Only Vercel's own scheduler -- which automatically sends this same
-  // secret as a Bearer token -- is allowed to trigger this. Set CRON_SECRET
-  // once in Vercel's project environment variables and nothing else changes.
+  // Vercel's own scheduler sends this as a Bearer header automatically.
+  // Also accept it as a ?secret= query param so this can be triggered
+  // manually (from a browser, or a tool that can't set custom headers) for
+  // testing -- same secret either way, just a second channel to present it.
   const authHeader = req.headers.authorization || '';
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const headerOk = !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  const queryOk = !!process.env.CRON_SECRET && req.query?.secret === process.env.CRON_SECRET;
+  if (!headerOk && !queryOk) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
