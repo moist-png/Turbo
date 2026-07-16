@@ -86,7 +86,7 @@ const THEMES = {
   },
   // NEW THEME
   palette: {
-    bg: '#F3EDE3', panel: '#FFFFFF', panel2: '#E9E0D0', line: '#EAE1D2',
+    bg: '#F3EDE3', panel: '#FFFFFF', panel2: '#E9E0D0', line: '#E3D9C8',
     text: '#2A2A2A', sub: '#9A9184', red: '#C0392B', muted: '#CFC5B4',
     navbg: 'rgba(250,246,239,0.96)',
     hero1: '#C0F5ED', hero1ink: '#1F6F63', hero1chip: 'rgba(255,255,255,0.72)',

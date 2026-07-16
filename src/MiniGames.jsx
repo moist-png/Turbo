@@ -421,7 +421,7 @@ const prosGame = {
   durationLabel: '17 s \u2013 10 min',
   difficulty: 'Elite',
   icon: Mountain,
-  color: '#C0F5ED',
+  color: '#2FC5AE',
   scoreUnit: 'time held at pro power',
   usesErg: true,
   ergStartWatts: PRO_START_W,
