@@ -2953,7 +2953,7 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
     { key: 'basics', label: 'Workouts', caption: `${workoutCount} sessions`, icon: Dumbbell, photo: '/images/home-workouts.jpg', photoPos: 'center 45%', ink: 'var(--hero1-ink)', chip: 'var(--hero1-chip)' },
     { key: 'rides', label: 'Rides', caption: `${rideCount} routes`, icon: Bike, photo: '/images/home-rides.jpg', photoPos: 'center 74%', ink: 'var(--hero2-ink)', chip: 'var(--hero2-chip)' },
     { key: 'planner', label: 'Planner', caption: plannerCaption, icon: CalendarDays, photo: '/images/home-planner.jpg', surface: 'var(--hero3)', photoPos: 'center 45%', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
-    { key: 'games', label: 'Race the Pros', caption: '5 pro efforts', icon: Mountain, photo: '/images/home-games.jpg', photoPos: 'center 35%', surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
+    { key: 'games', label: 'Race the Pros', caption: '5 pro efforts', icon: Mountain, photo: '/images/home-games.jpg', photoPos: 'center 58%', surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
   ];
   const slim = [
     { key: 'builder', label: 'Builder', icon: Wrench },
