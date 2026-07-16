@@ -4,7 +4,7 @@ import {
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
-  Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered, MessageSquare,
+  Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered, MessageSquare, GripVertical,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PlannerView from './PlannerView';
@@ -1972,7 +1972,7 @@ const LIBRARY = [
     ],
   },
 ];
-const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 'Sweet Spot', 'Threshold', 'VO2 Max', 'FTP Test'];
+const CATEGORIES = ['All', 'Rides', 'Basics', 'Recovery', 'Endurance', 'Tempo', 'Sweet Spot', 'Climbing', 'Threshold', 'VO2 Max', 'Race', 'FTP Test'];
 
 // Training-type filter chips (Recovery/Endurance/Tempo/.../FTP Test) need to
 // match a workout's real training purpose, not its top-level category --
@@ -1984,9 +1984,18 @@ const CATEGORY_TO_PURPOSE = {
   'Endurance': 'endurance',
   'Tempo': 'tempo',
   'Sweet Spot': 'sweetspot',
+  'Climbing': 'climbing',
   'Threshold': 'threshold',
   'VO2 Max': 'vo2max',
+  'Race': 'race',
   'FTP Test': 'test',
+};
+
+// Anaerobic is only 3 workouts — too thin to justify its own chip, which
+// would look near-empty most of the time. Folded into VO2 Max instead, so
+// picking VO2 Max surfaces both under one "high intensity" chip.
+const PURPOSE_CHIP_ALIASES = {
+  'anaerobic': 'vo2max',
 };
 
 // ---------- audio ----------
@@ -2042,6 +2051,7 @@ function useTrainer() {
   const deviceRef = useRef(null);
   const controlRef = useRef(null);
   const nativeIdRef = useRef(null);
+  const writeQueueRef = useRef(Promise.resolve());
   const supported = isNative || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
 
   function handleBikeData(dv) {
@@ -2080,6 +2090,13 @@ function useTrainer() {
         try {
           await nativeWrite(deviceId, svc, uuid16(0x2ad9), new Uint8Array([0x00]));
           controlRef.current = { native: true };
+          // FTMS "Start or Resume" (0x07). Some trainers' firmware expects
+          // this right after "Request Control" before it will honour later
+          // mode-change commands — including the "release back to free
+          // ride" call sent when a mini game like Beat the Pros ends.
+          // Missing this step is a likely reason some trainers stay locked
+          // in ERG mode after the effort finishes.
+          await writeControl(new Uint8Array([0x07]));
           setHasControl(true);
         } catch (e) { controlRef.current = null; setHasControl(false); }
         setDeviceName(name || 'Trainer');
@@ -2104,6 +2121,8 @@ function useTrainer() {
         const controlChar = await service.getCharacteristic(0x2ad9);
         await controlChar.writeValue(new Uint8Array([0x00]));
         controlRef.current = controlChar;
+        // See the matching comment in the native connect path above.
+        await writeControl(new Uint8Array([0x07]));
         setHasControl(true);
       } catch (e) { controlRef.current = null; setHasControl(false); }
       deviceRef.current = device;
@@ -2125,11 +2144,18 @@ function useTrainer() {
   }
   async function writeControl(buf) {
     if (!controlRef.current) return;
-    if (controlRef.current.native) {
-      await nativeWrite(nativeIdRef.current, uuid16(0x1826), uuid16(0x2ad9), buf);
-    } else {
-      await controlRef.current.writeValue(buf);
-    }
+    // Every write to the control characteristic is chained through this one
+    // queue, so a rapid-fire power-target update (ERG mode writes roughly
+    // 4x/sec) can never overlap with a mode-change command like "release
+    // the trainer" fired at almost the same moment. Bluetooth doesn't
+    // guarantee two back-to-back writes land in the order they were sent
+    // unless the app explicitly waits for each one to finish first.
+    const run = () => (controlRef.current.native
+      ? nativeWrite(nativeIdRef.current, uuid16(0x1826), uuid16(0x2ad9), buf)
+      : controlRef.current.writeValue(buf));
+    const next = writeQueueRef.current.then(run, run);
+    writeQueueRef.current = next.catch(() => {});
+    return next;
   }
   async function setErgTarget(watts) {
     try {
@@ -2222,11 +2248,15 @@ function useHeartRate() {
 }
 
 // ---------- profile chart ----------
-function ProfileChart({ intervals, height = 84, progress = null }) {
+// Renders just the coloured interval bars (no outer frame). Percentage
+// widths are relative to whatever container it's placed in, so it composes
+// correctly whether that container is a full-width chart (ProfileChart) or
+// one workout's slice of a larger multi-workout strip (QueueProfileStrip).
+function SegmentBars({ intervals }) {
   const cvd = useContext(ColorblindContext);
   const total = totalDuration(intervals) || 1;
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', height, width: '100%', background: PANEL2, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}` }}>
+    <>
       {intervals.map((it) => {
         const z = zoneFor(it, cvd);
         const w = (it.duration / total) * 100;
@@ -2238,9 +2268,38 @@ function ProfileChart({ intervals, height = 84, progress = null }) {
           </div>
         );
       })}
+    </>
+  );
+}
+
+function ProfileChart({ intervals, height = 84, progress = null }) {
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', height, width: '100%', background: PANEL2, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}` }}>
+      <SegmentBars intervals={intervals} />
       {progress !== null && (
         <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${progress * 100}%`, background: 'rgba(255,255,255,0.14)', borderRight: `2px solid ${TEXT}`, pointerEvents: 'none' }} />
       )}
+    </div>
+  );
+}
+
+// Lays every queued workout's segment bars out end to end in one strip, so
+// the whole session's shape (recovery, hard, recovery, hard...) is visible
+// before pressing start. Each workout gets a share of the strip's width
+// proportional to its own duration, with a divider line between workouts.
+function QueueProfileStrip({ resolved }) {
+  const total = resolved.reduce((sum, w) => sum + totalDuration(w.intervals), 0) || 1;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', height: 64, width: '100%', background: PANEL2, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}`, marginBottom: 16 }}>
+      {resolved.map((w, i) => {
+        const dur = totalDuration(w.intervals) || 1;
+        const widthPct = (dur / total) * 100;
+        return (
+          <div key={w.id + '_' + i} style={{ width: `${widthPct}%`, height: '100%', display: 'flex', alignItems: 'flex-end', borderRight: i < resolved.length - 1 ? `2px solid ${TEXT}` : 'none' }}>
+            <SegmentBars intervals={w.intervals} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2255,13 +2314,41 @@ function ProfileChart({ intervals, height = 84, progress = null }) {
 const TIMELINE_PX_PER_SEC = 1.2;    // zoom level: bigger = more zoomed in
 const TIMELINE_FOLLOW_RATIO = 0.24; // keeps "now" ~a quarter of the way across the visible window
 const TIMELINE_RESUME_MS = 10000;   // delay after a manual scroll before auto-follow kicks back in
+const TIMELINE_GAP_PX = 1;          // matches each segment's marginRight divider below
+
+// Each rendered segment carries a 1px divider (marginRight) after it, which
+// a plain elapsed*pxPerSec formula doesn't know about. On a workout with a
+// lot of segments those missed pixels add up and the "you are here" marker
+// drifts from the segment blocks — most visible after skipping through
+// several segments quickly. This walks the real segments cumulatively,
+// counting a gap for every segment fully passed, so the marker always
+// lines up with the actual rendered blocks regardless of how elapsed time
+// got there (skip, normal playback, or restart).
+function timelineElapsedToPx(intervals, elapsedSeconds, pxPerSec, gapPx) {
+  let x = 0;
+  let remaining = Math.max(0, elapsedSeconds);
+  for (const it of intervals) {
+    if (remaining >= it.duration) {
+      x += it.duration * pxPerSec + gapPx;
+      remaining -= it.duration;
+    } else {
+      x += remaining * pxPerSec;
+      remaining = 0;
+      break;
+    }
+  }
+  return x;
+}
+function timelineTotalPx(intervals, pxPerSec, gapPx) {
+  return intervals.reduce((acc, it) => acc + it.duration * pxPerSec + gapPx, 0);
+}
 
 function LiveTimeline({ intervals, elapsed, total, cvd }) {
   const scrollRef = useRef(null);
   const resumeTimerRef = useRef(null);
   const [following, setFollowing] = useState(true);
-  const totalWidth = Math.max(1, total) * TIMELINE_PX_PER_SEC;
-  const nowX = Math.max(0, Math.min(total, elapsed)) * TIMELINE_PX_PER_SEC;
+  const totalWidth = Math.max(1, timelineTotalPx(intervals, TIMELINE_PX_PER_SEC, TIMELINE_GAP_PX));
+  const nowX = timelineElapsedToPx(intervals, Math.max(0, Math.min(total, elapsed)), TIMELINE_PX_PER_SEC, TIMELINE_GAP_PX);
 
   // Re-center on "now" every time elapsed ticks forward, as long as the
   // rider hasn't grabbed the strip to look around. Runs before paint
@@ -2310,7 +2397,7 @@ function LiveTimeline({ intervals, elapsed, total, cvd }) {
             const h = Math.max(14, Math.min(100, z.intensity * 78));
             const isFree = it.type === 'free';
             return (
-              <div key={it.id} style={{ width: w, minWidth: w, flexShrink: 0, height: '100%', display: 'flex', alignItems: 'flex-end', marginRight: 1 }}>
+              <div key={it.id} style={{ width: w, minWidth: w, flexShrink: 0, height: '100%', display: 'flex', alignItems: 'flex-end', marginRight: TIMELINE_GAP_PX }}>
                 <div style={{ width: '100%', height: `${h}%`, borderRadius: 4, background: isFree ? `repeating-linear-gradient(135deg, ${z.color}, ${z.color} 4px, ${LINE} 4px, ${LINE} 8px)` : z.color }} />
               </div>
             );
@@ -3184,7 +3271,8 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
         // no entry in WORKOUT_PURPOSE (it's keyed by fixed library ids), so
         // fall back to whatever category the builder saved on them directly.
         const wPurpose = WORKOUT_PURPOSE[w.id];
-        return wPurpose ? wPurpose === purpose : w.category === activeCat;
+        const resolvedPurpose = wPurpose ? (PURPOSE_CHIP_ALIASES[wPurpose] || wPurpose) : null;
+        return resolvedPurpose ? resolvedPurpose === purpose : w.category === activeCat;
       }
       return w.category === activeCat; // Rides / Basics
     }).filter(w => w.name.toLowerCase().includes(query.toLowerCase()));
@@ -3211,7 +3299,7 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
       </div>
       {!lockedCategory && (
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 10 }}>
-          {CATEGORIES.concat('Custom').map(c => <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Chip>)}
+          {CATEGORIES.concat('Custom').map(c => <Chip key={c} active={cat === c} onClick={() => setCat(cat === c ? 'All' : c)}>{c}</Chip>)}
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
@@ -3244,7 +3332,128 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
 }
 
 // ---------- queue view ----------
-function QueueView({ queue, customWorkouts, onOpen, onRemove, onMove, onClear, onStartQueue }) {
+const QUEUE_DRAG_HOLD_MS = 320;       // how long a press has to hold still before it's treated as "lift to drag" rather than a tap or a scroll
+const QUEUE_DRAG_MOVE_CANCEL_PX = 8;  // movement past this before the hold timer fires cancels it, treating the gesture as a scroll instead
+
+// Press-and-hold drag reordering for the Queue tab. A quick tap on a row
+// still opens its workout details (same as before) — only a sustained
+// press-and-hold lifts the row so it can be dragged to a new position,
+// which is far more touch-friendly than the old up/down arrow buttons.
+function QueueRowList({ resolved, onOpen, onRemove, onReorder }) {
+  const [order, setOrder] = useState(() => resolved.map(w => w.id));
+  useEffect(() => { setOrder(resolved.map(w => w.id)); }, [resolved]);
+  const byId = useMemo(() => {
+    const m = {};
+    resolved.forEach(w => { m[w.id] = w; });
+    return m;
+  }, [resolved]);
+  const ordered = order.map(id => byId[id]).filter(Boolean);
+
+  const rowRefs = useRef({});
+  const dragRef = useRef(null); // { id, pointerId, holdTimer, startY, holding }
+  const suppressClickRef = useRef(false);
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+
+  function clearHoldTimer() {
+    if (dragRef.current && dragRef.current.holdTimer) clearTimeout(dragRef.current.holdTimer);
+  }
+  function handlePointerDown(e, id) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const startY = e.clientY;
+    const el = e.currentTarget;
+    const pointerId = e.pointerId;
+    const timer = setTimeout(() => {
+      if (!dragRef.current || dragRef.current.pointerId !== pointerId) return;
+      dragRef.current.holding = true;
+      setDraggingId(id);
+      try { el.setPointerCapture(pointerId); } catch (err) {}
+    }, QUEUE_DRAG_HOLD_MS);
+    dragRef.current = { id, pointerId, holdTimer: timer, startY, holding: false };
+  }
+  function handlePointerMove(e) {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    const dy = e.clientY - d.startY;
+    if (!d.holding) {
+      if (Math.abs(dy) > QUEUE_DRAG_MOVE_CANCEL_PX) { clearHoldTimer(); dragRef.current = null; }
+      return;
+    }
+    setDragOffsetY(dy);
+    const draggedEl = rowRefs.current[d.id];
+    if (!draggedEl) return;
+    const draggedRect = draggedEl.getBoundingClientRect();
+    const draggedCenter = draggedRect.top + draggedRect.height / 2 + dy;
+    setOrder(prev => {
+      const currentIndex = prev.indexOf(d.id);
+      let targetIndex = currentIndex;
+      for (let i = 0; i < prev.length; i++) {
+        const rowEl = rowRefs.current[prev[i]];
+        if (!rowEl) continue;
+        const r = rowEl.getBoundingClientRect();
+        const mid = r.top + r.height / 2;
+        if (draggedCenter < mid) { targetIndex = i; break; }
+        targetIndex = i + 1;
+      }
+      targetIndex = Math.max(0, Math.min(prev.length - 1, targetIndex));
+      if (targetIndex === currentIndex) return prev;
+      const next = prev.slice();
+      next.splice(currentIndex, 1);
+      next.splice(targetIndex, 0, d.id);
+      d.startY = e.clientY;
+      setDragOffsetY(0);
+      return next;
+    });
+  }
+  function handlePointerUp() {
+    const d = dragRef.current;
+    clearHoldTimer();
+    if (d && d.holding) {
+      suppressClickRef.current = true;
+      onReorder(order);
+    }
+    dragRef.current = null;
+    setDraggingId(null);
+    setDragOffsetY(0);
+  }
+  function handleRowClick(e, w) {
+    if (suppressClickRef.current) { suppressClickRef.current = false; e.preventDefault(); e.stopPropagation(); return; }
+    onOpen(w);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {ordered.map((w, i) => {
+        const isDragging = draggingId === w.id;
+        return (
+          <div key={w.id}
+            ref={el => { rowRefs.current[w.id] = el; }}
+            onPointerDown={e => handlePointerDown(e, w.id)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12,
+              touchAction: isDragging ? 'none' : 'pan-y',
+              transform: isDragging ? `translateY(${dragOffsetY}px) scale(1.02)` : 'none',
+              boxShadow: isDragging ? '0 8px 20px rgba(0,0,0,0.25)' : 'none',
+              position: 'relative', zIndex: isDragging ? 2 : 1, cursor: 'grab',
+            }}>
+            <div onClick={e => handleRowClick(e, w)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+              <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 }}>#{i + 1}</div>
+              <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 15.5, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</div>
+              <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginTop: 2 }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
+            </div>
+            <div style={{ color: SUB, display: 'flex', alignItems: 'center', padding: '4px 2px' }}><GripVertical size={18} /></div>
+            <IconBtn onClick={() => onRemove(w.id)} danger><Trash2 size={15} /></IconBtn>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function QueueView({ queue, customWorkouts, onOpen, onRemove, onReorder, onClear, onStartQueue }) {
   const [confirmClear, setConfirmClear] = useState(false);
   const resolved = useMemo(() => {
     const all = LIBRARY.concat(customWorkouts);
@@ -3265,25 +3474,14 @@ function QueueView({ queue, customWorkouts, onOpen, onRemove, onMove, onClear, o
         </div>
       ) : (
         <>
+          <QueueProfileStrip resolved={resolved} />
+
           <button onClick={() => onStartQueue(resolved)}
             style={{ fontFamily: "'Manrope', sans-serif", width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', marginBottom: 16 }}>
             <Play size={18} fill={INK} /> Start queue
           </button>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {resolved.map((w, i) => (
-              <div key={w.id + '_' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}>
-                <div onClick={() => onOpen(w)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-                  <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 10, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 }}>#{i + 1}</div>
-                  <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 15.5, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</div>
-                  <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginTop: 2 }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
-                </div>
-                <IconBtn onClick={() => onMove(w.id, -1)} disabled={i === 0}><ChevronUp size={16} /></IconBtn>
-                <IconBtn onClick={() => onMove(w.id, 1)} disabled={i === resolved.length - 1}><ChevronDown size={16} /></IconBtn>
-                <IconBtn onClick={() => onRemove(w.id)} danger><Trash2 size={15} /></IconBtn>
-              </div>
-            ))}
-          </div>
+          <QueueRowList resolved={resolved} onOpen={onOpen} onRemove={onRemove} onReorder={onReorder} />
 
           <div style={{ marginTop: 18 }}>
             {!confirmClear ? (
@@ -4727,7 +4925,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <SettingRow label="Interval transition beep"><Switch checked={settings.soundIntervalBeep} onChange={v => updateSetting('soundIntervalBeep', v)} /></SettingRow>
       <SettingRow label="3-2-1 countdown beep"><Switch checked={settings.soundCountdown} onChange={v => updateSetting('soundCountdown', v)} /></SettingRow>
       <SettingRow label="Completion sound"><Switch checked={settings.soundCompletion} onChange={v => updateSetting('soundCompletion', v)} /></SettingRow>
-      <div style={{ padding: '10px 0' }}>
+      <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
         <div style={{ fontFamily: "'Manrope', sans-serif", display: 'flex', justifyContent: 'space-between', fontSize: 14, color: TEXT, marginBottom: 6 }}>
           <span>Volume</span><span style={{ color: SUB }}>{Math.round(settings.soundVolume * 100)}%</span>
         </div>
@@ -5428,10 +5626,10 @@ const NAV_ITEMS = [
   { key: 'feedback', label: 'Feedback', Icon: MessageSquare },
   { key: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
-// Sidebar-only inactive text color — a touch darker than the app's usual
-// SUB/muted token so labels stay readable against the sidebar's white panel
-// in every theme, per the nav design spec.
-const SIDEBAR_INACTIVE = '#6d6558';
+// Sidebar-only inactive text color. Follows the same theme-driven SUB/muted
+// token as every other secondary label in the app, so it swaps correctly
+// between light and dark mode instead of staying fixed to one value.
+const SIDEBAR_INACTIVE = SUB;
 
 function computeNavLayout() {
   if (typeof window === 'undefined') return { mode: 'sidebar', width: 200 };
@@ -5531,9 +5729,10 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
       {showCategories && (
         <div style={{ margin: '16px 10px 0', paddingTop: 10, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: SUB, letterSpacing: 0.6, textTransform: 'uppercase', padding: '0 10px 4px' }}>Categories</div>
-          {CATEGORIES.filter(c => c !== 'Rides' && c !== 'Basics').concat('Custom').map(c => (
-            <NavRow key={c} active={view === 'library' && category === c} onClick={() => onSelectCategory(c)} label={c} />
-          ))}
+          {CATEGORIES.filter(c => c !== 'Rides' && c !== 'Basics').concat('Custom').map(c => {
+            const isActive = view === 'library' && category === c;
+            return <NavRow key={c} active={isActive} onClick={() => onSelectCategory(isActive ? 'All' : c)} label={c} />;
+          })}
         </div>
       )}
     </div>
@@ -5664,7 +5863,18 @@ export default function App() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
-      setUser(session ? session.user : null);
+      // Supabase re-verifies the session every time the tab regains focus,
+      // firing this callback again (TOKEN_REFRESHED, or sometimes SIGNED_IN
+      // a second time) even though nobody actually logged in or out. Only
+      // replace `user` when the logged-in identity has genuinely changed —
+      // returning the same object back from a state updater is a no-op re
+      // -render, so the profile-load effect keyed on [user] below won't
+      // retrigger and tear the whole app down to a loading screen mid-ride.
+      setUser(prev => {
+        const nextUser = session ? session.user : null;
+        if ((prev?.id || null) === (nextUser?.id || null)) return prev;
+        return nextUser;
+      });
       setAuthLoading(false);
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
@@ -5994,6 +6204,21 @@ export default function App() {
       return next;
     });
   }
+  // Used by the Queue tab's press-and-hold drag reorder — takes the whole
+  // new order at once (rather than one swap at a time like moveQueueItem)
+  // since the rider may have dragged an item past several others in one go.
+  function reorderQueue(nextIds) {
+    setQueue(prev => {
+      // Sanity check: only accept it if it's actually a reordering of what's
+      // already queued (same ids, same count) — guards against a stray call
+      // racing a separate add/remove and corrupting the queue.
+      if (nextIds.length !== prev.length) return prev;
+      const prevSet = new Set(prev);
+      if (!nextIds.every(id => prevSet.has(id))) return prev;
+      persistQueue(nextIds);
+      return nextIds;
+    });
+  }
   function clearQueue() {
     setQueue([]);
     if (user) supabase.from('queued_workouts').delete().eq('user_id', user.id).then(() => {});
@@ -6251,7 +6476,7 @@ export default function App() {
             {view === 'games' && <MiniGamesView onPlay={setActiveGame} />}
             {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} archivedPlans={archivedPlans} onArchivePlan={archivePlan} onDeleteArchivedPlan={deleteArchivedPlan} />}
             {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} />}
-            {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onMove={moveQueueItem} onClear={clearQueue} onStartQueue={startQueue} />}
+            {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onReorder={reorderQueue} onClear={clearQueue} onStartQueue={startQueue} />}
             {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
             {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
             {view === 'feedback' && <FeedbackView userId={user.id} />}
