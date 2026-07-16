@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const summary = { sent: 0, skipped: 0, errors: 0 };
+  const summary = { sent: 0, skipped: 0, notConfigured: 0, errors: 0 };
 
   try {
     const cutoff = new Date(Date.now() - 15 * DAY_MS).toISOString();
@@ -99,7 +99,14 @@ export default async function handler(req, res) {
         const template = buildEmail(sequenceKey, ctx);
         if (!template) { summary.skipped++; continue; }
 
-        await sendEmail({ to: email, subject: template.subject, html: template.html });
+        const result = await sendEmail({ to: email, subject: template.subject, html: template.html });
+        if (result?.skipped) {
+          // No RESEND_API_KEY configured yet -- don't log this as sent, or
+          // this person would silently never get this email once the real
+          // key does go in, since the log would already say it went out.
+          summary.notConfigured++;
+          continue;
+        }
         await supabaseAdmin.from('email_sequence_log').insert({ user_id: profile.id, sequence_key: sequenceKey });
         summary.sent++;
       } catch (innerErr) {
