@@ -19,6 +19,10 @@ workflows:
       branch_patterns:
         - pattern: main
           include: true
+      when:
+        changeset:
+          excludes:
+            - 'android/'
     scripts:
       - name: Install npm dependencies
         script: npm ci
@@ -65,7 +69,7 @@ workflows:
   trbo-android:
     name: Trbo Android (Play Internal Testing)
     max_build_duration: 60
-    instance_type: linux_x2
+    instance_type: linux
     environment:
       android_signing:
         - trbo-android-signing
@@ -80,6 +84,10 @@ workflows:
       branch_patterns:
         - pattern: main
           include: true
+      when:
+        changeset:
+          excludes:
+            - 'ios/'
     scripts:
       - name: Install npm dependencies
         script: npm ci
@@ -129,7 +137,7 @@ workflows:
 # 2. In Play Console, create the app: name "Trbo", package app.trbo.trainer.
 #    You don't need a finished store listing yet — Internal Testing works
 #    with a bare-minimum/placeholder listing.
-# 3. Upload the keystore Claude generated (trbo-release.keystore) in
+# 3. Upload the keystore Claude generated (trbo-release.p12) in
 #    Codemagic > Team settings > Code signing identities > Android keystores.
 #    Use the store/key passwords from the file Claude gave you, alias
 #    "trbo-upload", and name the reference exactly: trbo-android-signing
@@ -151,4 +159,25 @@ workflows:
 #    Testing track. In Play Console > Internal testing > Testers, add your
 #    own Google account email, grab the opt-in link, open it on your Android
 #    phone, and install from Play Store like any real app.
+# ---------------------------------------------------------------------------
+#
+# Trigger scoping: each workflow above only builds when the push includes a
+# change outside the OTHER platform's folder (e.g. Android build skips pushes
+# that only touched ios/, and vice versa). Shared code (src/, package.json,
+# etc.) always triggers both, since both apps are built from it. Note: the
+# very next push after this scoping was added will still trigger both
+# workflows regardless — Codemagic always does one "unconditional" build
+# right after a changeset rule is introduced, then respects the rule from
+# then on.
+#
+# Billing note: instance_type: linux (standard tier) is used for Android
+# rather than linux_x2, because the "x2"/premium instance types
+# (linux_x2, mac_mini_m4, windows_x2) only work once Pay-as-you-go billing
+# is enabled (Codemagic > Billing > Enable billing, add a card). Plain
+# `linux` should work without that. If Android builds still fail with a
+# billing/instance error even on plain `linux`, Pay-as-you-go is the fix —
+# it's not a subscription, just per-minute usage (~$0.045/min for Linux
+# builds, ~$0.095/min for macOS/iOS builds), charged only for minutes
+# actually used. The iOS workflow (mac_mini_m2) already relies on macOS
+# minutes, which get 500 free/month before any charge applies.
 # ---------------------------------------------------------------------------
