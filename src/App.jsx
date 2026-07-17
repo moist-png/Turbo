@@ -2798,7 +2798,7 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', boxSizing: 'border-box' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: 18, border: `1px solid ${LINE}`, padding: 20, maxHeight: 'min(85vh, calc(100dvh - 48px))', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderRadius: 18, border: `1px solid ${LINE}`, padding: 20, maxHeight: 'min(85vh, calc(100dvh - 48px))', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: 0.3 }}>{workout.name}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
@@ -3514,7 +3514,8 @@ function QueueRowList({ resolved, onOpen, onRemove, onReorder }) {
   const ordered = order.map(id => byId[id]).filter(Boolean);
 
   const rowRefs = useRef({});
-  const dragRef = useRef(null); // { id, pointerId, holdTimer, startY, holding }
+  // { id, pointerId, holdTimer, startY, holding, order0, draggedIndex0, slotHeight }
+  const dragRef = useRef(null);
   const suppressClickRef = useRef(false);
   const [draggingId, setDraggingId] = useState(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
@@ -3529,7 +3530,26 @@ function QueueRowList({ resolved, onOpen, onRemove, onReorder }) {
     const pointerId = e.pointerId;
     const timer = setTimeout(() => {
       if (!dragRef.current || dragRef.current.pointerId !== pointerId) return;
-      dragRef.current.holding = true;
+      // Snapshot the whole row order and each row's position right now,
+      // before the dragged row gets its lift transform. Everything the
+      // gesture does from here is measured against this fixed frame,
+      // rather than re-reading the dragged row's own (already-transformed)
+      // position each move -- which is what made the target position drift
+      // depending on drag direction.
+      const order0 = order;
+      const tops = {};
+      order0.forEach(rid => {
+        const rowEl = rowRefs.current[rid];
+        if (rowEl) tops[rid] = rowEl.getBoundingClientRect().top;
+      });
+      const draggedIndex0 = order0.indexOf(id);
+      let slotHeight = 68; // sane fallback (row height + gap) for a single-row queue
+      if (order0.length > 1) {
+        const neighborIdx = draggedIndex0 === 0 ? 1 : draggedIndex0 - 1;
+        const span = Math.abs(tops[order0[neighborIdx]] - tops[order0[draggedIndex0]]);
+        if (span > 0) slotHeight = span / Math.abs(neighborIdx - draggedIndex0);
+      }
+      dragRef.current = { ...dragRef.current, holding: true, order0, draggedIndex0, slotHeight };
       setDraggingId(id);
       try { el.setPointerCapture(pointerId); } catch (err) {}
     }, QUEUE_DRAG_HOLD_MS);
@@ -3543,29 +3563,22 @@ function QueueRowList({ resolved, onOpen, onRemove, onReorder }) {
       if (Math.abs(dy) > QUEUE_DRAG_MOVE_CANCEL_PX) { clearHoldTimer(); dragRef.current = null; }
       return;
     }
-    setDragOffsetY(dy);
-    const draggedEl = rowRefs.current[d.id];
-    if (!draggedEl) return;
-    const draggedRect = draggedEl.getBoundingClientRect();
-    const draggedCenter = draggedRect.top + draggedRect.height / 2 + dy;
+    // How many rows' worth of distance the pointer has covered since the
+    // drag began, measured once against the start-of-drag snapshot so it
+    // can't compound over a long drag or differ by direction.
+    const rawShift = Math.round(dy / d.slotHeight);
+    const targetIndex = Math.max(0, Math.min(d.order0.length - 1, d.draggedIndex0 + rawShift));
+    const appliedShift = targetIndex - d.draggedIndex0;
+    // The flow position (from reordering) covers whole slots; the transform
+    // only needs to carry the leftover sub-slot distance so the row still
+    // tracks the finger exactly, without double-counting the slot move.
+    setDragOffsetY(dy - appliedShift * d.slotHeight);
     setOrder(prev => {
       const currentIndex = prev.indexOf(d.id);
-      let targetIndex = currentIndex;
-      for (let i = 0; i < prev.length; i++) {
-        const rowEl = rowRefs.current[prev[i]];
-        if (!rowEl) continue;
-        const r = rowEl.getBoundingClientRect();
-        const mid = r.top + r.height / 2;
-        if (draggedCenter < mid) { targetIndex = i; break; }
-        targetIndex = i + 1;
-      }
-      targetIndex = Math.max(0, Math.min(prev.length - 1, targetIndex));
       if (targetIndex === currentIndex) return prev;
-      const next = prev.slice();
-      next.splice(currentIndex, 1);
+      const next = d.order0.slice();
+      next.splice(next.indexOf(d.id), 1);
       next.splice(targetIndex, 0, d.id);
-      d.startY = e.clientY;
-      setDragOffsetY(0);
       return next;
     });
   }
@@ -4898,7 +4911,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const gaugeSize = isPortrait ? { width: 150, height: 80, radius: 62, stroke: 10 } : { width: 120, height: 64, radius: 48, stroke: 9 };
 
   return (
-    <div className="player-screen" style={{ padding: '14px 16px calc(16px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
+    <div className="player-screen" style={{ padding: 'calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)) 16px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
       {settings.visualZoneWash && (
         <div style={{ position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none', transition: 'background 1s ease', background: `radial-gradient(ellipse 80% 55% at 50% 15%, ${hexToRgba(z.color, isDone ? 0.08 : 0.22)} 0%, transparent 70%)` }} />
       )}

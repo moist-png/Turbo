@@ -850,7 +850,7 @@ export function swapOptionsForPurpose(purpose, library) {
 // the week's total planned time (and therefore its TSS target) is
 // unaffected. Fixed-length interval sessions are never touched, since their
 // structure can't be resized. Mutates nothing; returns a new `days` array.
-const WEIGHTED_DAY_SHARE = 0.5; // the big day's target share of the flexible time pool
+const WEIGHTED_DAY_SHARE = 0.65; // the big day's target share of the flexible time pool
 function applyWeightedDay(days, weightedDayIndex) {
   if (weightedDayIndex == null || weightedDayIndex < 0 || weightedDayIndex >= days.length) return days;
   const isFlex = d => !d.fixedLength && (d.purpose === 'endurance' || d.purpose === 'recovery' || d.purpose === 'tempo');
@@ -873,8 +873,27 @@ function applyWeightedDay(days, weightedDayIndex) {
     next[i] = { ...days[i], plannedSeconds: newSeconds, plannedTss: Math.round(days[i].plannedTss * ratio) };
   });
   const bigRatio = bigSeconds / days[weightedDayIndex].plannedSeconds;
-  next[weightedDayIndex] = { ...days[weightedDayIndex], plannedSeconds: bigSeconds, plannedTss: Math.round(days[weightedDayIndex].plannedTss * bigRatio), isWeightedDay: true };
+  next[weightedDayIndex] = { ...days[weightedDayIndex], plannedSeconds: bigSeconds, plannedTss: Math.round(days[weightedDayIndex].plannedTss * bigRatio) };
   return next;
+}
+
+// applyWeightedDay only reshuffles time within the length-flexible days, so
+// a fixed-length interval session elsewhere in the week (a climbing or
+// threshold day, say) can still end up longer in real minutes than the day
+// we designated as "big" -- those never get resized, and their native
+// length can outrun whatever the redistributed flex day was given. Rather
+// than trust the designation, tag whichever day actually has the most
+// planned time once everything (including budget enforcement) has settled,
+// so the "Big day" badge always matches reality instead of defaulting to
+// whichever session index was picked at generation time.
+function tagActualBigDay(days, weightedDayIndex) {
+  days.forEach(d => { delete d.isWeightedDay; });
+  if (weightedDayIndex == null || weightedDayIndex < 0 || weightedDayIndex >= days.length) return;
+  let maxIdx = 0;
+  for (let i = 1; i < days.length; i++) {
+    if (days[i].plannedSeconds > days[maxIdx].plannedSeconds) maxIdx = i;
+  }
+  days[maxIdx].isWeightedDay = true;
 }
 
 // Mutates `days` in place so their total planned time fits `budgetSeconds`.
@@ -1130,6 +1149,7 @@ export function generatePlan({
 
     // Enforce the weekly time budget.
     enforceTimeBudget(weightedDays, weeklySecondsBudget);
+    tagActualBigDay(weightedDays, weightedDayIndex);
 
     const weekTss = weightedDays.reduce((a, d) => a + d.plannedTss, 0);
     const weekSeconds = weightedDays.reduce((a, d) => a + d.plannedSeconds, 0);
@@ -1359,6 +1379,7 @@ export function rebuildWeekWorkouts(plan, library, fromWeek) {
     });
     const weightedDays = applyWeightedDay(days, plan.weightedDayIndex);
     enforceTimeBudget(weightedDays, weeklySecondsBudget);
+    tagActualBigDay(weightedDays, plan.weightedDayIndex);
     return {
       ...w,
       plannedTss: weightedDays.reduce((a, d) => a + d.plannedTss, 0),
