@@ -2060,6 +2060,7 @@ function useTrainer() {
   const controlRef = useRef(null);
   const nativeIdRef = useRef(null);
   const writeQueueRef = useRef(Promise.resolve());
+  const cpsCrankRef = useRef({ revs: null, time: null });
   const supported = isNative || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
 
   function handleBikeData(dv) {
@@ -2078,35 +2079,82 @@ function useTrainer() {
       if (pow !== null) setPower(pow);
     } catch (e) {}
   }
+  // Standard Bluetooth Cycling Power Measurement characteristic (0x2A63),
+  // part of the Cycling Power Service (0x1818). Fallback for trainers —
+  // like some Wahoo KICKR SNAP units — that never learned the newer Fitness
+  // Machine Service (0x1826) Trbo normally looks for, but still broadcast
+  // this older, universally-supported power service. It's read-only: there's
+  // no target-power/ERG control characteristic here, so hasControl is left
+  // false and the app's own ERG toggle stays correctly disabled for trainers
+  // connected this way.
+  function handleCyclingPower(dv) {
+    try {
+      const flags = dv.getUint16(0, true);
+      let offset = 2;
+      const pow = dv.getInt16(offset, true); offset += 2;
+      if (flags & 0x0001) offset += 1; // pedal power balance
+      if (flags & 0x0004) offset += 2; // accumulated torque
+      if (flags & 0x0010) offset += 6; // wheel revolution data
+      if (flags & 0x0020) {
+        // Crank revolution data: cumulative crank revolutions + last crank
+        // event time (1/1024s units). Cadence isn't sent directly — it has
+        // to be derived from how much these two values changed between
+        // consecutive notifications, with rollover handled at 65536.
+        const crankRevs = dv.getUint16(offset, true); offset += 2;
+        const crankTime = dv.getUint16(offset, true); offset += 2;
+        const prev = cpsCrankRef.current;
+        if (prev.revs !== null) {
+          let deltaRevs = crankRevs - prev.revs;
+          if (deltaRevs < 0) deltaRevs += 65536;
+          let deltaTime = crankTime - prev.time;
+          if (deltaTime < 0) deltaTime += 65536;
+          if (deltaTime > 0) setCadence(Math.round((deltaRevs / (deltaTime / 1024)) * 60));
+        }
+        cpsCrankRef.current = { revs: crankRevs, time: crankTime };
+      }
+      setPower(pow);
+    } catch (e) {}
+  }
   function handleDisconnected() {
     setStatus('disconnected');
     setPower(null);
     setCadence(null);
     setHasControl(false);
+    cpsCrankRef.current = { revs: null, time: null };
   }
   async function connect() {
     if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return; }
     setStatus('connecting'); setErrorMsg(null);
+    cpsCrankRef.current = { revs: null, time: null };
     if (isNative) {
       try {
-        const svc = uuid16(0x1826);
-        const { deviceId, name } = await nativeRequestAndConnect(svc, handleDisconnected);
+        const ftmsSvc = uuid16(0x1826);
+        const cpsSvc = uuid16(0x1818);
+        const { deviceId, name } = await nativeRequestAndConnect([ftmsSvc, cpsSvc], handleDisconnected);
         nativeIdRef.current = deviceId;
+        let usedFtms = true;
         try {
-          await nativeStartNotifications(deviceId, svc, uuid16(0x2ad2), handleBikeData);
-        } catch (e) {}
-        try {
-          await nativeWrite(deviceId, svc, uuid16(0x2ad9), new Uint8Array([0x00]));
-          controlRef.current = { native: true };
-          // FTMS "Start or Resume" (0x07). Some trainers' firmware expects
-          // this right after "Request Control" before it will honour later
-          // mode-change commands — including the "release back to free
-          // ride" call sent when a mini game like Beat the Pros ends.
-          // Missing this step is a likely reason some trainers stay locked
-          // in ERG mode after the effort finishes.
-          await writeControl(new Uint8Array([0x07]));
-          setHasControl(true);
-        } catch (e) { controlRef.current = null; setHasControl(false); }
+          await nativeStartNotifications(deviceId, ftmsSvc, uuid16(0x2ad2), handleBikeData);
+        } catch (e) {
+          // Trainer doesn't have the FTMS bike-data characteristic — fall
+          // back to the older Cycling Power service for power/cadence.
+          usedFtms = false;
+          try { await nativeStartNotifications(deviceId, cpsSvc, uuid16(0x2a63), handleCyclingPower); } catch (e2) {}
+        }
+        if (usedFtms) {
+          try {
+            await nativeWrite(deviceId, ftmsSvc, uuid16(0x2ad9), new Uint8Array([0x00]));
+            controlRef.current = { native: true };
+            // FTMS "Start or Resume" (0x07). Some trainers' firmware expects
+            // this right after "Request Control" before it will honour later
+            // mode-change commands — including the "release back to free
+            // ride" call sent when a mini game like Beat the Pros ends.
+            // Missing this step is a likely reason some trainers stay locked
+            // in ERG mode after the effort finishes.
+            await writeControl(new Uint8Array([0x07]));
+            setHasControl(true);
+          } catch (e) { controlRef.current = null; setHasControl(false); }
+        }
         setDeviceName(name || 'Trainer');
         setStatus('connected');
       } catch (e) {
@@ -2116,23 +2164,40 @@ function useTrainer() {
       return;
     }
     try {
-      const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [0x1826] }], optionalServices: [0x1826] });
+      const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [0x1826] }, { services: [0x1818] }], optionalServices: [0x1826, 0x1818] });
       device.addEventListener('gattserverdisconnected', handleDisconnected);
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(0x1826);
+      let service, usedFtms = true;
       try {
-        const bikeChar = await service.getCharacteristic(0x2ad2);
-        await bikeChar.startNotifications();
-        bikeChar.addEventListener('characteristicvaluechanged', (event) => handleBikeData(event.target.value));
-      } catch (e) {}
-      try {
-        const controlChar = await service.getCharacteristic(0x2ad9);
-        await controlChar.writeValue(new Uint8Array([0x00]));
-        controlRef.current = controlChar;
-        // See the matching comment in the native connect path above.
-        await writeControl(new Uint8Array([0x07]));
-        setHasControl(true);
-      } catch (e) { controlRef.current = null; setHasControl(false); }
+        service = await server.getPrimaryService(0x1826);
+      } catch (e) {
+        // No FTMS on this trainer — fall back to the Cycling Power service.
+        usedFtms = false;
+        service = await server.getPrimaryService(0x1818);
+      }
+      if (usedFtms) {
+        try {
+          const bikeChar = await service.getCharacteristic(0x2ad2);
+          await bikeChar.startNotifications();
+          bikeChar.addEventListener('characteristicvaluechanged', (event) => handleBikeData(event.target.value));
+        } catch (e) {}
+        try {
+          const controlChar = await service.getCharacteristic(0x2ad9);
+          await controlChar.writeValue(new Uint8Array([0x00]));
+          controlRef.current = controlChar;
+          // See the matching comment in the native connect path above.
+          await writeControl(new Uint8Array([0x07]));
+          setHasControl(true);
+        } catch (e) { controlRef.current = null; setHasControl(false); }
+      } else {
+        try {
+          const powerChar = await service.getCharacteristic(0x2a63);
+          await powerChar.startNotifications();
+          powerChar.addEventListener('characteristicvaluechanged', (event) => handleCyclingPower(event.target.value));
+        } catch (e) {}
+        controlRef.current = null;
+        setHasControl(false);
+      }
       deviceRef.current = device;
       setDeviceName(device.name || 'Trainer');
       setStatus('connected');
@@ -2149,6 +2214,7 @@ function useTrainer() {
       try { deviceRef.current && deviceRef.current.gatt && deviceRef.current.gatt.disconnect(); } catch (e) {}
     }
     setStatus('disconnected'); setDeviceName(null); setPower(null); setCadence(null); setHasControl(false);
+    cpsCrankRef.current = { revs: null, time: null };
   }
   async function writeControl(buf) {
     if (!controlRef.current) return;

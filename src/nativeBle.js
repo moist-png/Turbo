@@ -33,6 +33,11 @@ export const isNative = Capacitor.isNativePlatform();
 // splits scanning and connecting into separate steps.
 export async function nativeRequestAndConnect(serviceUuid, onDisconnect) {
   const BleClient = await getBle();
+  // Accepts either a single service UUID or an array of candidate UUIDs.
+  // The plugin's scan filter matches a device advertising ANY of the given
+  // services, which is what lets us look for a trainer's preferred service
+  // (FTMS) and a fallback (Cycling Power Service) in one scan.
+  const services = Array.isArray(serviceUuid) ? serviceUuid : [serviceUuid];
   return new Promise((resolve, reject) => {
     let settled = false;
     const timeout = setTimeout(() => {
@@ -42,7 +47,7 @@ export async function nativeRequestAndConnect(serviceUuid, onDisconnect) {
       reject(new Error('No matching Bluetooth device found nearby.'));
     }, 15000);
 
-    BleClient.requestLEScan({ services: [serviceUuid] }, async (result) => {
+    BleClient.requestLEScan({ services }, async (result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
