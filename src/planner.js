@@ -137,6 +137,38 @@ export const WORKOUT_PURPOSE = {
   'ride-team-time-trial': 'threshold',
   'ride-bridge-to-break': 'vo2max',
   'ride-mallorca-312': 'endurance',
+  // --- 30 new rides: tempo/sweetspot deepened from 0 real Rides, plus
+  // gap-filling across anaerobic/race/threshold/vo2max/recovery/endurance ---
+  'ride-harbor-circuit': 'tempo',
+  'ride-canal-towpath': 'tempo',
+  'ride-border-run': 'tempo',
+  'ride-orchard-backroads': 'tempo',
+  'ride-reservoir-ring': 'tempo',
+  'ride-delta-causeway': 'tempo',
+  'ride-backroad-sweetspot': 'sweetspot',
+  'ride-quarry-climb-ladder': 'sweetspot',
+  'ride-meadowline-rollers': 'sweetspot',
+  'ride-timber-road-sweetspot': 'sweetspot',
+  'ride-twin-peaks-sweep': 'sweetspot',
+  'ride-velodrome-nights': 'anaerobic',
+  'ride-alleycat-dash': 'anaerobic',
+  'ride-match-play': 'anaerobic',
+  'ride-closing-speed-repeats': 'anaerobic',
+  'ride-twilight-crit': 'race',
+  'ride-crossroads-sprint-circuit': 'race',
+  'ride-puncheurs-ambush': 'race',
+  'ride-points-race-series': 'race',
+  'ride-the-straight-line': 'threshold',
+  'ride-spine-road-threshold': 'threshold',
+  'ride-alone-at-the-front': 'threshold',
+  'ride-city-skyline-intervals': 'vo2max',
+  'ride-watchtower-repeats': 'vo2max',
+  'ride-the-long-escape': 'vo2max',
+  'ride-garden-path-spin': 'recovery',
+  'ride-tidal-flats-cruise': 'recovery',
+  'ride-quiet-streets-loop': 'recovery',
+  'ride-pastureland-loop': 'endurance',
+  'ride-watermill-loop': 'endurance',
 };
 
 // Human-readable labels for each purpose (used in the UI on day rows).
@@ -183,12 +215,19 @@ export const PURPOSE_LABEL = {
 //   scenic      — easy-going / social character (café pace, recovery)
 //   hairpins    — switchback climbing: repeated surge-out-of-the-corner efforts
 //   multi-climb — several distinct climbs linked by descents (not one long ascent)
+//   urban       — stop-start city/street riding (traffic lights, tight blocks)
+//   criterium   — tight, technical, repeated-lap closed-circuit racing
+//   paceline    — organized group/rotating-paceline dynamic, not a solo effort
 //
 // NOTE: 'hairpins' and 'multi-climb' were added purely to give the freshness
 // picker a way to tell the big climbing rides apart (previously ~13 of them
 // shared the exact same tag set and were interchangeable to the generator).
-// They are ADDITIVE: existing tags on every workout are left in place, these
-// are only appended where they genuinely apply.
+// 'urban', 'criterium' and 'paceline' were added the same way, for the same
+// reason, in a smaller VO2max/anaerobic/race pool: several candidates shared
+// nothing but a single generic tag (e.g. 'punchy' alone). All five are
+// ADDITIVE: existing tags on every workout are left in place, these are only
+// appended where they genuinely apply — and only backdated onto existing
+// workouts whose own description already describes that exact scenario.
 // ---------------------------------------------------------------------------
 export const WORKOUT_TERRAIN = {
   // --- Basics (indoor structure; terrain is abstract but still varies) ---
@@ -207,8 +246,8 @@ export const WORKOUT_TERRAIN = {
   'mixed-metric': ['mixed'],
   'vo2-40-20-double': ['punchy'],
   // --- Rides (real-world feel) ---
-  'ride-sunday-club': ['rolling', 'scenic', 'punchy'],
-  'ride-chaingang': ['flat', 'windy'],
+  'ride-sunday-club': ['rolling', 'scenic', 'punchy', 'paceline'],
+  'ride-chaingang': ['flat', 'windy', 'paceline'],
   'ride-century-sim': ['mixed', 'flat', 'sustained-climb'],
   'ride-coastal-rollers': ['rolling', 'windy', 'punchy'],
   'ride-alpine-ascent': ['sustained-climb', 'hairpins'],
@@ -216,10 +255,10 @@ export const WORKOUT_TERRAIN = {
   'ride-crosswind-echelon': ['windy', 'flat'],
   'ride-breakaway-glory': ['mixed', 'punchy'],
   'ride-audax-200': ['flat', 'scenic'],
-  'ride-crit-sim': ['punchy'],
+  'ride-crit-sim': ['punchy', 'criterium'],
   'ride-cafe-ride': ['scenic', 'rolling'],
   'ride-cobbled-classics': ['cobbles', 'steep'],
-  'ride-group-surges': ['punchy', 'rolling'],
+  'ride-group-surges': ['punchy', 'rolling', 'paceline'],
   'ride-hilly-fondo': ['sustained-climb', 'rolling'],
   'ride-tt-tuneup': ['flat'],
   'ride-rainy-survival': ['mixed', 'flat'],
@@ -229,7 +268,7 @@ export const WORKOUT_TERRAIN = {
   'ride-monument-classics': ['cobbles', 'steep'],
   'ride-bikepacking-haul': ['gravel', 'flat', 'scenic'],
   'ride-mountain-double': ['sustained-climb', 'multi-climb'],
-  'ride-urban-commute': ['punchy', 'flat'],
+  'ride-urban-commute': ['punchy', 'flat', 'urban'],
   'ride-recovery-cruise': ['scenic', 'flat'],
   'ride-leadout-day': ['punchy', 'flat'],
   'ride-ridge-traverse': ['rolling', 'windy', 'punchy'],
@@ -273,9 +312,40 @@ export const WORKOUT_TERRAIN = {
   // --- New round-number batch ---
   'sprint-ladder': ['punchy'],
   'ride-strade-bianche': ['gravel', 'steep', 'punchy'],
-  'ride-team-time-trial': ['flat', 'windy'],
+  'ride-team-time-trial': ['flat', 'windy', 'paceline'],
   'ride-bridge-to-break': ['rolling', 'punchy'],
   'ride-mallorca-312': ['rolling', 'sustained-climb', 'windy', 'scenic'],
+  // --- 30 new rides ---
+  'ride-harbor-circuit': ['rolling', 'punchy'],
+  'ride-canal-towpath': ['flat', 'punchy'],
+  'ride-border-run': ['flat', 'windy'],
+  'ride-orchard-backroads': ['rolling', 'scenic'],
+  'ride-reservoir-ring': ['rolling'],
+  'ride-delta-causeway': ['flat', 'windy', 'punchy'],
+  'ride-backroad-sweetspot': ['rolling'],
+  'ride-quarry-climb-ladder': ['sustained-climb'],
+  'ride-meadowline-rollers': ['rolling'],
+  'ride-timber-road-sweetspot': ['sustained-climb', 'windy'],
+  'ride-twin-peaks-sweep': ['sustained-climb', 'rolling'],
+  'ride-velodrome-nights': ['punchy'],
+  'ride-alleycat-dash': ['punchy', 'urban'],
+  'ride-match-play': ['punchy', 'mixed'],
+  'ride-closing-speed-repeats': ['punchy', 'criterium'],
+  'ride-twilight-crit': ['punchy', 'criterium'],
+  'ride-crossroads-sprint-circuit': ['rolling', 'punchy', 'paceline'],
+  'ride-puncheurs-ambush': ['steep', 'punchy'],
+  'ride-points-race-series': ['punchy', 'mixed'],
+  'ride-the-straight-line': ['flat'],
+  'ride-spine-road-threshold': ['rolling'],
+  'ride-alone-at-the-front': ['mixed'],
+  'ride-city-skyline-intervals': ['punchy', 'urban'],
+  'ride-watchtower-repeats': ['rolling', 'punchy'],
+  'ride-the-long-escape': ['mixed', 'windy'],
+  'ride-garden-path-spin': ['scenic', 'flat'],
+  'ride-tidal-flats-cruise': ['scenic', 'flat'],
+  'ride-quiet-streets-loop': ['scenic', 'rolling'],
+  'ride-pastureland-loop': ['flat', 'scenic'],
+  'ride-watermill-loop': ['flat', 'scenic'],
 };
 
 // Human-readable labels for each terrain tag (for any UI that surfaces them).

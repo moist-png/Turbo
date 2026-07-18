@@ -1819,7 +1819,7 @@ const LIBRARY = [
   // narrative route the way build/peak phases intend.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-valley-sweetspot', name: 'Valley Sweet Spot Roll', category: 'Basics',
+    id: 'ride-valley-sweetspot', name: 'Valley Sweet Spot Roll', category: 'Rides',
     description: 'Rolling valley roads with three sweet spot blocks stitched between the scenic cruising — the workhorse tempo session with a view.',
     intervals: [
       iv('Warm up', 420, 'power', 58),
@@ -1986,6 +1986,306 @@ const LIBRARY = [
       iv('Grinding into the breeze', 600, 'power', 74),
       iv('Final run to the line', 300, 'power', 80),
       iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  // ==========================================================================
+  // 30 new Rides — added to deepen thin purpose pools (tempo/sweet spot had
+  // zero real Rides; anaerobic/race/vo2max/threshold/recovery had gaps).
+  // See planner.js WORKOUT_PURPOSE / WORKOUT_TERRAIN for tagging.
+  // ==========================================================================
+  {
+    id: 'ride-harbor-circuit', name: 'Harbor Circuit', category: 'Rides',
+    description: 'A looping harbor-town road with headland corners that keep kicking the pace up before it settles again.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      ...repeatIv(6, () => [iv('Tempo', 570, 'power', 78), iv('Headland surge', 30, 'power', 90), iv('Recover', 120, 'power', 60)]),
+      iv('Cool down', 600, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-canal-towpath', name: 'Canal Towpath', category: 'Rides',
+    description: 'A flat towpath grind broken every few minutes by a short punchy ramp up onto a lock gate.',
+    intervals: [
+      iv('Warm up', 600, 'power', 58),
+      ...repeatIv(9, () => [iv('Towpath tempo', 400, 'power', 78), iv('Lock gate ramp', 20, 'power', 100)]),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-border-run', name: 'Border Run', category: 'Rides',
+    description: 'A long flat road along a borderland — calm outbound, then a building headwind for the way home.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      iv('Tailwind tempo', 3600, 'power', 75),
+      iv('Headwind tempo', 3600, 'power', 80),
+      iv('Cool down', 1080, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-orchard-backroads', name: 'Orchard Backroads', category: 'Rides',
+    description: 'Quiet backroads through orchard country, a steady rhythm with just enough undulation to keep it honest.',
+    intervals: [
+      iv('Warm up', 600, 'power', 58),
+      ...repeatIv(9, () => [iv('Rolling tempo', 300, 'power', 76), iv('Rise', 300, 'power', 82)]),
+      iv('Cool down', 1200, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-reservoir-ring', name: 'Reservoir Ring', category: 'Rides',
+    description: 'Three laps of a reservoir road, each one a notch harder than the last.',
+    intervals: [
+      iv('Warm up', 600, 'power', 60),
+      iv('Lap 1', 1680, 'power', 72),
+      iv('Lap 2', 1680, 'power', 76),
+      iv('Lap 3', 1680, 'power', 80),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-delta-causeway', name: 'Delta Causeway', category: 'Rides',
+    description: 'A chain of low bridges over marsh country — tempo pace with a hard kick over every crossing.',
+    intervals: [
+      iv('Warm up', 600, 'power', 60),
+      ...repeatIv(8, () => [iv('Causeway tempo', 420, 'power', 78), iv('Bridge ramp', 60, 'power', 95), iv('Recover', 90, 'power', 58)]),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-backroad-sweetspot', name: 'Backroad Sweet Spot', category: 'Rides',
+    description: 'A straightforward pair of sweet spot blocks on quiet backroads — no story, just the work.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      iv('Sweet spot block 1', 1200, 'power', 90),
+      iv('Recover', 360, 'power', 55),
+      iv('Sweet spot block 2', 1200, 'power', 92),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-quarry-climb-ladder', name: 'Quarry Climb Ladder', category: 'Rides',
+    description: 'A long steady drag up an old quarry road, tackled in ever-longer sweet spot rungs.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      iv('Rung 1', 720, 'power', 88),
+      iv('Recover', 240, 'power', 60),
+      iv('Rung 2', 1080, 'power', 90),
+      iv('Recover', 240, 'power', 60),
+      iv('Rung 3', 1320, 'power', 92),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-meadowline-rollers', name: 'Meadowline Rollers', category: 'Rides',
+    description: 'Low meadow country, one climb blurring into the next — the effort never really settles.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      ...repeatIv(15, () => [iv('Roller', 150, 'power', 89), iv('Crest', 150, 'power', 93)]),
+      iv('Cool down', 1080, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-timber-road-sweetspot', name: 'Timber Road Sweet Spot', category: 'Rides',
+    description: 'A long forest logging-road climb, sheltered until the exposed clearing at the top.',
+    intervals: [
+      iv('Warm up', 1200, 'power', 58),
+      iv('Sheltered climb', 2400, 'power', 88),
+      iv('Recover', 480, 'power', 62),
+      iv('Exposed clearing', 2100, 'power', 92),
+      iv('Cool down', 1500, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-twin-peaks-sweep', name: 'Twin Peaks Sweep', category: 'Rides',
+    description: 'Two short sustained climbs linked by a valley sweep — a taste of a proper climbing day without the full epic length.',
+    intervals: [
+      iv('Warm up', 1200, 'power', 58),
+      iv('Climb one', 2100, 'power', 90),
+      iv('Valley sweep', 1200, 'power', 65),
+      iv('Climb two', 2100, 'power', 92),
+      iv('Cool down', 1500, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-velodrome-nights', name: 'Velodrome Nights', category: 'Rides',
+    description: 'Flying-lap sprints under the lights, full recovery between each one — quality over quantity.',
+    intervals: [
+      iv('Warm up', 720, 'power', 58),
+      ...repeatIv(3, () => [iv('Opener', 15, 'power', 110), iv('Easy', 45, 'power', 55)]),
+      ...repeatIv(8, () => [iv('Flying sprint', 15, 'power', 170), iv('Full recovery', 240, 'power', 50)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-alleycat-dash', name: 'Alleycat Dash', category: 'Rides',
+    description: 'Unpredictable, intersection-to-intersection sprints — you never quite know when the next one is coming.',
+    intervals: [
+      iv('Warm up', 900, 'power', 58),
+      iv('Sprint', 12, 'power', 105), iv('Gap', 150, 'power', 60),
+      iv('Sprint', 18, 'power', 110), iv('Gap', 90, 'power', 60),
+      iv('Sprint', 10, 'power', 120), iv('Gap', 240, 'power', 60),
+      iv('Sprint', 15, 'power', 108), iv('Gap', 120, 'power', 60),
+      iv('Sprint', 20, 'power', 100), iv('Gap', 180, 'power', 60),
+      iv('Sprint', 10, 'power', 115), iv('Gap', 90, 'power', 60),
+      iv('Sprint', 15, 'power', 105), iv('Gap', 210, 'power', 60),
+      iv('Sprint', 20, 'power', 110), iv('Gap', 150, 'power', 60),
+      iv('Sprint', 12, 'power', 120), iv('Gap', 180, 'power', 60),
+      iv('Sprint', 15, 'power', 110), iv('Gap', 240, 'power', 60),
+      iv('Cool down', 600, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-match-play', name: 'Match Play', category: 'Rides',
+    description: 'Paired efforts that mimic real racing — close the gap, then find one more gear to win the sprint.',
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(10, () => [iv('Close the gap', 30, 'power', 115), iv('Recover', 10, 'power', 50), iv('Win the sprint', 10, 'power', 170), iv('Easy', 240, 'power', 55)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-closing-speed-repeats', name: 'Closing Speed Repeats', category: 'Rides',
+    description: 'A short circuit, ridden lap after lap, each one ending in an all-out sprint for the line as the legs get heavier.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      ...repeatIv(6, () => [iv('Lap', 585, 'power', 70), iv('Sprint for the line', 15, 'power', 175)]),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-twilight-crit', name: 'Twilight Crit', category: 'Rides',
+    description: 'A short, sharp criterium under lights — tight corners, no let-up.',
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(22, () => [iv('Corner acceleration', 45, 'power', 105), iv('Straight recover', 75, 'power', 65)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-crossroads-sprint-circuit', name: 'Crossroads Sprint Circuit', category: 'Rides',
+    description: 'A loop through a string of small crossroads towns, taking turns on the front between each intermediate sprint.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      ...repeatIv(5, () => [iv('Rotating pulls', 580, 'power', 75), iv('Village sprint', 20, 'power', 100), iv('Easy', 180, 'power', 55)]),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-puncheurs-ambush', name: "Puncheur's Ambush", category: 'Rides',
+    description: 'A day built for the puncheur — no long climbs, just one steep kick after another.',
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(18, () => [iv('Steep kick', 90, 'power', 115), iv('Recover', 180, 'power', 65)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-points-race-series', name: 'Points Race Series', category: 'Rides',
+    description: 'A points-race format — a string of intermediate sprints where the stakes, and the effort, climb every time.',
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      iv('Intermediate sprint 1', 20, 'power', 85), iv('Easy', 950, 'power', 55),
+      iv('Intermediate sprint 2', 20, 'power', 90), iv('Easy', 950, 'power', 55),
+      iv('Intermediate sprint 3', 20, 'power', 95), iv('Easy', 950, 'power', 55),
+      iv('Intermediate sprint 4', 20, 'power', 100), iv('Easy', 950, 'power', 55),
+      iv('Intermediate sprint 5', 20, 'power', 105), iv('Easy', 950, 'power', 55),
+      iv('Intermediate sprint 6 — winner takes it', 20, 'power', 110), iv('Easy', 950, 'power', 55),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-the-straight-line', name: 'The Straight Line', category: 'Rides',
+    description: 'A long flat road, calm out, then a building crosswind for the effort home.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      iv('Calm threshold', 1800, 'power', 97),
+      iv('Recover', 360, 'power', 55),
+      iv('Windier threshold', 1800, 'power', 101),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-spine-road-threshold', name: 'Spine Road Threshold', category: 'Rides',
+    description: 'A long ridge-top road, threshold held through a string of small rises that never quite let you settle.',
+    intervals: [
+      iv('Warm up', 1080, 'power', 58),
+      ...repeatIv(14, () => [iv('Rise', 150, 'power', 95), iv('Crest', 150, 'power', 102)]),
+      iv('Cool down', 1080, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-alone-at-the-front', name: 'Alone at the Front', category: 'Rides',
+    description: "You've gone clear and it's just you and the road — hold it as long as you can.",
+    intervals: [
+      iv('Warm up', 1080, 'power', 58),
+      ...Array.from({ length: 11 }, (_, i) => iv('Holding the gap', 300, 'power', Math.round(103 - i * 0.7))),
+      iv('Cool down', 1500, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-city-skyline-intervals', name: 'City Skyline Intervals', category: 'Rides',
+    description: 'Short, sharp efforts with a view — a compact session for a tight morning.',
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(6, () => [iv('VO2 effort', 120, 'power', 118), iv('Recover', 180, 'power', 55)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-watchtower-repeats', name: 'Watchtower Repeats', category: 'Rides',
+    description: 'Short, punchy kicks up onto a watchtower hill, fast descents back down for the recovery.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      ...repeatIv(12, () => [iv('Watchtower kick', 150, 'power', 115), iv('Descent recovery', 150, 'power', 55)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-the-long-escape', name: 'The Long Escape', category: 'Rides',
+    description: "Hours off the front — mostly about holding position, but every time they threaten to close the gap, you have to find another gear.",
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(6, () => [iv('Holding the wheel', 694, 'power', 68), iv('Surge to cover the move', 90, 'power', 115)]),
+      iv('Final stretch', 696, 'power', 68),
+      iv('Cool down', 1500, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-garden-path-spin', name: 'Garden Path Spin', category: 'Rides',
+    description: 'A light, easy spin through parkland — nothing to prove, just moving.',
+    intervals: [
+      iv('Easy spin', 3000, 'power', 52),
+    ],
+  },
+  {
+    id: 'ride-tidal-flats-cruise', name: 'Tidal Flats Cruise', category: 'Rides',
+    description: 'A flat coastal path, timed to a slack tide — as easy as riding gets.',
+    intervals: [
+      iv('Easy spin', 4500, 'power', 52),
+    ],
+  },
+  {
+    id: 'ride-quiet-streets-loop', name: 'Quiet Streets Loop', category: 'Rides',
+    description: 'Empty neighborhood streets before the day gets going — gently rolling but never pushed.',
+    intervals: [
+      ...repeatIv(6, () => [iv('Quiet streets', 780, 'power', 54), iv('Gentle rise', 120, 'power', 62)]),
+    ],
+  },
+  {
+    id: 'ride-pastureland-loop', name: 'Pastureland Loop', category: 'Rides',
+    description: 'An easy loop through open pasture country, steady Zone 2 the whole way.',
+    intervals: [
+      iv('Warm up', 480, 'power', 58),
+      iv('Endurance', 3000, 'power', 68),
+      iv('Cool down', 420, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-watermill-loop', name: 'Watermill Loop', category: 'Rides',
+    description: 'A steady loop following an old millstream, calm and unhurried.',
+    intervals: [
+      iv('Warm up', 600, 'power', 58),
+      iv('Endurance', 3600, 'power', 70),
+      iv('Cool down', 600, 'power', 50),
     ],
   },
 ];
