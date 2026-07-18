@@ -104,3 +104,46 @@ export function uuid16(short) {
   const hex = short.toString(16).padStart(4, '0');
   return `0000${hex}-0000-1000-8000-00805f9b34fb`;
 }
+
+// ---------- native OAuth redirect (Capacitor, for Strava on iOS/Android) ----------
+// window.location.origin inside the native app's WebView is a fixed local
+// value (not a real domain), so navigating the WebView itself to Strava's
+// oauth/authorize page and asking it to redirect back to window.location
+// just sends people to a dead local address after they approve the
+// connection. Instead, on native we send Strava a custom-scheme redirect
+// (app.trbo.trainer://trbo.bike — the host has to exactly match the
+// "Authorization Callback Domain" configured in Strava's API application
+// settings), open the approval page in the OS's own in-app browser via
+// this helper, and catch the redirect back into the running app with a
+// deep-link listener — same JS process, same session, no lost state.
+let authBrowserPromise = null;
+async function getAuthBrowser() {
+  if (!authBrowserPromise) {
+    authBrowserPromise = import('@capacitor/browser').then((m) => m.Browser);
+  }
+  return authBrowserPromise;
+}
+
+export async function nativeOpenAuthUrl(url) {
+  const Browser = await getAuthBrowser();
+  await Browser.open({ url });
+}
+
+export async function nativeCloseAuthUrl() {
+  const Browser = await getAuthBrowser();
+  await Browser.close().catch(() => {});
+}
+
+// Fires `onCode(code)` when the OS hands the app a
+// app.trbo.trainer://trbo.bike?code=...&state=... deep link (i.e. Strava
+// redirecting back after the person approves the connection). Returns an
+// unsubscribe function.
+export async function nativeOnAuthCallback(onCode) {
+  const { App: CapacitorApp } = await import('@capacitor/app');
+  const handle = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+    let code = null;
+    try { code = new URL(url).searchParams.get('code'); } catch (e) {}
+    if (code) onCode(code);
+  });
+  return () => handle.remove();
+}

@@ -19,6 +19,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Custom URL scheme for OAuth redirects (currently Strava) —
+                 lets the OS hand app.trbo.trainer://... links back to this
+                 already-running app instead of failing to open anywhere. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="app.trbo.trainer" />
+            </intent-filter>
         </activity>
 
         <provider

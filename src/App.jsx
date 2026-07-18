@@ -14,6 +14,7 @@ import { MiniGamesView, MiniGamePlayer, BEAT_THE_PROS } from './MiniGames';
 import FeedbackView, { FeedbackHeroCard } from './Feedback';
 import {
   isNative, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
+  nativeOpenAuthUrl, nativeCloseAuthUrl, nativeOnAuthCallback,
 } from './nativeBle';
 import { ColorblindContext } from './colorblindContext';
 
@@ -6858,35 +6859,66 @@ export default function App() {
     return () => clearInterval(poll);
   }, [user]);
 
+  // Finishes connecting Strava once we have the ?code= Strava handed back
+  // after approval — shared by both the web redirect path below and the
+  // native deep-link listener, since the exchange itself (POST to our own
+  // /api/strava-connect, then refresh the profile) is identical either way.
+  async function finishStravaConnect(code) {
+    try {
+      const res = await apiFetch('/api/strava-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (res.ok) {
+        const { data: prof } = await supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
+        if (prof) setProfile(prof);
+      }
+    } catch (e) {}
+  }
+
   // Strava sends people back here with ?code=... after they approve the
   // connection. The sessionStorage flag (set right before we redirect them
   // to Strava) is how we tell that apart from any other use of ?code= on
-  // this page, e.g. a Google/Apple login in progress.
+  // this page, e.g. a Google/Apple login in progress. Web only — native
+  // uses the deep-link listener just below instead.
   useEffect(() => {
-    if (!user || !STRAVA_CLIENT_ID) return;
+    if (!user || !STRAVA_CLIENT_ID || isNative) return;
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     if (!code || sessionStorage.getItem('stravaOAuthPending') !== '1') return;
     sessionStorage.removeItem('stravaOAuthPending');
     window.history.replaceState({}, '', window.location.pathname);
-    (async () => {
-      try {
-        const res = await apiFetch('/api/strava-connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
-        });
-        if (res.ok) {
-          const { data: prof } = await supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
-          if (prof) setProfile(prof);
-        }
-      } catch (e) {}
-    })();
+    finishStravaConnect(code);
+  }, [user]);
+
+  // Native: Strava approval opens in the OS's in-app browser (see
+  // connectStrava below), not the app's own WebView, so there's no
+  // window.location redirect to watch. Instead we listen for the OS
+  // handing our custom-scheme deep link back to the running app.
+  useEffect(() => {
+    if (!user || !STRAVA_CLIENT_ID || !isNative) return;
+    let unsubscribe;
+    nativeOnAuthCallback((code) => {
+      nativeCloseAuthUrl();
+      finishStravaConnect(code);
+    }).then((unsub) => { unsubscribe = unsub; });
+    return () => { if (unsubscribe) unsubscribe(); };
   }, [user]);
 
   function connectStrava() {
     if (!STRAVA_CLIENT_ID) return;
     sessionStorage.setItem('stravaOAuthPending', '1');
+    if (isNative) {
+      // The host here has to exactly match the "Authorization Callback
+      // Domain" set in Strava's API application settings (currently
+      // trbo.bike, same as the web redirect below) — Strava validates
+      // redirect_uri against that domain even for a custom scheme.
+      const redirectUri = 'app.trbo.trainer://trbo.bike';
+      const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=auto&scope=activity:write`;
+      nativeOpenAuthUrl(url);
+      return;
+    }
     const redirectUri = window.location.origin + window.location.pathname;
     const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=auto&scope=activity:write`;
     window.location.href = url;
