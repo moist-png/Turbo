@@ -18,7 +18,15 @@ async function getBle() {
   if (!blePromise) {
     blePromise = import('@capacitor-community/bluetooth-le').then(async (m) => {
       const { BleClient } = m;
-      await BleClient.initialize();
+      // Trbo only filters scan results by service UUID (FTMS/CPS/HR) and
+      // never reads device location from them, so we can assert
+      // "neverForLocation" and skip requesting Android's Location
+      // permission entirely. Without this, Android 12+ requires
+      // ACCESS_FINE_LOCATION on top of Nearby Devices before
+      // BleClient.initialize() will succeed — and a confusing "Location"
+      // prompt on a cycling app is a likely reason testers deny it,
+      // which then permanently blocks the app with "Permission denied."
+      await BleClient.initialize({ androidNeverForLocation: true });
       return BleClient;
     });
   }
