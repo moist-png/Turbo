@@ -113,18 +113,20 @@ function PlannerSetup({ ftp, recentWeeklyTss, archivedPlans, onGenerate }) {
         ))}
       </div>
 
-      {/* After-event chaining: only meaningful for plans that end with an
-          event. Asked directly rather than inferred, so a plan never
-          silently assumes a break — or a continuation — that wasn't real. */}
-      {goal.hasEvent && (
-        <>
-          <div style={sectionLabel}>After your event, what's next?</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-            <button onClick={() => setContinuesAfter(true)} style={chip(continuesAfter === true)}>Straight into another block</button>
-            <button onClick={() => setContinuesAfter(false)} style={chip(continuesAfter === false)}>Taking a break after</button>
-          </div>
-        </>
-      )}
+      {/* After-block chaining: asked for every plan now, not just ones with
+          a defined event — even a general block can be followed by a race
+          the rider already knows about. Asked directly rather than inferred,
+          so a plan never silently assumes a break (or a continuation, or an
+          upcoming event) that wasn't real. Feeds planContinuationHint on the
+          *next* plan: race/block both ramp on smoothly, break eases the
+          restart — and knowing "race" specifically (vs. just "another
+          block") is what a future goal-preselect step would key off. */}
+      <div style={sectionLabel}>After this block, what's next?</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
+        <button onClick={() => setContinuesAfter('race')} style={chip(continuesAfter === 'race')}>Race time</button>
+        <button onClick={() => setContinuesAfter('block')} style={chip(continuesAfter === 'block')}>Another training block</button>
+        <button onClick={() => setContinuesAfter('break')} style={chip(continuesAfter === 'break')}>Taking a break</button>
+      </div>
 
       {/* Training age: a skill-level bucket, not a number of years — shapes
           how conservatively the weekly load ramps. Kept on this device only. */}
@@ -215,7 +217,7 @@ function PlannerSetup({ ftp, recentWeeklyTss, archivedPlans, onGenerate }) {
         )}
       </div>
 
-      <button onClick={() => onGenerate({ goalKey, weeks, days, hours, multiSport, weightedDayIndex: weightDay ? weightedDayIndex : null, trainingAge, riderAgeBand, continuesAfter: goal.hasEvent ? continuesAfter : null, continuationHint })}
+      <button onClick={() => onGenerate({ goalKey, weeks, days, hours, multiSport, weightedDayIndex: weightDay ? weightedDayIndex : null, trainingAge, riderAgeBand, continuesAfter, continuationHint })}
         style={{ fontFamily: FONT_BODY, width: '100%', padding: '13px 0', borderRadius: 12, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <CalendarDays size={18} /> Build my plan
       </button>

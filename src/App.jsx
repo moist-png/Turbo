@@ -99,7 +99,7 @@ const THEMES = {
 };
 const DEFAULT_SETTINGS = {
   theme: 'dark', // 'dark' | 'light'
-  accentColor: '#C9F031',
+  accentColor: '#2FC5AE', // brand teal ("mint") — was '#C9F031' (the old lime), left over from before the rebrand
   soundIntervalBeep: true,
   soundCountdown: true,
   soundCompletion: true,
@@ -112,6 +112,7 @@ const DEFAULT_SETTINGS = {
   targetDisplay: 'both',
   showNextPreview: true,
   compactLabels: false,
+  workoutTextScale: 1, // 1 / 1.25 / 1.5 / 2 — scales the big numbers shown mid-workout (ring timer, target/current chips). 2x is sized for tablets mounted further from the rider.
   keepAwake: true,
   autoPauseOnDisconnect: false,
   ergMode: false,
@@ -429,7 +430,11 @@ function findRepeatGroups(intervals) {
   let i = 0;
   while (i < n) {
     let bestLen = 0, bestUnit = 0, bestReps = 0;
-    const maxUnit = Math.min(3, Math.floor((n - i) / 2));
+    // Capped at 6 rather than 3 — some workouts (e.g. Match Play's "close
+    // the gap / recover / win the sprint / easy" cycle) repeat a 4-interval
+    // unit, which a cap of 3 could never detect, so extending the workout
+    // fell back to generic filler instead of adding another whole block.
+    const maxUnit = Math.min(6, Math.floor((n - i) / 2));
     for (let unit = 1; unit <= maxUnit; unit++) {
       const sig = intervals.slice(i, i + unit).map(ivSignature).join(',');
       let reps = 1;
@@ -1171,6 +1176,15 @@ const LIBRARY = [
     ],
   },
   {
+    id: 'ride-city-skyline-intervals', name: 'City Skyline Intervals', category: 'Rides',
+    description: 'Short, sharp efforts with a view — a compact session for a tight morning.',
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(6, () => [iv('VO2 effort', 120, 'power', 118), iv('Recover', 180, 'power', 55)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
+  {
     id: 'ride-recovery-cruise', name: 'Recovery Century Cruise', category: 'Rides',
     description: 'A very long day at a very easy pace — all endurance, one café stop, and nothing that will trouble your legs.',
     intervals: [
@@ -1870,6 +1884,15 @@ const LIBRARY = [
       iv('Cool down', 600, 'power', 50),
     ],
   },
+  {
+    id: 'ride-watchtower-repeats', name: 'Watchtower Repeats', category: 'Rides',
+    description: 'Short, punchy kicks up onto a watchtower hill, fast descents back down for the recovery.',
+    intervals: [
+      iv('Warm up', 720, 'power', 60),
+      ...repeatIv(12, () => [iv('Watchtower kick', 150, 'power', 115), iv('Descent recovery', 150, 'power', 55)]),
+      iv('Cool down', 900, 'power', 50),
+    ],
+  },
   // ------------------------------------------------------------------------
   // Sprint Ladder (Basics) — neuromuscular sprint work. Anaerobic was the
   // thinnest purpose in the library; this adds a structured all-out ladder
@@ -1960,6 +1983,16 @@ const LIBRARY = [
       iv('Final selection forms', 240, 'power', 95),
       iv('Sprint for the line', 20, 'rpe', 10),
       iv('Cool down', 540, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-the-long-escape', name: 'The Long Escape', category: 'Rides',
+    description: "Hours off the front — mostly about holding position, but every time they threaten to close the gap, you have to find another gear.",
+    intervals: [
+      iv('Warm up', 900, 'power', 60),
+      ...repeatIv(6, () => [iv('Holding the wheel', 694, 'power', 68), iv('Surge to cover the move', 90, 'power', 115)]),
+      iv('Final stretch', 696, 'power', 68),
+      iv('Cool down', 1500, 'power', 50),
     ],
   },
   // ------------------------------------------------------------------------
@@ -2098,11 +2131,11 @@ const LIBRARY = [
     id: 'ride-twin-peaks-sweep', name: 'Twin Peaks Sweep', category: 'Rides',
     description: 'Two short sustained climbs linked by a valley sweep — a taste of a proper climbing day without the full epic length.',
     intervals: [
-      iv('Warm up', 1200, 'power', 58),
-      iv('Climb one', 2100, 'power', 90),
-      iv('Valley sweep', 1200, 'power', 65),
-      iv('Climb two', 2100, 'power', 92),
-      iv('Cool down', 1500, 'power', 50),
+      iv('Warm up', 720, 'power', 58),
+      iv('Climb one', 1650, 'power', 90),
+      iv('Valley sweep', 600, 'power', 65),
+      iv('Climb two', 1650, 'power', 92),
+      iv('Cool down', 900, 'power', 50),
     ],
   },
   {
@@ -2222,45 +2255,10 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-city-skyline-intervals', name: 'City Skyline Intervals', category: 'Rides',
-    description: 'Short, sharp efforts with a view — a compact session for a tight morning.',
-    intervals: [
-      iv('Warm up', 900, 'power', 60),
-      ...repeatIv(6, () => [iv('VO2 effort', 120, 'power', 118), iv('Recover', 180, 'power', 55)]),
-      iv('Cool down', 900, 'power', 50),
-    ],
-  },
-  {
-    id: 'ride-watchtower-repeats', name: 'Watchtower Repeats', category: 'Rides',
-    description: 'Short, punchy kicks up onto a watchtower hill, fast descents back down for the recovery.',
-    intervals: [
-      iv('Warm up', 720, 'power', 60),
-      ...repeatIv(12, () => [iv('Watchtower kick', 150, 'power', 115), iv('Descent recovery', 150, 'power', 55)]),
-      iv('Cool down', 900, 'power', 50),
-    ],
-  },
-  {
-    id: 'ride-the-long-escape', name: 'The Long Escape', category: 'Rides',
-    description: "Hours off the front — mostly about holding position, but every time they threaten to close the gap, you have to find another gear.",
-    intervals: [
-      iv('Warm up', 900, 'power', 60),
-      ...repeatIv(6, () => [iv('Holding the wheel', 694, 'power', 68), iv('Surge to cover the move', 90, 'power', 115)]),
-      iv('Final stretch', 696, 'power', 68),
-      iv('Cool down', 1500, 'power', 50),
-    ],
-  },
-  {
     id: 'ride-garden-path-spin', name: 'Garden Path Spin', category: 'Rides',
     description: 'A light, easy spin through parkland — nothing to prove, just moving.',
     intervals: [
       iv('Easy spin', 3000, 'power', 52),
-    ],
-  },
-  {
-    id: 'ride-tidal-flats-cruise', name: 'Tidal Flats Cruise', category: 'Rides',
-    description: 'A flat coastal path, timed to a slack tide — as easy as riding gets.',
-    intervals: [
-      iv('Easy spin', 4500, 'power', 52),
     ],
   },
   {
@@ -4099,7 +4097,7 @@ const QUICK_BLOCKS = [
   { label: 'Free ride', duration: 300, type: 'free', target: null },
 ];
 
-function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDuplicate, first, last }) {
+function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDuplicate, first, last, selected, onToggleSelect, touched }) {
   const cvd = useContext(ColorblindContext);
   const z = zoneFor(interval, cvd);
   const mins = Math.floor(interval.duration / 60);
@@ -4132,9 +4130,21 @@ function IntervalRow({ interval, onChange, onDelete, onMoveUp, onMoveDown, onDup
   }
 
   return (
-    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, marginBottom: 8 }}>
+    <div style={{
+      background: PANEL,
+      border: touched ? `2px solid var(--accent)` : selected ? `1px solid var(--accent)` : `1px solid ${LINE}`,
+      boxShadow: touched ? '0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)' : 'none',
+      borderRadius: 10, padding: touched ? 9 : 10, marginBottom: 8,
+    }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
         <div style={{ width: 4, alignSelf: 'stretch', background: z.color, borderRadius: 2, flexShrink: 0 }} />
+        <button onClick={onToggleSelect} title={selected ? 'Deselect' : 'Select'} style={{
+          width: 22, height: 22, borderRadius: 5, border: `1px solid ${selected ? 'var(--accent)' : LINE}`,
+          background: selected ? 'var(--accent)' : PANEL2, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', flexShrink: 0, padding: 0,
+        }}>
+          {selected && <Check size={14} color={INK} />}
+        </button>
         <input value={interval.label} onChange={e => onChange({ ...interval, label: e.target.value })}
           placeholder="Label" style={{ fontFamily: "'Manrope', sans-serif", flex: 1, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 13 }} />
         <IconBtn onClick={onMoveUp} disabled={first}><ChevronUp size={16} /></IconBtn>
@@ -4357,6 +4367,12 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
   const [gpxError, setGpxError] = useState(null);
   const [gpxBusy, setGpxBusy] = useState(false);
   const fileInputRef = useRef(null);
+  // Which segment(s) were most recently moved or duplicated — bordered in
+  // the list below so a long stack of intervals doesn't lose you after an
+  // up/down tap. Separate from selectedIds (the multi-select checkboxes
+  // used for "duplicate/move as a group").
+  const [lastTouchedIds, setLastTouchedIds] = useState(() => new Set());
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
 
   useEffect(() => {
     if (editingWorkout) {
@@ -4364,6 +4380,8 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       setCategory(editingWorkout.category);
       setDescription(editingWorkout.description || '');
       setIntervals(editingWorkout.intervals.map(i => ({ ...i })));
+      setSelectedIds(new Set());
+      setLastTouchedIds(new Set());
     }
   }, [editingWorkout]);
 
@@ -4381,6 +4399,8 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
         setCategory(workout.category);
         setDescription(workout.description);
         setIntervals(workout.intervals);
+        setSelectedIds(new Set());
+        setLastTouchedIds(new Set());
       } catch (err) {
         setGpxError((err && err.message) || 'Could not read that file.');
       }
@@ -4392,25 +4412,92 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
 
   function addBlock(block) { setIntervals(list => [...list, iv(block.label, block.duration, block.type, block.target)]); }
   function updateAt(idx, next) { setIntervals(list => list.map((it, i) => (i === idx ? next : it))); }
-  function removeAt(idx) { setIntervals(list => list.filter((_, i) => i !== idx)); }
+  function purgeId(id) {
+    setSelectedIds(prev => (prev.has(id) ? (() => { const n = new Set(prev); n.delete(id); return n; })() : prev));
+    setLastTouchedIds(prev => (prev.has(id) ? (() => { const n = new Set(prev); n.delete(id); return n; })() : prev));
+  }
+  function removeAt(idx) {
+    const removedId = intervals[idx] && intervals[idx].id;
+    setIntervals(list => list.filter((_, i) => i !== idx));
+    if (removedId) purgeId(removedId);
+  }
   function duplicateAt(idx) {
+    const copy = { ...intervals[idx], id: newId() };
     setIntervals(list => {
-      const copy = { ...list[idx], id: newId() };
       const out = [...list];
       out.splice(idx + 1, 0, copy);
       return out;
     });
+    setLastTouchedIds(new Set([copy.id]));
   }
   function move(idx, dir) {
+    const j = idx + dir;
+    if (j < 0 || j >= intervals.length) return;
+    const movedId = intervals[idx].id;
     setIntervals(list => {
       const out = [...list];
-      const j = idx + dir;
-      if (j < 0 || j >= out.length) return out;
       [out[idx], out[j]] = [out[j], out[idx]];
       return out;
     });
+    setLastTouchedIds(new Set([movedId]));
   }
-  function reset() { setName(''); setCategory('Endurance'); setDescription(''); setIntervals([]); setGpxError(null); clearEditing(); }
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function clearSelection() { setSelectedIds(new Set()); }
+  // Shifts every selected segment up (or down) by one slot, moving the
+  // whole selection as a unit past its nearest non-selected neighbour —
+  // same one-step-at-a-time feel as the per-row arrows, just applied to
+  // however many segments are checked, contiguous or scattered.
+  function moveSelectedUp() {
+    if (selectedIds.size === 0) return;
+    setIntervals(list => {
+      const out = [...list];
+      for (let i = 1; i < out.length; i++) {
+        if (selectedIds.has(out[i].id) && !selectedIds.has(out[i - 1].id)) {
+          [out[i - 1], out[i]] = [out[i], out[i - 1]];
+        }
+      }
+      return out;
+    });
+    setLastTouchedIds(new Set(selectedIds));
+  }
+  function moveSelectedDown() {
+    if (selectedIds.size === 0) return;
+    setIntervals(list => {
+      const out = [...list];
+      for (let i = out.length - 2; i >= 0; i--) {
+        if (selectedIds.has(out[i].id) && !selectedIds.has(out[i + 1].id)) {
+          [out[i], out[i + 1]] = [out[i + 1], out[i]];
+        }
+      }
+      return out;
+    });
+    setLastTouchedIds(new Set(selectedIds));
+  }
+  // Duplicates the whole selected set as one block, inserted right after
+  // the last selected segment — the copies become the new selection so a
+  // group you just duplicated can be moved elsewhere immediately.
+  function duplicateSelected() {
+    if (selectedIds.size === 0) return;
+    const selectedItems = intervals.filter(it => selectedIds.has(it.id));
+    if (selectedItems.length === 0) return;
+    const copies = selectedItems.map(it => ({ ...it, id: newId() }));
+    const lastIdx = intervals.reduce((acc, it, i) => (selectedIds.has(it.id) ? i : acc), -1);
+    setIntervals(list => {
+      const out = [...list];
+      out.splice(lastIdx + 1, 0, ...copies);
+      return out;
+    });
+    const newIds = new Set(copies.map(c => c.id));
+    setSelectedIds(newIds);
+    setLastTouchedIds(newIds);
+  }
+  function reset() { setName(''); setCategory('Endurance'); setDescription(''); setIntervals([]); setGpxError(null); setSelectedIds(new Set()); setLastTouchedIds(new Set()); clearEditing(); }
   function save() {
     if (!name.trim() || intervals.length === 0) return;
     saveCustomWorkout({ id: editingWorkout ? editingWorkout.id : 'custom-' + newId(), name: name.trim(), category, description: description.trim() || 'Custom workout.', intervals });
@@ -4458,11 +4545,28 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
         ))}
       </div>
 
-      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Intervals</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>Intervals</div>
+        {intervals.length > 1 && (
+          <button onClick={() => (selectedIds.size > 0 ? clearSelection() : setSelectedIds(new Set(intervals.map(it => it.id))))}
+            style={{ fontFamily: "'Manrope', sans-serif", background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+            {selectedIds.size > 0 ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
+      </div>
+      {selectedIds.size > 0 && (
+        <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', alignItems: 'center', gap: 8, background: PANEL2, border: `1px solid var(--accent)`, borderRadius: 10, padding: '8px 10px', marginBottom: 10 }}>
+          <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: TEXT, fontWeight: 600, flex: 1 }}>{selectedIds.size} selected</span>
+          <IconBtn onClick={moveSelectedUp}><ChevronUp size={16} /></IconBtn>
+          <IconBtn onClick={moveSelectedDown}><ChevronDown size={16} /></IconBtn>
+          <IconBtn onClick={duplicateSelected}><Copy size={15} /></IconBtn>
+        </div>
+      )}
       {intervals.map((it, idx) => (
         <IntervalRow key={it.id} interval={it}
           onChange={next => updateAt(idx, next)} onDelete={() => removeAt(idx)}
           onMoveUp={() => move(idx, -1)} onMoveDown={() => move(idx, 1)} onDuplicate={() => duplicateAt(idx)}
+          selected={selectedIds.has(it.id)} onToggleSelect={() => toggleSelect(it.id)} touched={lastTouchedIds.has(it.id)}
           first={idx === 0} last={idx === intervals.length - 1} />
       ))}
       {intervals.length === 0 && <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '20px 0', border: `1px dashed ${LINE}`, borderRadius: 10, marginBottom: 16 }}>No intervals yet — tap a quick add block above to start.</div>}
@@ -4484,7 +4588,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
                 <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, fontWeight: 600 }}>{w.name}</div>
                 <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
               </div>
-              <IconBtn onClick={() => { setName(w.name); setCategory(w.category); setDescription(w.description); setIntervals(w.intervals.map(i => ({ ...i }))); }}><Edit3 size={15} /></IconBtn>
+              <IconBtn onClick={() => { setName(w.name); setCategory(w.category); setDescription(w.description); setIntervals(w.intervals.map(i => ({ ...i }))); setSelectedIds(new Set()); setLastTouchedIds(new Set()); }}><Edit3 size={15} /></IconBtn>
               <IconBtn onClick={() => deleteCustomWorkout(w.id)} danger><Trash2 size={15} /></IconBtn>
             </div>
           ))}
@@ -5158,12 +5262,13 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   // CSS breakpoint, so the DOM order itself changes between the two.
   const isPortrait = useOrientation();
   const compact = settings.compactLabels;
-  const ringSize = isDone
+  const textScale = settings.workoutTextScale || 1;
+  const ringSize = Math.round((isDone
     ? (isPortrait ? (compact ? 130 : 170) : (compact ? 100 : 128))
-    : (isPortrait ? (compact ? 115 : 150) : (compact ? 80 : 102));
-  const timerFontSize = isDone
+    : (isPortrait ? (compact ? 115 : 150) : (compact ? 80 : 102))) * textScale);
+  const timerFontSize = Math.round((isDone
     ? (isPortrait ? (compact ? 36 : 46) : (compact ? 27 : 34))
-    : (isPortrait ? (compact ? 30 : 38) : (compact ? 22 : 28));
+    : (isPortrait ? (compact ? 30 : 38) : (compact ? 22 : 28))) * textScale);
   const FONT_HEAD = "'Big Shoulders Display', sans-serif";
   const FONT_BODY = "'Manrope', sans-serif";
   const FONT_NUM = "'Space Grotesk', sans-serif";
@@ -5171,11 +5276,11 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   function StatChip({ label, value, valueColor }) {
     return (
       <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: isPortrait ? '8px 10px' : '8px 14px', minWidth: 80, width: isPortrait ? 'min(220px, 72vw)' : undefined, boxSizing: 'border-box' }}>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 10.5, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</div>
+        <div style={{ fontFamily: FONT_BODY, fontSize: Math.round(10.5 * textScale), color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</div>
         {/* "Both" target mode (e.g. "RPE 10/10 · ~130% FTP · 260W") can run
             longer than the box — wrap it instead of overflowing off the
             edge of the screen like it used to. */}
-        <div style={{ fontFamily: FONT_NUM, fontSize: 18, fontWeight: 600, color: valueColor || TEXT, marginTop: 2, wordBreak: 'break-word' }}>{value}</div>
+        <div style={{ fontFamily: FONT_NUM, fontSize: Math.round(18 * textScale), fontWeight: 600, color: valueColor || TEXT, marginTop: 2, wordBreak: 'break-word' }}>{value}</div>
       </div>
     );
   }
@@ -5596,6 +5701,18 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       </SettingRow>
       <SettingRow label="Show next interval preview"><Switch checked={settings.showNextPreview} onChange={v => updateSetting('showNextPreview', v)} /></SettingRow>
       <SettingRow label="Compact timer" sub="Smaller countdown digits during a workout"><Switch checked={settings.compactLabels} onChange={v => updateSetting('compactLabels', v)} /></SettingRow>
+      <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 2 }}>Workout text size</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 8, lineHeight: 1.5 }}>
+          Scales the timer and target/current numbers you read mid-ride. 2x is sized for a tablet mounted further from the bars — on a phone, Large usually reads best.
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Chip active={settings.workoutTextScale === 1} onClick={() => updateSetting('workoutTextScale', 1)}>Normal</Chip>
+          <Chip active={settings.workoutTextScale === 1.25} onClick={() => updateSetting('workoutTextScale', 1.25)}>Large</Chip>
+          <Chip active={settings.workoutTextScale === 1.5} onClick={() => updateSetting('workoutTextScale', 1.5)}>XL</Chip>
+          <Chip active={settings.workoutTextScale === 2} onClick={() => updateSetting('workoutTextScale', 2)}>2x (tablet)</Chip>
+        </div>
+      </div>
       <SettingRow label="Keep screen awake" sub="Prevent the screen from sleeping while riding"><Switch checked={settings.keepAwake} onChange={v => updateSetting('keepAwake', v)} /></SettingRow>
       </CollapsibleSection>
 
@@ -6447,16 +6564,19 @@ export default function App() {
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [activeWorkout, setActiveWorkout] = useState(() => (initialSession && initialSession.kind === 'single' ? initialSession.workout : null));
   const [activeGame, setActiveGame] = useState(null); // a mini game currently being played (or null)
-  const [libCategory, setLibCategory] = useState(() => {
-    try { return localStorage.getItem('trbo_last_category') || 'All'; } catch (e) { return 'All'; }
-  }); // shared with the sidebar's category filters on wide viewports
+  // Always starts on "All" — this used to be restored from localStorage
+  // across app relaunches, but that meant Library could silently reopen
+  // filtered to whatever category was last selected (sometimes with zero
+  // matches), looking blank with no obvious explanation. Filter state is
+  // still remembered while the app stays open (switching tabs and back),
+  // just not carried across a full relaunch.
+  const [libCategory, setLibCategory] = useState('All'); // shared with the sidebar's category filters on wide viewports
 
   // Persist tab + library category as they change; consume the one-time
   // resume payload shortly after mount so a later, unrelated PlayerView
   // mount (e.g. advancing to the next workout in a queue) never reapplies
   // an old saved position to the wrong workout.
   useEffect(() => { try { localStorage.setItem('trbo_last_view', view); } catch (e) {} }, [view]);
-  useEffect(() => { try { localStorage.setItem('trbo_last_category', libCategory); } catch (e) {} }, [libCategory]);
   useEffect(() => { initialSessionRef.current = null; }, []);
   const navLayout = useNavLayout(); // 'bottombar' (portrait phone) or 'sidebar' (landscape phone/tablet/laptop)
   // Each nav tab remembers its own scroll position independently, instead of
@@ -7175,6 +7295,7 @@ export default function App() {
   const isSidebar = navLayout.mode === 'sidebar';
   function handleNavigate(key) {
     if (key === 'builder') setEditingWorkout(null);
+    if (key === 'library') setLibCategory('All');
     setView(key);
   }
   function handleSelectCategory(c) {

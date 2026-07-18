@@ -165,7 +165,6 @@ export const WORKOUT_PURPOSE = {
   'ride-watchtower-repeats': 'vo2max',
   'ride-the-long-escape': 'vo2max',
   'ride-garden-path-spin': 'recovery',
-  'ride-tidal-flats-cruise': 'recovery',
   'ride-quiet-streets-loop': 'recovery',
   'ride-pastureland-loop': 'endurance',
   'ride-watermill-loop': 'endurance',
@@ -342,7 +341,6 @@ export const WORKOUT_TERRAIN = {
   'ride-watchtower-repeats': ['rolling', 'punchy'],
   'ride-the-long-escape': ['mixed', 'windy'],
   'ride-garden-path-spin': ['scenic', 'flat'],
-  'ride-tidal-flats-cruise': ['scenic', 'flat'],
   'ride-quiet-streets-loop': ['scenic', 'rolling'],
   'ride-pastureland-loop': ['flat', 'scenic'],
   'ride-watermill-loop': ['flat', 'scenic'],
@@ -1089,9 +1087,14 @@ export function planContinuationHint(archivedPlans) {
   const archivedAt = last.archivedAt ? new Date(last.archivedAt) : null;
   const weeksSince = archivedAt ? Math.max(0, (Date.now() - archivedAt.getTime()) / (7 * 24 * 3600 * 1000)) : 99;
 
-  // Told us explicitly they're carrying straight on, and it's recent enough
-  // for that to actually be true — trust it and chain the ramp smoothly.
-  const isDirectContinuation = plan.continuesAfter === true && weeksSince <= 3;
+  // Told us explicitly they're carrying straight on (either into another
+  // block, or that a race is coming right up), and it's recent enough for
+  // that to actually be true — trust it and chain the ramp smoothly.
+  // continuesAfter used to be a plain boolean (true = continuing); archived
+  // plans from before the 3-way "race / block / break" question still carry
+  // that shape, so both are accepted here.
+  const noBreak = plan.continuesAfter === 'race' || plan.continuesAfter === 'block' || plan.continuesAfter === true;
+  const isDirectContinuation = noBreak && weeksSince <= 3;
 
   // Just came off a peak/taper (i.e. an event) without saying they're
   // continuing straight on, or it's been long enough that fitness has likely
@@ -1099,7 +1102,12 @@ export function planContinuationHint(archivedPlans) {
   // they held form through the gap.
   const suggestEasedStart = !isDirectContinuation && (lastPhase === 'taper' || lastPhase === 'peak' || weeksSince > 3);
 
-  return { lastLoadingTss, lastPhase, weeksSince: Math.round(weeksSince), isDirectContinuation, suggestEasedStart };
+  // Specifically flagged a race right after this block — a future "start a
+  // new plan" step could use this to preselect an event-style goal instead
+  // of making the rider pick it again from scratch.
+  const raceNext = plan.continuesAfter === 'race' && weeksSince <= 3;
+
+  return { lastLoadingTss, lastPhase, weeksSince: Math.round(weeksSince), isDirectContinuation, suggestEasedStart, raceNext };
 }
 
 // ---------------------------------------------------------------------------
