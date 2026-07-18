@@ -2452,7 +2452,7 @@ const LIBRARY = [
     intervals: [
       iv('Warm up', 300, 'power', 55),
       ...repeatIv(15, i => (i < 14
-        ? [iv('VO2 max', 120, 'power', 130), iv('Threshold', 60, 'power', 100)]
+        ? [iv('VO2 max', 120, 'power', 130), iv('Threshold', 60, 'power', 90)]
         : [iv('VO2 max', 120, 'power', 130)])),
       iv('Cool down', 300, 'power', 50),
     ],
