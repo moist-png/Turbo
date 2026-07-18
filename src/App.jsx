@@ -286,6 +286,44 @@ function repeatIv(count, factory) {
 }
 function totalDuration(intervals) { return intervals.reduce((a, b) => a + b.duration, 0); }
 
+// ---------- admin: workout export (builder -> library format) ----------
+// Turns a workout built in BuilderView into plain text the owner can copy
+// and hand to Claude: a human-readable interval list plus ready-to-paste
+// iv(...) code lines matching the exact shape the LIBRARY array uses below.
+// Gated to the owner in the UI (see BuilderView) -- this is a content
+// pipeline helper, not a user-facing feature.
+function jsStringLiteral(s) {
+  return "'" + String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+}
+function intervalTargetLabel(it) {
+  if (it.type === 'power') return `${it.target}% FTP`;
+  if (it.type === 'rpe') return `RPE ${it.target}/10`;
+  return 'Free / rest';
+}
+function intervalCodeLine(it) {
+  const t = (it.type === 'free' || it.target === null || it.target === undefined) ? 'null' : it.target;
+  return `  iv(${jsStringLiteral(it.label)}, ${it.duration}, ${jsStringLiteral(it.type)}, ${t}),`;
+}
+function buildWorkoutExportText(w) {
+  const intervals = w.intervals || [];
+  const total = totalDuration(intervals);
+  const listLines = intervals.map((it, i) => `${i + 1}. ${it.label} — ${fmt(it.duration)} — ${intervalTargetLabel(it)}`);
+  const codeLines = intervals.map(intervalCodeLine);
+  return [
+    '=== TRBO WORKOUT EXPORT ===',
+    `Name: ${w.name || '(untitled)'}`,
+    `Category: ${w.category || ''}`,
+    `Description: ${w.description || '(none)'}`,
+    `Total duration: ${fmtLong(total)}`,
+    `Intervals: ${intervals.length}`,
+    '',
+    ...listLines,
+    '',
+    '--- Code for library ---',
+    ...codeLines,
+  ].join('\n');
+}
+
 // ---------- smart interval scaling ----------
 // Classifies each interval so we know how it's allowed to change when the
 // workout length is adjusted: warmup/cooldown, short hard "anchor" efforts,
@@ -4360,7 +4398,7 @@ function ThemedSelect({ value, onChange, options }) {
   );
 }
 
-function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, editingWorkout, clearEditing }) {
+function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, editingWorkout, clearEditing, ownerStats }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Endurance');
   const [description, setDescription] = useState('');
@@ -4374,6 +4412,24 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
   // used for "duplicate/move as a group").
   const [lastTouchedIds, setLastTouchedIds] = useState(() => new Set());
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  // Admin-only: copies a plain-text export of a workout (human-readable list
+  // + ready-to-paste library code) to the clipboard. Falls back to a
+  // manually-selectable textarea if the clipboard API is unavailable or
+  // blocked, which can happen inside the iOS/Android app webview.
+  const [exportCopiedId, setExportCopiedId] = useState(null);
+  const [exportFallback, setExportFallback] = useState(null);
+  async function exportWorkout(w, key) {
+    const text = buildWorkoutExportText(w);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setExportCopiedId(key);
+        setTimeout(() => setExportCopiedId(prev => (prev === key ? null : prev)), 2000);
+        return;
+      } catch (err) { /* clipboard blocked -- fall through to manual copy */ }
+    }
+    setExportFallback(text);
+  }
 
   useEffect(() => {
     if (editingWorkout) {
@@ -4580,6 +4636,29 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
         </button>
       </div>
 
+      {ownerStats && (
+        <button onClick={() => exportWorkout({ name, category, description, intervals }, 'draft')}
+          disabled={!name.trim() || intervals.length === 0}
+          style={{ fontFamily: "'Manrope', sans-serif", width: '100%', marginTop: 8, padding: '10px 0', borderRadius: 10, border: `1px dashed ${LINE}`, background: 'none', color: (!name.trim() || intervals.length === 0) ? MUTED : SUB, fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: (!name.trim() || intervals.length === 0) ? 'default' : 'pointer', boxSizing: 'border-box' }}>
+          {exportCopiedId === 'draft' ? <Check size={14} /> : <Download size={14} />}
+          {exportCopiedId === 'draft' ? 'Copied to clipboard' : 'Export for library (admin)'}
+        </button>
+      )}
+
+      {exportFallback && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 6 }}>
+            Couldn't copy automatically — tap the box, select all, and copy manually.
+          </div>
+          <textarea readOnly value={exportFallback} onFocus={e => e.target.select()}
+            style={{ fontFamily: 'monospace', width: '100%', height: 160, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: 10, fontSize: 11.5, boxSizing: 'border-box', resize: 'vertical' }} />
+          <button onClick={() => setExportFallback(null)}
+            style={{ fontFamily: "'Manrope', sans-serif", marginTop: 6, padding: '6px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: SUB, fontSize: 12, cursor: 'pointer' }}>
+            Done
+          </button>
+        </div>
+      )}
+
       {customWorkouts.length > 0 && (
         <div style={{ marginTop: 30 }}>
           <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>Your saved workouts</div>
@@ -4589,6 +4668,11 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
                 <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, fontWeight: 600 }}>{w.name}</div>
                 <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
               </div>
+              {ownerStats && (
+                <IconBtn onClick={() => exportWorkout(w, w.id)}>
+                  {exportCopiedId === w.id ? <Check size={15} /> : <Download size={15} />}
+                </IconBtn>
+              )}
               <IconBtn onClick={() => { setName(w.name); setCategory(w.category); setDescription(w.description); setIntervals(w.intervals.map(i => ({ ...i }))); setSelectedIds(new Set()); setLastTouchedIds(new Set()); }}><Edit3 size={15} /></IconBtn>
               <IconBtn onClick={() => deleteCustomWorkout(w.id)} danger><Trash2 size={15} /></IconBtn>
             </div>
@@ -7356,7 +7440,7 @@ export default function App() {
             {view === 'rides' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Rides" title="Rides" starredIds={starredIds} onToggleStar={toggleStar} />}
             {view === 'games' && <MiniGamesView onPlay={setActiveGame} />}
             {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} archivedPlans={archivedPlans} onArchivePlan={archivePlan} onDeleteArchivedPlan={deleteArchivedPlan} onLogOutdoor={logOutdoorRide} />}
-            {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} />}
+            {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} ownerStats={ownerStats} />}
             {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onReorder={reorderQueue} onClear={clearQueue} onStartQueue={startQueue} savedQueues={savedQueues} maxSavedQueues={MAX_SAVED_QUEUES} maxSavedQueueWorkouts={MAX_SAVED_QUEUE_WORKOUTS} onSaveQueue={saveQueueAs} onLoadSavedQueue={loadSavedQueue} onDeleteSavedQueue={deleteSavedQueue} lastRemovedQueueItem={lastRemovedQueueItem} onUndoRemove={undoRemoveFromQueue} />}
             {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
             {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
