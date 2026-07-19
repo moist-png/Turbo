@@ -4414,18 +4414,24 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
-// Maps a road gradient to a realistic indoor power target and an assumed
-// outdoor speed for that gradient — the speed is only used to convert the
-// route's real-world distance into a believable interval duration.
+// Maps a road gradient to a realistic indoor power target and a *baseline*
+// outdoor speed for that gradient. The speed is only ever used in relative
+// terms — to work out how much longer a climb takes than a flat section of
+// the same length — because the final duration of every bucket gets scaled
+// to whatever total ride time the person chooses at import time. These
+// baseline speeds are calibrated to a fit rider's race effort (a solid
+// TT-bike endurance pace on the flat, easing off on climbs), not a cautious
+// recreational pace, so the *shape* of the pacing is realistic even before
+// scaling is applied.
 function gradeToEffort(gradePct) {
-  if (gradePct <= -6) return { target: 45, speedKmh: 45 };
-  if (gradePct <= -2) return { target: 55, speedKmh: 36 };
-  if (gradePct <= 1) return { target: 65, speedKmh: 27 };
-  if (gradePct <= 3) return { target: 76, speedKmh: 20 };
-  if (gradePct <= 5) return { target: 86, speedKmh: 15 };
-  if (gradePct <= 8) return { target: 96, speedKmh: 11 };
-  if (gradePct <= 11) return { target: 105, speedKmh: 8 };
-  return { target: 114, speedKmh: 6 };
+  if (gradePct <= -6) return { target: 45, speedKmh: 55 };
+  if (gradePct <= -2) return { target: 55, speedKmh: 42 };
+  if (gradePct <= 1) return { target: 65, speedKmh: 33 };
+  if (gradePct <= 3) return { target: 76, speedKmh: 24 };
+  if (gradePct <= 5) return { target: 86, speedKmh: 18 };
+  if (gradePct <= 8) return { target: 96, speedKmh: 13 };
+  if (gradePct <= 11) return { target: 105, speedKmh: 9.5 };
+  return { target: 114, speedKmh: 7 };
 }
 function labelForTarget(target) {
   if (target <= 55) return 'Descent';
@@ -4436,13 +4442,13 @@ function labelForTarget(target) {
   if (target <= 105) return 'Very steep';
   return 'Wall';
 }
-// Turns raw GPX XML text into a custom workout: buckets the route into
-// ~150m chunks to smooth out GPS noise, works out the gradient of each
-// chunk, converts gradient -> power target + realistic duration, then
-// merges neighbouring chunks that land in the same effort zone so the
-// result is a manageable number of intervals rather than hundreds of
-// one-second ones.
-function parseGpxToWorkout(xmlText, fileName) {
+// ---- Phase 1: read the GPX file and work out its shape (no pacing choice yet) ----
+// Buckets the route into ~150m chunks to smooth out GPS noise and works out
+// the gradient of each chunk. Returns the raw buckets plus a "raw" duration
+// estimate (using the baseline race-pace speeds above) — that raw estimate
+// becomes the default the person sees before they lock in their own target
+// time or average speed in phase 2.
+function parseGpxRoute(xmlText, fileName) {
   const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('That file doesn’t look like a valid GPX file.');
   const trkpts = Array.from(doc.getElementsByTagName('trkpt'));
@@ -4476,9 +4482,63 @@ function parseGpxToWorkout(xmlText, fileName) {
   if (buckets.length === 0) throw new Error('This route is too short to build a workout from.');
   buckets.forEach(b => { b.gradePct = Math.max(-20, Math.min(20, b.gradePct)); }); // clamp GPS/elevation noise
 
-  const raw = buckets.map(b => {
+  const rawDurationSec = buckets.reduce((acc, b) => {
+    const { speedKmh } = gradeToEffort(b.gradePct);
+    return acc + b.distance / ((speedKmh * 1000) / 3600);
+  }, 0);
+
+  const nameNode = doc.getElementsByTagName('name')[0];
+  const routeName = (nameNode && nameNode.textContent.trim()) || (fileName ? fileName.replace(/\.gpx$/i, '') : 'My route');
+  const totalDist = buckets.reduce((a, b) => a + b.distance, 0);
+  const totalElevGain = points.reduce((acc, p, i) => (i === 0 ? acc : acc + Math.max(0, p.ele - points[i - 1].ele)), 0);
+
+  return { routeName, buckets, totalDist, totalElevGain, rawDurationSec };
+}
+
+// Reduces a segment list down to maxSegments by repeatedly merging adjacent
+// pairs, but tries to lose as little of the route's *shape* as possible:
+// - segments at or above protectThreshold (the steep/spike efforts) are left
+//   alone as long as any other pair is available to merge instead
+// - among the remaining eligible pairs, the pair with the smallest combined
+//   duration is merged first, so short, minor segments get absorbed before
+//   any longer, more meaningful one does
+function reduceSegments(segs, maxSegments, protectThreshold) {
+  const list = segs.map(s => ({ ...s }));
+  while (list.length > maxSegments) {
+    let bestIdx = -1, bestCombinedDur = Infinity;
+    for (let i = 0; i < list.length - 1; i++) {
+      const a = list[i], b = list[i + 1];
+      if (a.target >= protectThreshold || b.target >= protectThreshold) continue;
+      const combinedDur = a.duration + b.duration;
+      if (combinedDur < bestCombinedDur) { bestCombinedDur = combinedDur; bestIdx = i; }
+    }
+    if (bestIdx === -1) {
+      // Every remaining pair touches a protected steep segment (a very spiky
+      // route) -- merge whichever adjacent pair has the closest targets, so
+      // the blend loses the least.
+      let smallestDiff = Infinity;
+      for (let i = 0; i < list.length - 1; i++) {
+        const diff = Math.abs(list[i].target - list[i + 1].target);
+        if (diff < smallestDiff) { smallestDiff = diff; bestIdx = i; }
+      }
+    }
+    const a = list[bestIdx], b = list[bestIdx + 1];
+    const totalDur = a.duration + b.duration;
+    const mergedSeg = { target: Math.round((a.target * a.duration + b.target * b.duration) / totalDur), duration: totalDur };
+    list.splice(bestIdx, 2, mergedSeg);
+  }
+  return list;
+}
+
+// ---- Phase 2: turn the analysed route into an actual workout, once the
+// person has confirmed (or accepted the default) total ride time ----
+function buildWorkoutFromRoute(route, targetDurationSec) {
+  const scale = route.rawDurationSec > 0 ? targetDurationSec / route.rawDurationSec : 1;
+
+  const raw = route.buckets.map(b => {
     const { target, speedKmh } = gradeToEffort(b.gradePct);
-    return { target, duration: Math.round(b.distance / ((speedKmh * 1000) / 3600)) };
+    const baseDuration = b.distance / ((speedKmh * 1000) / 3600);
+    return { target, duration: Math.round(baseDuration * scale) };
   });
 
   const merged = [];
@@ -4493,18 +4553,24 @@ function parseGpxToWorkout(xmlText, fileName) {
     else cleaned.push(seg);
   }
 
-  const MAX_SEGMENTS = 80;
-  let finalSegs = cleaned;
-  while (finalSegs.length > MAX_SEGMENTS) {
-    const next = [];
-    for (let i = 0; i < finalSegs.length; i += 2) {
-      if (i + 1 < finalSegs.length) {
-        const a = finalSegs[i], b = finalSegs[i + 1];
-        const totalDur = a.duration + b.duration;
-        next.push({ target: Math.round((a.target * a.duration + b.target * b.duration) / totalDur), duration: totalDur });
-      } else next.push(finalSegs[i]);
+  // 110 intervals plus warm up/cool down is still a manageable list, and
+  // protecting target >= 96 (Steep climb and above) keeps the short, hard
+  // pinches that make a route worth riding from being smoothed away.
+  const finalSegs = reduceSegments(cleaned, 110, 96);
+
+  // Rounding each bucket's duration to the nearest second can drift the
+  // total away from the chosen target by a handful of seconds (more on
+  // routes with lots of repeated gradients) -- fold that drift into the
+  // single longest segment so the ride's actual length matches what was
+  // asked for.
+  if (finalSegs.length > 0) {
+    const routeDurationSum = finalSegs.reduce((a, s) => a + s.duration, 0);
+    const drift = Math.round(targetDurationSec) - routeDurationSum;
+    let longestIdx = 0;
+    for (let i = 1; i < finalSegs.length; i++) {
+      if (finalSegs[i].duration > finalSegs[longestIdx].duration) longestIdx = i;
     }
-    finalSegs = next;
+    finalSegs[longestIdx].duration = Math.max(15, finalSegs[longestIdx].duration + drift);
   }
 
   const intervals = [
@@ -4513,16 +4579,11 @@ function parseGpxToWorkout(xmlText, fileName) {
     iv('Cool down', 480, 'power', 50),
   ];
 
-  const nameNode = doc.getElementsByTagName('name')[0];
-  const routeName = (nameNode && nameNode.textContent.trim()) || (fileName ? fileName.replace(/\.gpx$/i, '') : 'My route');
-  const totalDist = buckets.reduce((a, b) => a + b.distance, 0);
-  const totalElevGain = points.reduce((acc, p, i) => (i === 0 ? acc : acc + Math.max(0, p.ele - points[i - 1].ele)), 0);
-
   return {
     id: 'custom-' + newId(),
-    name: routeName,
+    name: route.routeName,
     category: 'Rides',
-    description: `Built from your uploaded route — ${(totalDist / 1000).toFixed(1)}km with ${Math.round(totalElevGain)}m of climbing, converted into an indoor power profile.`,
+    description: `Built from your uploaded route — ${(route.totalDist / 1000).toFixed(1)}km with ${Math.round(route.totalElevGain)}m of climbing, converted into an indoor power profile.`,
     intervals,
   };
 }
@@ -4582,6 +4643,12 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
   const [intervals, setIntervals] = useState([]);
   const [gpxError, setGpxError] = useState(null);
   const [gpxBusy, setGpxBusy] = useState(false);
+  // Set once a GPX file has been read and analysed, cleared once the person
+  // confirms a target pace (or cancels). While this is set, the route
+  // hasn't been turned into intervals yet -- that only happens on confirm,
+  // using whatever target time/speed they've settled on below.
+  const [pendingRoute, setPendingRoute] = useState(null);
+  const [targetSeconds, setTargetSeconds] = useState(null);
   const fileInputRef = useRef(null);
   // Which segment(s) were most recently moved or duplicated — bordered in
   // the list below so a long stack of intervals doesn't lose you after an
@@ -4625,16 +4692,13 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
     if (!file) return;
     setGpxError(null);
     setGpxBusy(true);
+    setPendingRoute(null);
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const workout = parseGpxToWorkout(reader.result, file.name);
-        setName(workout.name);
-        setCategory(workout.category);
-        setDescription(workout.description);
-        setIntervals(workout.intervals);
-        setSelectedIds(new Set());
-        setLastTouchedIds(new Set());
+        const route = parseGpxRoute(reader.result, file.name);
+        setPendingRoute(route);
+        setTargetSeconds(Math.round(route.rawDurationSec));
       } catch (err) {
         setGpxError((err && err.message) || 'Could not read that file.');
       }
@@ -4642,6 +4706,17 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
     };
     reader.onerror = () => { setGpxError('Could not read that file.'); setGpxBusy(false); };
     reader.readAsText(file);
+  }
+  function confirmPendingRoute() {
+    if (!pendingRoute) return;
+    const workout = buildWorkoutFromRoute(pendingRoute, Math.max(60, targetSeconds || pendingRoute.rawDurationSec));
+    setName(workout.name);
+    setCategory(workout.category);
+    setDescription(workout.description);
+    setIntervals(workout.intervals);
+    setSelectedIds(new Set());
+    setLastTouchedIds(new Set());
+    setPendingRoute(null);
   }
 
   function addBlock(block) { setIntervals(list => [...list, iv(block.label, block.duration, block.type, block.target)]); }
@@ -4751,9 +4826,55 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
         <Upload size={15} /> {gpxBusy ? 'Reading route…' : 'Import a route (GPX file)'}
       </button>
       {gpxError && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: RED, marginBottom: 8 }}>{gpxError}</div>}
-      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
-        Turns a real ride's elevation profile into an indoor power workout — climbs get harder targets, descents get easier ones, timed to roughly match real-world pace. Review it below before saving.
-      </div>
+
+      {pendingRoute && (() => {
+        const distKm = pendingRoute.totalDist / 1000;
+        const secs = targetSeconds || Math.round(pendingRoute.rawDurationSec);
+        const speedKmh = secs > 0 ? distKm / (secs / 3600) : 0;
+        const hours = Math.floor(secs / 3600);
+        const minutes = Math.round((secs % 3600) / 60);
+        const inputStyle = { fontFamily: "'Space Grotesk', sans-serif", width: 64, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 14, textAlign: 'center' };
+        return (
+          <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, fontWeight: 700, color: TEXT, marginBottom: 2 }}>{pendingRoute.routeName}</div>
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 12 }}>
+              {distKm.toFixed(1)}km · {Math.round(pendingRoute.totalElevGain)}m climbing
+            </div>
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6 }}>Target pace for this ride</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="number" step="0.1" value={Math.round(speedKmh * 10) / 10}
+                  onChange={e => { const v = Number(e.target.value); if (v > 0) setTargetSeconds(Math.round((distKm / v) * 3600)); }}
+                  style={inputStyle} />
+                <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>km/h avg</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="number" value={hours}
+                  onChange={e => setTargetSeconds(Math.max(60, (Number(e.target.value) || 0) * 3600 + minutes * 60))}
+                  style={inputStyle} />
+                <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>hrs</span>
+                <input type="number" value={minutes}
+                  onChange={e => setTargetSeconds(Math.max(60, hours * 3600 + (Number(e.target.value) || 0) * 60))}
+                  style={inputStyle} />
+                <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>min</span>
+              </div>
+            </div>
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, marginBottom: 12, lineHeight: 1.5 }}>
+              Defaults to a race-pace estimate for this route's climbing. Adjust either field to match a real bike split — climbs will still take proportionally longer than flats.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={confirmPendingRoute} style={{ fontFamily: "'Manrope', sans-serif", flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>Build intervals</button>
+              <button onClick={() => { setPendingRoute(null); setGpxError(null); }} style={{ fontFamily: "'Manrope', sans-serif", padding: '10px 16px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'transparent', color: SUB, fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {!pendingRoute && (
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
+          Turns a real ride's elevation profile into an indoor power workout — climbs get harder targets, descents get easier ones. You'll set a target pace before it builds intervals.
+        </div>
+      )}
 
       <input value={name} onChange={e => setName(e.target.value)} placeholder="Workout name"
         style={{ fontFamily: "'Manrope', sans-serif", width: '100%', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: '10px 12px', fontSize: 15, marginBottom: 8, boxSizing: 'border-box' }} />
