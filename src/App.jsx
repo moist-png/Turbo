@@ -4649,6 +4649,14 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
   // using whatever target time/speed they've settled on below.
   const [pendingRoute, setPendingRoute] = useState(null);
   const [targetSeconds, setTargetSeconds] = useState(null);
+  // Each pace field keeps its own raw typed text rather than being derived
+  // fresh from targetSeconds on every render -- deriving it live meant an
+  // emptied field snapped straight back to a formatted number the instant
+  // its onChange ran (since a blank value never updates targetSeconds), so
+  // it was impossible to actually clear a field before typing a new value.
+  const [speedText, setSpeedText] = useState('');
+  const [hoursText, setHoursText] = useState('');
+  const [minutesText, setMinutesText] = useState('');
   const fileInputRef = useRef(null);
   // Which segment(s) were most recently moved or duplicated — bordered in
   // the list below so a long stack of intervals doesn't lose you after an
@@ -4698,7 +4706,12 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       try {
         const route = parseGpxRoute(reader.result, file.name);
         setPendingRoute(route);
-        setTargetSeconds(Math.round(route.rawDurationSec));
+        const secs = Math.round(route.rawDurationSec);
+        const distKm = route.totalDist / 1000;
+        setTargetSeconds(secs);
+        setSpeedText((Math.round((distKm / (secs / 3600)) * 10) / 10).toString());
+        setHoursText(String(Math.floor(secs / 3600)));
+        setMinutesText(String(Math.round((secs % 3600) / 60)));
       } catch (err) {
         setGpxError((err && err.message) || 'Could not read that file.');
       }
@@ -4706,6 +4719,43 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
     };
     reader.onerror = () => { setGpxError('Could not read that file.'); setGpxBusy(false); };
     reader.readAsText(file);
+  }
+  // Speed and time drive each other (distance is fixed), but only the field
+  // NOT currently being typed into gets reformatted -- the one the person is
+  // actively editing keeps exactly what they typed, blank included, until it
+  // parses to a usable number.
+  function onSpeedTextChange(raw) {
+    setSpeedText(raw);
+    if (!pendingRoute) return;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v) || v <= 0) return;
+    const distKm = pendingRoute.totalDist / 1000;
+    const secs = Math.round((distKm / v) * 3600);
+    setTargetSeconds(secs);
+    setHoursText(String(Math.floor(secs / 3600)));
+    setMinutesText(String(Math.round((secs % 3600) / 60)));
+  }
+  function onHoursTextChange(raw) {
+    setHoursText(raw);
+    if (!pendingRoute) return;
+    const h = parseFloat(raw);
+    const m = parseFloat(minutesText);
+    const secs = Math.round((Number.isFinite(h) ? h : 0) * 3600 + (Number.isFinite(m) ? m : 0) * 60);
+    if (secs <= 0) return;
+    setTargetSeconds(secs);
+    const distKm = pendingRoute.totalDist / 1000;
+    setSpeedText((Math.round((distKm / (secs / 3600)) * 10) / 10).toString());
+  }
+  function onMinutesTextChange(raw) {
+    setMinutesText(raw);
+    if (!pendingRoute) return;
+    const m = parseFloat(raw);
+    const h = parseFloat(hoursText);
+    const secs = Math.round((Number.isFinite(h) ? h : 0) * 3600 + (Number.isFinite(m) ? m : 0) * 60);
+    if (secs <= 0) return;
+    setTargetSeconds(secs);
+    const distKm = pendingRoute.totalDist / 1000;
+    setSpeedText((Math.round((distKm / (secs / 3600)) * 10) / 10).toString());
   }
   function confirmPendingRoute() {
     if (!pendingRoute) return;
@@ -4829,10 +4879,6 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
 
       {pendingRoute && (() => {
         const distKm = pendingRoute.totalDist / 1000;
-        const secs = targetSeconds || Math.round(pendingRoute.rawDurationSec);
-        const speedKmh = secs > 0 ? distKm / (secs / 3600) : 0;
-        const hours = Math.floor(secs / 3600);
-        const minutes = Math.round((secs % 3600) / 60);
         const inputStyle = { fontFamily: "'Space Grotesk', sans-serif", width: 64, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 6, color: TEXT, padding: '6px 8px', fontSize: 14, textAlign: 'center' };
         return (
           <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: 14, marginBottom: 14 }}>
@@ -4843,18 +4889,18 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
             <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6 }}>Target pace for this ride</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="number" step="0.1" value={Math.round(speedKmh * 10) / 10}
-                  onChange={e => { const v = Number(e.target.value); if (v > 0) setTargetSeconds(Math.round((distKm / v) * 3600)); }}
+                <input type="number" step="0.1" value={speedText}
+                  onChange={e => onSpeedTextChange(e.target.value)}
                   style={inputStyle} />
                 <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>km/h avg</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="number" value={hours}
-                  onChange={e => setTargetSeconds(Math.max(60, (Number(e.target.value) || 0) * 3600 + minutes * 60))}
+                <input type="number" value={hoursText}
+                  onChange={e => onHoursTextChange(e.target.value)}
                   style={inputStyle} />
                 <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>hrs</span>
-                <input type="number" value={minutes}
-                  onChange={e => setTargetSeconds(Math.max(60, hours * 3600 + (Number(e.target.value) || 0) * 60))}
+                <input type="number" value={minutesText}
+                  onChange={e => onMinutesTextChange(e.target.value)}
                   style={inputStyle} />
                 <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB }}>min</span>
               </div>
