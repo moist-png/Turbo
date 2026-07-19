@@ -3987,7 +3987,6 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
         {all.map(w => {
           const total = totalDuration(w.intervals);
           const starred = starredIds.has(w.id);
-          const typeChip = workoutTypeChip(w, cvd);
           return (
             <div key={w.id} onClick={() => onOpen(w)} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
@@ -3999,10 +3998,7 @@ function LibraryView({ customWorkouts, onOpen, lockedCategory, title, subtitle, 
                 </button>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--accent)', flexShrink: 0 }}>{fmtLong(total)}</div>
               </div>
-              {typeChip && (
-                <div style={{ display: 'inline-block', fontFamily: "'Manrope', sans-serif", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase', color: typeChip.color, border: `1px solid ${typeChip.color}`, borderRadius: 5, padding: '2px 7px', marginBottom: 8 }}>{typeChip.label}</div>
-              )}
-              <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, marginBottom: 10 }}>{w.description}</div>
+              <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, marginTop: 6, marginBottom: 10 }}>{w.description}</div>
               <ProfileChart intervals={w.intervals} height={cardBarHeight} />
             </div>
           );
@@ -7602,7 +7598,7 @@ export default function App() {
 
   return (
     <ColorblindContext.Provider value={settings.colorblindMode}>
-    <div style={{ ...wrapStyle, position: 'relative', ...(isSidebar ? {} : { paddingBottom: 'calc(54px + env(safe-area-inset-bottom))' }) }}>
+    <div style={{ ...wrapStyle, position: 'relative', ...(isSidebar ? {} : { paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(54px + env(safe-area-inset-bottom))' }) }}>
       <style>{globalStyle}</style>
       <OrientationGate preferredOrientation={settings.preferredOrientation}>
         <div style={isSidebar ? { display: 'flex', height: '100dvh', overflow: 'hidden' } : undefined}>
