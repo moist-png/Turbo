@@ -2319,7 +2319,7 @@ const LIBRARY = [
   // degrading into plain Endurance filler.
   {
     id: 'ride-rolling-reserve', name: 'Rolling Reserve', category: 'Rides',
-    description: 'A steady rolling base ride that surges into sweet spot twice, mirrored front and back half — the aerobic reserve-builder for weeks that need volume with a little bite.',
+    description: 'Steady rolling endurance with two sweet spot surges, mirrored front and back half.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 120, 'power', 75), iv('Endurance', 120, 'power', 85),
@@ -2343,7 +2343,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-race-legs', name: 'Race Legs', category: 'Rides',
-    description: "A compact hour that borrows race tactics — sharp openers, a threshold rally, two sprints, then a string of quick threshold snaps to close it out. Built for the days you've only got an hour but want race-day legs.",
+    description: "Race tactics condensed into an hour — sharp openers, a threshold rally, two sprints, then a string of threshold snaps to close it out.",
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 60, 'power', 80), iv('Sweet spot', 45, 'power', 90),
@@ -2376,7 +2376,7 @@ const LIBRARY = [
     // stretching this ride re-runs the whole foothills route as an extra
     // lap instead, keeping the climbing character intact at any length.
     repeatWholeCore: true,
-    description: 'A rolling foothills route that never really settles — short punchy climbs and gentle drags stitched together, cresting a genuine Wall near the end before the run home.',
+    description: 'A rolling foothills route that never settles — short punchy climbs and gentle drags, cresting a genuine Wall near the end before the run home.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Flat / rolling', 20, 'power', 65), iv('Climb', 15, 'power', 86),
@@ -2417,7 +2417,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-ziggurat', name: 'Ziggurat', category: 'Rides',
-    description: 'A mirrored step pyramid — sweet spot and endurance blocks shrink down to a single minute, spike through VO2 max and threshold at the middle, then rebuild all the way back out. The second half is a mirror image of the first.',
+    description: 'A mirrored step pyramid — sweet spot and endurance blocks shrink to a single minute, spike through VO2 max and threshold, then rebuild all the way back out.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 360, 'power', 70),
@@ -2443,7 +2443,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-rising-tide', name: 'Rising Tide', category: 'Rides',
-    description: 'Three rolling endurance waves, each one followed by a sharper finish than the last — an easy VO2 opener, then a threshold rally, then a trio of escalating VO2 sprints. The tide comes in a little higher every time.',
+    description: 'Three rolling endurance waves, each one followed by a sharper finish than the last — a VO2 opener, a threshold rally, then a trio of escalating VO2 sprints.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 240, 'power', 70), iv('Endurance', 240, 'power', 80),
@@ -2470,7 +2470,7 @@ const LIBRARY = [
     // into three rolling phases (each its own repeatIv group, so the duration
     // slider can grow/shrink them independently) plus a final kick, instead of
     // two flat blocks -- built for a visibly busier, wavier profile chart.
-    description: "A short, sheltered out-and-back built for the days a lunch break is all you've got — three rolling sweet spot phases, each building in intensity, with a punchy final kick before the descent home.",
+    description: "A short, sheltered out-and-back for the lunch-break days — three rolling sweet spot phases building in intensity, with a punchy final kick before the descent home.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(4, () => [iv('Rise', 70, 'power', 90), iv('Ease', 50, 'power', 85)]),
@@ -2489,7 +2489,7 @@ const LIBRARY = [
     // the four plateaus is now its own rolling repeatIv group instead of one
     // flat block, so the ride reads as genuine terrain texture rather than
     // four held power targets, while scaling exactly the same way.
-    description: "A long, wide-open traverse across four distinct plateaus, each a rolling wave of sweet spot effort rather than a flat hold — the wind picks up through the second plateau before the longest, steadiest stretch of the ride. Built for the days with a genuine hour-and-three-quarters to spend.",
+    description: "A long, wide-open traverse across four rolling plateaus of sweet spot effort — the wind picks up through the second before the longest, steadiest stretch of the ride.",
     intervals: [
       iv('Warm up', 600, 'power', 58),
       ...repeatIv(3, () => [iv('Rise', 200, 'power', 90), iv('Ease', 100, 'power', 85)]),
@@ -2518,7 +2518,7 @@ const LIBRARY = [
   // --- 20-30min bucket (2 recovery, 2 vo2max, 1 anaerobic) ---
   {
     id: 'ride-loose-legs-spin', name: 'Loose Legs Spin', category: 'Rides',
-    description: "An easy, unhurried spin with a gentle float through the back half — pure legs-only recovery, nothing to chase.",
+    description: "An easy, unhurried spin with a gentle float through the back half — legs-only recovery, nothing to chase.",
     intervals: [
       iv('Warm up', 120, 'power', 55),
       ...repeatIv(4, () => [iv('Ease', 90, 'power', 57), iv('Loose', 90, 'power', 52)]),
@@ -2528,7 +2528,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-flush-lap', name: 'Flush Lap', category: 'Rides',
-    description: "A slightly longer flush ride for the day after something hard — drifts even easier through the second half.",
+    description: "A flush ride for the day after something hard — drifts even easier through the second half.",
     intervals: [
       iv('Warm up', 150, 'power', 56),
       ...repeatIv(5, () => [iv('Turn', 80, 'power', 58), iv('Ease', 70, 'power', 53)]),
@@ -2538,7 +2538,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-short-fuse', name: 'Short Fuse', category: 'Rides',
-    description: "Classic 30-on/30-off VO2 max intervals in two waves with a short breather between — quick, sharp, done before lunch.",
+    description: "30-on/30-off VO2 max intervals in two waves with a short breather between — quick, sharp, done before lunch.",
     intervals: [
       iv('Warm up', 240, 'power', 58),
       iv('Opener', 60, 'power', 85),
@@ -2560,7 +2560,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-matchstick', name: 'Matchstick', category: 'Rides',
-    description: "A sprint ladder that climbs in intensity then eases back down — ten short, sharp efforts between a proper warm-up and cool-down.",
+    description: "A sprint ladder that climbs in intensity then eases back down — ten short, sharp efforts of varying length.",
     intervals: [
       iv('Warm up', 240, 'power', 58),
       iv('Opener', 20, 'power', 92),
@@ -2582,7 +2582,7 @@ const LIBRARY = [
   // --- 30-50min bucket (3 endurance, 3 race, 2 threshold, 2 sweetspot) ---
   {
     id: 'ride-commuter-miles', name: 'Commuter Miles', category: 'Rides',
-    description: "A simple rolling endurance spin for the days you've only got half an hour-ish to give.",
+    description: "A simple rolling endurance spin, done in half an hour or so.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       ...repeatIv(7, () => [iv('Roll', 120, 'power', 70), iv('Ease', 90, 'power', 63)]),
@@ -2591,7 +2591,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-fireroad-amble', name: 'Fireroad Amble', category: 'Rides',
-    description: "Rolling endurance with a slightly punchier back half — two distinct wave patterns rather than one held pace.",
+    description: "Rolling endurance with a punchier back half — two wave patterns instead of one held pace.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       ...repeatIv(5, () => [iv('Roll', 150, 'power', 72), iv('Ease', 100, 'power', 63)]),
@@ -2601,7 +2601,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-towpath-ramble', name: 'Towpath Ramble', category: 'Rides',
-    description: "Long, flat, and steady — the closest thing in this batch to a genuine easy cruise.",
+    description: "Long, flat, and steady — a genuine easy cruise from start to finish.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(9, () => [iv('Steady', 140, 'power', 69), iv('Ease', 100, 'power', 62)]),
@@ -2610,7 +2610,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-downtown-crit', name: 'Downtown Crit', category: 'Rides',
-    description: "The library's first short-format race simulation — attack, get chased down, settle, repeat, with a bridge effort and a field sprint to close.",
+    description: "Attack, get chased down, settle, repeat — a bridge effort and a field sprint close it out.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       iv('Opener', 15, 'power', 100),
@@ -2624,7 +2624,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-alley-sprint-series', name: 'Alley Sprint Series', category: 'Rides',
-    description: "A sprint-heavy crit simulation — eight jumps out of the corners plus a late attack and a closing sprint.",
+    description: "A sprint-heavy crit simulation — eight jumps out of the corners, a late attack, and a closing sprint.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       iv('Opener', 15, 'power', 98),
@@ -2638,7 +2638,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-chase-group', name: 'Chase Group', category: 'Rides',
-    description: "A bridging narrative — off the front, sit up, a bridge attempt, counters in the group, a late attack, and a sprint for the line.",
+    description: "Off the front, sit up, a bridge attempt, counters in the group, a late attack, and a sprint for the line.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       iv('Opener', 20, 'power', 100),
@@ -2667,7 +2667,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-steady-burn', name: 'Steady Burn', category: 'Rides',
-    description: "3×10 threshold with the same hold/push texture as Redline Ledge, spread across three blocks instead of two.",
+    description: "3×10 threshold, alternating hold/push blocks spread across three sets.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2680,7 +2680,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-corridor-run', name: 'Corridor Run', category: 'Rides',
-    description: "A compact sweet spot ride — two rolling phases, same undulating style as Hollow Road Sweet Spot.",
+    description: "A compact sweet spot ride — two rolling, undulating phases with a short recovery between.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       ...repeatIv(5, () => [iv('Rise', 90, 'power', 91), iv('Ease', 60, 'power', 85)]),
@@ -2691,7 +2691,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-ridge-line', name: 'Ridge Line', category: 'Rides',
-    description: "A longer cousin of Corridor Run — more reps per phase, same rolling sweet spot character.",
+    description: "A longer rolling sweet spot ride — more reps per phase, undulating rather than flat.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(6, () => [iv('Rise', 100, 'power', 90), iv('Ease', 70, 'power', 84)]),
@@ -2724,7 +2724,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-cruise-control', name: 'Cruise Control', category: 'Rides',
-    description: "The gentlest of the four new tempo rides — long, evenly paced rolling waves.",
+    description: "A gentle tempo ride — long, evenly paced rolling waves start to finish.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(11, () => [iv('Push', 130, 'power', 79), iv('Ease', 90, 'power', 72)]),
@@ -2733,7 +2733,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-wide-open-road', name: 'Wide Open Road', category: 'Rides',
-    description: "The longest of the four tempo rides — two blocks either side of a recovery, building slightly into the second.",
+    description: "Rolling tempo in two blocks either side of a recovery, building slightly into the second.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(8, () => [iv('Push', 160, 'power', 80), iv('Ease', 100, 'power', 73)]),
@@ -2744,7 +2744,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-overpass-circuit', name: 'Overpass Circuit', category: 'Rides',
-    description: "Two rolling sweet spot phases with a recovery between — the mid-length sibling of Corridor Run and Ridge Line.",
+    description: "Two rolling sweet spot phases with a proper recovery between them.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(6, () => [iv('Rise', 110, 'power', 90), iv('Ease', 80, 'power', 84)]),
@@ -2755,7 +2755,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-backbone-ridge', name: 'Backbone Ridge', category: 'Rides',
-    description: "A full hour of rolling sweet spot, with a longer warm-up to match the length.",
+    description: "A full hour of rolling sweet spot effort, with a longer warm-up to match.",
     intervals: [
       iv('Warm up', 420, 'power', 58),
       ...repeatIv(7, () => [iv('Rise', 120, 'power', 90), iv('Ease', 90, 'power', 84)]),
@@ -2766,7 +2766,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-causeway-crossing', name: 'Causeway Crossing', category: 'Rides',
-    description: "The longest and hardest of the three new sweet spot rides — two extended rolling phases.",
+    description: "Two long rolling sweet spot phases separated by a short recovery, building through repeated surges.",
     intervals: [
       iv('Warm up', 420, 'power', 58),
       ...repeatIv(8, () => [iv('Rise', 130, 'power', 90), iv('Ease', 90, 'power', 84)]),
@@ -2777,7 +2777,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-anvil-work', name: 'Anvil Work', category: 'Rides',
-    description: "3×12 threshold with the hold/push texture, same family as Redline Ledge and Steady Burn but a full hour.",
+    description: "3×12 threshold across a full hour, alternating hold/push blocks throughout.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2790,7 +2790,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-the-grind', name: 'The Grind', category: 'Rides',
-    description: "2×20 threshold — the classic long-block protocol, same hold/push texture running through each 20.",
+    description: "2×20 threshold, the classic long-block protocol — hold/push texture running through each 20.",
     intervals: [
       iv('Warm up', 420, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2803,7 +2803,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-midweek-crit', name: 'Midweek Crit', category: 'Rides',
-    description: "A longer race simulation filling the gap right below the library's previous shortest race ride (74min) — attacks, chases, counters, a bridge, a sprint.",
+    description: "A longer race simulation — attacks, chases, counters, a bridge, and a sprint to close it out.",
     intervals: [
       iv('Warm up', 390, 'power', 58),
       iv('Opener', 20, 'power', 100),
@@ -2827,8 +2827,8 @@ const LIBRARY = [
   // "fix" these by adding a purpose tag. If a workout belongs in this
   // section, leave WORKOUT_PURPOSE alone for its id.
   {
-    id: 'ride-hack-saw', name: 'Hack saw', category: 'Rides', pain: true,
-    description: 'Sixty rounds of sweet spot to sprint, never resting deep enough to matter.',
+    id: 'ride-hack-saw', name: 'Hacksaw', category: 'Rides', pain: true,
+    description: 'Careful.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       ...repeatIv(12, () => [
@@ -2893,7 +2893,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-quad-homicide', name: 'Quad homicide', category: 'Rides', pain: true,
-    description: 'Ninety minutes of sprints and VO2 hits, back to back to back.',
+    description: 'Or is it lung homicide?',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Threshold', 180, 'power', 100),
