@@ -2466,29 +2466,39 @@ const LIBRARY = [
   },
   {
     id: 'ride-hollow-road-sweetspot', name: 'Hollow Road Sweet Spot', category: 'Rides',
-    description: "A short, sheltered out-and-back built for the days a lunch break is all you've got — three sweet spot blocks back to back with just enough recovery between them to hold form.",
+    // v2: same 50min / ~54 TSS as the original 7-interval version, restructured
+    // into three rolling phases (each its own repeatIv group, so the duration
+    // slider can grow/shrink them independently) plus a final kick, instead of
+    // two flat blocks -- built for a visibly busier, wavier profile chart.
+    description: "A short, sheltered out-and-back built for the days a lunch break is all you've got — three rolling sweet spot phases, each building in intensity, with a punchy final kick before the descent home.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
-      iv('Hollow road block', 720, 'power', 88),
-      iv('Recover', 180, 'power', 60),
-      iv('Hollow road block', 840, 'power', 91),
-      iv('Recover', 120, 'power', 60),
-      iv('Final push', 480, 'power', 89),
+      ...repeatIv(4, () => [iv('Rise', 70, 'power', 90), iv('Ease', 50, 'power', 85)]),
+      iv('Recover', 90, 'power', 60),
+      ...repeatIv(5, () => [iv('Rise', 80, 'power', 92), iv('Ease', 60, 'power', 87)]),
+      iv('Recover', 60, 'power', 60),
+      ...repeatIv(4, () => [iv('Rise', 60, 'power', 92), iv('Ease', 40, 'power', 87)]),
+      iv('Recover', 110, 'power', 60),
+      iv('Final kick', 500, 'power', 89),
       iv('Cool down', 300, 'power', 50),
     ],
   },
   {
     id: 'ride-tableland-traverse', name: 'Tableland Traverse', category: 'Rides',
-    description: "A long, wide-open traverse across four rolling plateaus, each held at sweet spot for 15 to 25 minutes with a short recovery between — built for the days with a genuine hour-and-three-quarters to spend.",
+    // v2: same 103min / ~114 TSS as the original 9-interval version. Each of
+    // the four plateaus is now its own rolling repeatIv group instead of one
+    // flat block, so the ride reads as genuine terrain texture rather than
+    // four held power targets, while scaling exactly the same way.
+    description: "A long, wide-open traverse across four distinct plateaus, each a rolling wave of sweet spot effort rather than a flat hold — the wind picks up through the second plateau before the longest, steadiest stretch of the ride. Built for the days with a genuine hour-and-three-quarters to spend.",
     intervals: [
       iv('Warm up', 600, 'power', 58),
-      iv('First plateau', 900, 'power', 88),
+      ...repeatIv(3, () => [iv('Rise', 200, 'power', 90), iv('Ease', 100, 'power', 85)]),
       iv('Recover', 240, 'power', 60),
-      iv('Crosswind plateau', 1080, 'power', 90),
+      ...repeatIv(6, () => [iv('Gust', 120, 'power', 93), iv('Lull', 60, 'power', 85)]),
       iv('Recover', 240, 'power', 60),
-      iv('Long plateau', 1500, 'power', 91),
+      ...repeatIv(5, () => [iv('Rise', 180, 'power', 93), iv('Ease', 120, 'power', 87)]),
       iv('Recover', 240, 'power', 60),
-      iv('Final plateau', 900, 'power', 89),
+      ...repeatIv(3, () => [iv('Rise', 180, 'power', 92), iv('Ease', 120, 'power', 84)]),
       iv('Cool down', 480, 'power', 50),
     ],
   },
