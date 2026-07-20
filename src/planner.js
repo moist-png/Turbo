@@ -419,6 +419,7 @@ export const TERRAIN_LABEL = {
   steep: 'Steep', punchy: 'Punchy', cobbles: 'Cobbles', gravel: 'Gravel',
   windy: 'Windy', mixed: 'Mixed', scenic: 'Scenic',
   hairpins: 'Hairpins', 'multi-climb': 'Multi-climb',
+  urban: 'Urban', criterium: 'Criterium', paceline: 'Paceline',
 };
 
 // Which purposes count as "high stress" for the hard/easy spacing rule.
