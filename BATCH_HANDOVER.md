@@ -177,6 +177,43 @@ check — Settings → Billing → Subscriptions and emails: confirm smart
 retries are on and the after-final-failure outcome is set to cancel the
 subscription.
 
+### 4.2 Subscription pause — ⚠️ PARTIALLY SHIPPED 21 July 2026 (pause blocked)
+
+**Shipped:** `api/customer-portal.js` + a "Manage subscription" button in
+Settings (subscribers only). Card updates, invoices, and self-serve
+cancel now work without emailing support. Main chunk +0.80 kB.
+Server reads `stripe_customer_id` from the profiles row; the browser
+never sees or supplies it.
+
+**Dashboard prerequisite (Hubert):** activate the portal at
+dashboard.stripe.com/settings/billing/portal — no configuration exists
+on the account yet (verified via API: the configurations list is empty).
+Until that's done the button returns a clear "not available yet"
+message instead of a raw error, so it's safe to ship ahead of the
+dashboard step.
+
+**Blocked — the pause premise doesn't hold.** Stripe's current pause
+documentation states plainly that the customer portal shows when a
+subscription is paused but subscribers cannot pause it themselves, and
+pause is absent from the portal's own feature list. So the Customer
+Portal route recommended in this plan does **not** deliver self-serve
+pause. Consequences:
+- **4.3 must drop the "pause any time" headline** until pause actually
+  ships. Claiming it now is exactly the kind of overstatement the
+  claims audit exists to prevent.
+- If pause is still wanted, the remaining route is a custom in-app flow
+  calling `pause_collection` (or the newer pause endpoint, which needs
+  flexible billing mode) server-side, plus webhook handling for the
+  paused state and a decision on whether access continues to period
+  end. That is a real build, not a config change — the original plan
+  said "don't build custom" only because the portal was assumed to give
+  it for free. That assumption is now known to be wrong, so the
+  decision genuinely reopens.
+- Managed Payments is *not* the blocker here: Stripe lists the portal
+  as interoperable with Managed Payments. Eligibility still needs
+  confirming for other reasons, but it no longer gates this item.
+
+### Original plan (superseded in part)
 ### 4.2 Subscription pause (the "seasonal rider" feature no big rival has)
 Zwift's lack of pausing is a documented complaint. Two routes:
 - **Recommended: Stripe Customer Portal.** Enable the portal in the
