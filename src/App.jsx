@@ -101,6 +101,7 @@ const THEMES = {
 const DEFAULT_SETTINGS = {
   theme: 'dark', // 'dark' | 'light'
   accentColor: '#2FC5AE', // brand teal ("mint") — was '#C9F031' (the old lime), left over from before the rebrand
+  soundPack: 'bright',
   soundIntervalBeep: true,
   soundCountdown: true,
   soundCompletion: true,
@@ -213,14 +214,26 @@ const ZONE_TONE_FREQ = { Recovery: 520, Endurance: 660, Tempo: 760, Threshold: 8
 // every alert in the app shares one consistent sonic identity rather than
 // a grab-bag of arbitrary beeps. Each cue is a waveform + base pitch + a
 // short pattern of notes (ratio of the base pitch, offset in ms from the
-// trigger, and a duration multiplier of the base length).
-const SOUND_CUES = {
-  intervalStart: { wave: 'triangle', freq: 380, dur: 160, pattern: [{ ratio: 1, offset: 0, mult: 0.6 }, { ratio: 1.333, offset: 90, mult: 0.7 }] },
-  countdownTick: { wave: 'sine', freq: 820, dur: 100, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
-  restStart: { wave: 'sine', freq: 550, dur: 780, pattern: [{ ratio: 1, offset: 0, mult: 0.5 }, { ratio: 0.75, offset: 180, mult: 0.6 }] },
-  workoutComplete: { wave: 'sine', freq: 490, dur: 810, pattern: [{ ratio: 1, offset: 0, mult: 0.35 }, { ratio: 1.25, offset: 150, mult: 0.35 }, { ratio: 1.5, offset: 300, mult: 0.6 }] },
-  offTargetAlarm: { wave: 'sine', freq: 335, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 0.3 }, { ratio: 1, offset: 180, mult: 0.3 }, { ratio: 1, offset: 360, mult: 0.3 }] },
-  personalBest: { wave: 'sine', freq: 350, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 0.25 }, { ratio: 1.25, offset: 80, mult: 0.25 }, { ratio: 1.5, offset: 160, mult: 0.25 }, { ratio: 2, offset: 240, mult: 0.5 }] },
+// trigger, and a duration multiplier of the base length). Two packs are
+// offered — Bright (melodic, multi-note) and Soft (single mellow tones) —
+// selected via settings.soundPack.
+const SOUND_CUE_PACKS = {
+  bright: {
+    intervalStart: { wave: 'triangle', freq: 380, dur: 160, pattern: [{ ratio: 1, offset: 0, mult: 0.6 }, { ratio: 1.333, offset: 90, mult: 0.7 }] },
+    countdownTick: { wave: 'sine', freq: 820, dur: 100, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+    restStart: { wave: 'sine', freq: 550, dur: 780, pattern: [{ ratio: 1, offset: 0, mult: 0.5 }, { ratio: 0.75, offset: 180, mult: 0.6 }] },
+    workoutComplete: { wave: 'sine', freq: 490, dur: 810, pattern: [{ ratio: 1, offset: 0, mult: 0.35 }, { ratio: 1.25, offset: 150, mult: 0.35 }, { ratio: 1.5, offset: 300, mult: 0.6 }] },
+    offTargetAlarm: { wave: 'sine', freq: 335, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 0.3 }, { ratio: 1, offset: 180, mult: 0.3 }, { ratio: 1, offset: 360, mult: 0.3 }] },
+    personalBest: { wave: 'sine', freq: 350, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 0.25 }, { ratio: 1.25, offset: 80, mult: 0.25 }, { ratio: 1.5, offset: 160, mult: 0.25 }, { ratio: 2, offset: 240, mult: 0.5 }] },
+  },
+  soft: {
+    intervalStart: { wave: 'sine', freq: 385, dur: 180, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+    countdownTick: { wave: 'sine', freq: 465, dur: 230, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+    restStart: { wave: 'sine', freq: 520, dur: 170, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+    workoutComplete: { wave: 'sine', freq: 350, dur: 270, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+    offTargetAlarm: { wave: 'sine', freq: 335, dur: 230, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+    personalBest: { wave: 'sine', freq: 440, dur: 500, pattern: [{ ratio: 1, offset: 0, mult: 1 }] },
+  },
 };
 // Confetti palette for the finish-line celebration — reuses the same
 // bright, high-contrast colors as the zone system so it feels on-brand.
@@ -3038,7 +3051,7 @@ function useBeeper() {
   function chime(notes, gainVal) {
     notes.forEach(n => setTimeout(() => beep(n.freq, n.duration, gainVal, n.wave), n.delay));
   }
-  // Plays one of the designed workout cues (see SOUND_CUES) — a waveform,
+  // Plays one of the designed workout cues (see SOUND_CUE_PACKS) — a waveform,
   // base pitch, and a short pattern of notes expressed as a ratio of that
   // pitch, an offset in ms, and a duration multiplier. Tuned in the Trbo
   // Sound Lab sandbox so every alert in the app shares one sonic identity.
@@ -5822,6 +5835,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const [showIntensityAdjust, setShowIntensityAdjust] = useState(false);
   const canAdjustIntensity = !workout.fixedLength;
   const { beep, chime, playCue } = useBeeper();
+  const activeCues = SOUND_CUE_PACKS[settings.soundPack] || SOUND_CUE_PACKS.bright;
 
   // Elapsed time in seconds up to a given point in the workout — used both
   // for the on-screen progress bar and for what gets logged to history.
@@ -5851,7 +5865,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
       const priorPr = computePersonalRecords(workoutHistory);
       const beatAvg = priorPr && priorPr.bestAvgPower && avgPower != null && avgPower > priorPr.bestAvgPower.avgPower;
       const beatPeak = priorPr && priorPr.bestPeakPower && maxPower != null && maxPower > priorPr.bestPeakPower.maxPower;
-      if (beatAvg || beatPeak) playCue(SOUND_CUES.personalBest, 0.3 * settings.soundVolume);
+      if (beatAvg || beatPeak) playCue(activeCues.personalBest, 0.3 * settings.soundVolume);
     }
     setFinishSummary({
       avgPower, maxPower, avgHr, maxHr, np, tss, calories, duration: dur,
@@ -5944,7 +5958,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
         const next = prev - 1;
         if (settings.soundCountdown && next > 0 && next <= 3 && !beepedRef.current.has(currentIndex + '_' + next)) {
           beepedRef.current.add(currentIndex + '_' + next);
-          playCue(SOUND_CUES.countdownTick, 0.35 * settings.soundVolume);
+          playCue(activeCues.countdownTick, 0.35 * settings.soundVolume);
         }
         // Halfway-through-the-ride chime — fires once, whenever elapsed
         // time first crosses the midpoint of the whole workout.
@@ -5979,7 +5993,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           if (dev > 0.15) {
             offTargetStreakRef.current += 1;
             if (offTargetStreakRef.current >= 6) {
-              playCue(SOUND_CUES.offTargetAlarm, 0.35 * settings.soundVolume);
+              playCue(activeCues.offTargetAlarm, 0.35 * settings.soundVolume);
               offTargetStreakRef.current = 0;
             }
           } else {
@@ -6026,9 +6040,9 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
         if (upcomingZone.name === 'Recovery') {
           // Recovery gets its own dedicated, softer descending cue —
           // always, regardless of the per-zone pitch setting below.
-          playCue(SOUND_CUES.restStart, 0.25 * settings.soundVolume);
+          playCue(activeCues.restStart, 0.25 * settings.soundVolume);
         } else {
-          const cue = SOUND_CUES.intervalStart;
+          const cue = activeCues.intervalStart;
           const cueFreq = settings.soundZoneTones ? (ZONE_TONE_FREQ[upcomingZone.name] || cue.freq) : cue.freq;
           playCue({ ...cue, freq: cueFreq }, 0.3 * settings.soundVolume);
         }
@@ -6057,9 +6071,9 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     } else {
       if (settings.soundCompletion) {
         if (settings.soundRichFanfare) {
-          playCue(SOUND_CUES.workoutComplete, 0.3 * settings.soundVolume);
+          playCue(activeCues.workoutComplete, 0.3 * settings.soundVolume);
         } else {
-          const cue = SOUND_CUES.workoutComplete;
+          const cue = activeCues.workoutComplete;
           const lastNote = cue.pattern[cue.pattern.length - 1];
           beep(cue.freq * lastNote.ratio, (cue.dur / 1000) * lastNote.mult, 0.3 * settings.soundVolume, cue.wave);
         }
@@ -6593,6 +6607,13 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       ) : null}
 
       <CollapsibleSection icon={<Volume2 size={16} color="var(--accent)" />} title="Sounds">
+      <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
+        <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 8 }}>Sound pack</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Chip active={settings.soundPack === 'bright'} onClick={() => updateSetting('soundPack', 'bright')}>Bright</Chip>
+          <Chip active={settings.soundPack === 'soft'} onClick={() => updateSetting('soundPack', 'soft')}>Soft</Chip>
+        </div>
+      </div>
       <SettingRow label="Interval transition beep"><Switch checked={settings.soundIntervalBeep} onChange={v => updateSetting('soundIntervalBeep', v)} /></SettingRow>
       <SettingRow label="3-2-1 countdown beep"><Switch checked={settings.soundCountdown} onChange={v => updateSetting('soundCountdown', v)} /></SettingRow>
       <SettingRow label="Completion sound"><Switch checked={settings.soundCompletion} onChange={v => updateSetting('soundCompletion', v)} /></SettingRow>
