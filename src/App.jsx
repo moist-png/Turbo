@@ -7874,7 +7874,15 @@ export default function App() {
     const code = params.get('code');
     if (!code || sessionStorage.getItem('stravaOAuthPending') !== '1') return;
     sessionStorage.removeItem('stravaOAuthPending');
+    // The state value was generated fresh right before we sent this person
+    // to Strava (see connectStrava). If what came back doesn't match, this
+    // ?code= wasn't the answer to our request — ignore it rather than
+    // attach whatever account it belongs to.
+    const expectedState = sessionStorage.getItem('stravaOAuthState');
+    sessionStorage.removeItem('stravaOAuthState');
+    const returnedState = params.get('state');
     window.history.replaceState({}, '', window.location.pathname);
+    if (!expectedState || returnedState !== expectedState) return;
     finishStravaConnect(code);
   }, [user]);
 
@@ -7905,8 +7913,10 @@ export default function App() {
       nativeOpenAuthUrl(url);
       return;
     }
+    const oauthState = crypto.randomUUID();
+    sessionStorage.setItem('stravaOAuthState', oauthState);
     const redirectUri = window.location.origin + window.location.pathname;
-    const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=auto&scope=activity:write`;
+    const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=auto&scope=activity:write&state=${oauthState}`;
     window.location.href = url;
   }
   async function disconnectStrava() {

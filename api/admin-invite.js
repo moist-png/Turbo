@@ -15,7 +15,7 @@
 // from the browser, matching how it's protected everywhere else in the
 // app (see supabase-setup.sql -- comp_access can't be written by a client
 // with just the anon key).
-import { randomUUID } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { checkRateLimit } from './_rateLimit.js';
 
@@ -23,12 +23,26 @@ const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
 const SITE_URL = 'https://trbo.bike';
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Constant-time compare -- an ordinary === leaks how many leading
+// characters matched via response timing, which is what makes a secret
+// guessable byte by byte. Length check first: timingSafeEqual requires
+// equal-length buffers, and length isn't a secret.
+function secretsMatch(candidate, secret) {
+  if (typeof candidate !== 'string' || !candidate) return false;
+  const a = Buffer.from(candidate);
+  const b = Buffer.from(secret);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 function authorized(req) {
   const secret = process.env.ADMIN_SECRET;
   if (!secret) return false;
   const authHeader = req.headers.authorization || '';
-  const headerOk = authHeader === `Bearer ${secret}`;
-  const bodyOk = req.body?.secret === secret;
+  const headerOk = authHeader.startsWith('Bearer ') && secretsMatch(authHeader.slice(7), secret);
+  // The body channel stays -- public/admin-invite.html depends on it and
+  // both channels travel over HTTPS.
+  const bodyOk = secretsMatch(req.body?.secret, secret);
   return headerOk || bodyOk;
 }
 
@@ -49,6 +63,9 @@ export default async function handler(req, res) {
   const ok = await checkRateLimit(supabaseAdmin, req, res, 'admin-invite', {
     limit: 20,
     windowSeconds: 3600,
+    // Admin endpoint: if the limiter itself is broken, block rather than
+    // let requests through unlimited (see _rateLimit.js).
+    failClosed: true,
   });
   if (!ok) return;
 

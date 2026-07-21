@@ -68,7 +68,13 @@ export default async function handler(req, res) {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        const isActive = subscription.status === 'active' || subscription.status === 'trialing';
+        // past_due is included on purpose: it means a renewal charge failed
+        // and Stripe is still retrying the card. Keeping access during that
+        // window turns Stripe's smart retries into a grace period, instead
+        // of cutting someone off the instant a card expires. If the retries
+        // all fail, the status moves to canceled/unpaid and this same
+        // handler flips access off then.
+        const isActive = ['active', 'trialing', 'past_due'].includes(subscription.status);
         await supabaseAdmin
           .from('profiles')
           .update({ subscribed: isActive })

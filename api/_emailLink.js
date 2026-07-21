@@ -9,11 +9,16 @@
 // clicked.
 import crypto from 'crypto';
 
-const SECRET = process.env.EMAIL_LINK_SECRET || 'insecure-dev-secret-set-EMAIL_LINK_SECRET';
+// No fallback value on purpose: if the env var ever went missing in
+// production, a hardcoded fallback would make every link forgeable by
+// anyone who's read this file. A loud crash (these endpoints 500) is
+// strictly better than silently accepting forged links.
+const SECRET = process.env.EMAIL_LINK_SECRET;
+if (!SECRET) throw new Error('EMAIL_LINK_SECRET is not set');
 const SITE = 'https://trbo.bike';
 
 function sign(payload) {
-  return crypto.createHmac('sha256', SECRET).update(payload).digest('hex').slice(0, 32);
+  return crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
 }
 
 // Constant-time compare -- an ordinary === would leak timing information

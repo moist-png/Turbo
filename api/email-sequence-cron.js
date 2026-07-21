@@ -22,13 +22,13 @@ const SUB_DAYS = [0, 3, 9, 14];
 
 export default async function handler(req, res) {
   // Vercel's own scheduler sends this as a Bearer header automatically.
-  // Also accept it as a ?secret= query param so this can be triggered
-  // manually (from a browser, or a tool that can't set custom headers) for
-  // testing -- same secret either way, just a second channel to present it.
+  // Header only, deliberately: query strings end up in request logs, so a
+  // ?secret= channel would leave the secret written down in places it
+  // shouldn't be. To trigger a run manually for testing, use:
+  //   curl -H "Authorization: Bearer $CRON_SECRET" https://trbo.bike/api/email-sequence-cron
   const authHeader = req.headers.authorization || '';
   const headerOk = !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`;
-  const queryOk = !!process.env.CRON_SECRET && req.query?.secret === process.env.CRON_SECRET;
-  if (!headerOk && !queryOk) {
+  if (!headerOk) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

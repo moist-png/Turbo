@@ -15,6 +15,17 @@ import { SURVEY_ANSWERS, pageShell, pageP, pageH1, pageButton } from './_emailTe
 const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Anything that arrived in the URL and lands inside generated HTML gets
+// escaped first, so a crafted link can't smuggle markup into the page.
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function errorPage(res, status, message) {
   res.status(status).setHeader('Content-Type', 'text/html');
   res.send(pageShell(pageH1('Hmm.') + pageP(message)));
@@ -68,7 +79,7 @@ export default async function handler(req, res) {
       pageH1('Thanks — noted') +
       pageP(validAnswer.prompt + ' (totally optional)') +
       `<form method="POST" action="/api/survey">` +
-      `<input type="hidden" name="uid" value="${uid}" />` +
+      `<input type="hidden" name="uid" value="${escapeHtml(uid)}" />` +
       `<input type="hidden" name="fsig" value="${followupSig(uid)}" />` +
       `<textarea name="detail" rows="3" maxlength="500" style="width:100%;box-sizing:border-box;border:1px solid #E3D9C8;border-radius:8px;padding:10px;font-size:14px;font-family:Arial,Helvetica,sans-serif;"></textarea>` +
       `<div style="margin-top:10px;"><button type="submit" style="background:#2FC5AE;color:#14171A;border:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:10px;cursor:pointer;">Send</button></div>` +

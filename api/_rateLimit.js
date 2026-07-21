@@ -13,7 +13,7 @@
 // request body), so an IP-based limit is the one that actually can't be
 // talked around by just changing that field.
 
-export async function checkRateLimit(supabaseAdmin, req, res, action, { limit, windowSeconds }) {
+export async function checkRateLimit(supabaseAdmin, req, res, action, { limit, windowSeconds, failClosed = false }) {
   const forwardedFor = req.headers['x-forwarded-for'] || '';
   const ip = forwardedFor.split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
 
@@ -24,9 +24,17 @@ export async function checkRateLimit(supabaseAdmin, req, res, action, { limit, w
   });
 
   if (error) {
-    // If the rate limiter itself fails, don't take down the whole feature
-    // over it -- log it and let the request through.
+    // If the rate limiter itself fails, the default is to let the request
+    // through -- taking down surveys or unsubscribes because the counter
+    // hiccuped would hurt more than it protects (a deliberate availability
+    // choice). The exception is anything admin-grade: those pass
+    // failClosed: true, because there a broken limiter should block, not
+    // wave requests past the one guardrail on a powerful endpoint.
     console.error(`Rate limit check failed for ${action}:`, error);
+    if (failClosed) {
+      res.status(503).json({ error: 'Temporarily unavailable. Please try again shortly.' });
+      return false;
+    }
     return true;
   }
 
