@@ -3,7 +3,7 @@ import { CalendarDays, ChevronRight, ChevronDown, ChevronUp, Play, RefreshCw, Tr
 import {
   GOALS, PHASE, PURPOSE_LABEL, WORKOUT_PURPOSE,
   generatePlan, validatePlan, swapOptionsForPurpose, swapDayWorkout, applyCheckin,
-  progressionLevels,
+  progressionLevels, planHealth, planProposals, applyPlanProposal, dismissPlanProposal,
   estimateWorkoutTss, estimateOutdoorTss, currentPlanWeek, isPlanComplete, changePlanDaysPerWeek,
   planContinuationHint,
   WEEKDAY_LABELS, WEEKDAY_LABELS_FULL, defaultWeekdayPattern, setWeekdayPattern,
@@ -444,7 +444,7 @@ function WeekCard({ week, library, weekdayPattern, defaultOpen, isCurrent, cardR
 // ---------------------------------------------------------------------------
 // The main view. Holds the active plan; delegates onboarding to PlannerSetup.
 // ---------------------------------------------------------------------------
-export default function PlannerView({ plan, ftp, recentWeeklyTss, library, workoutHistory = [], onSavePlan, onOpenPlanWorkout, archivedPlans = [], onArchivePlan, onDeleteArchivedPlan, onLogOutdoor }) {
+export default function PlannerView({ plan, ftp, recentWeeklyTss, library, workoutHistory = [], ftpHistory = [], onSavePlan, onOpenPlanWorkout, archivedPlans = [], onArchivePlan, onDeleteArchivedPlan, onLogOutdoor }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dayEditor, setDayEditor] = useState(false);
   const [weekdayEditor, setWeekdayEditor] = useState(false);
@@ -485,6 +485,17 @@ export default function PlannerView({ plan, ftp, recentWeeklyTss, library, worko
     });
     onSavePlan(p);
   }
+
+  // Stage 2: plan health + repair proposals, recomputed whenever the plan
+  // or ride history changes. Both are pure reads; nothing touches the plan
+  // until the rider accepts a proposal.
+  const health = useMemo(() => (plan ? planHealth(plan, workoutHistory) : { status: 'no-data' }), [plan, workoutHistory]);
+  const proposals = useMemo(
+    () => (plan ? planProposals({ plan, workoutHistory, ftpHistory, library }) : []),
+    [plan, workoutHistory, ftpHistory, library]
+  );
+  function handleApplyProposal(p) { onSavePlan(applyPlanProposal(plan, p, library)); }
+  function handleDismissProposal(p) { onSavePlan(dismissPlanProposal(plan, p)); }
 
   function handleSwap(weekNumber, dayIndex, newWorkoutId) {
     onSavePlan(swapDayWorkout(plan, weekNumber, dayIndex, newWorkoutId, library));
@@ -536,6 +547,56 @@ export default function PlannerView({ plan, ftp, recentWeeklyTss, library, worko
             style={{ fontFamily: FONT_BODY, background: 'var(--accent)', border: 'none', borderRadius: 10, padding: '10px 16px', color: INK, fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>
             Finish &amp; archive
           </button>
+        </div>
+      )}
+
+      {/* Plan health: one calm line comparing recent actual load to plan.
+          Only appears once there's at least one completed week to judge. */}
+      {health.status !== 'no-data' && !planComplete && (
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 9, height: 9, borderRadius: 999, flexShrink: 0, background: health.status === 'on-track' ? 'var(--accent)' : health.status === 'running-hot' ? '#E2A93B' : '#C96A5B' }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: TEXT, fontWeight: 700 }}>
+              {health.status === 'on-track' ? 'On track' : health.status === 'running-hot' ? 'Running hot' : 'Losing ground'}
+            </div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
+              {`You've ridden about ${Math.round(health.ratio * 100)}% of the planned load over the last ${health.weeksConsidered.length === 1 ? 'week' : `${health.weeksConsidered.length} weeks`}.`}
+              {health.status === 'on-track' ? ' Right where the plan wants you.' : health.status === 'running-hot' ? ' More than planned — keep an eye on recovery.' : ' Less than planned — the suggestions below can help the plan meet you where you are.'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Repair & adjustment proposals (max 3). Each explains itself in one
+          sentence; nothing changes unless the rider accepts. Dismissals are
+          remembered on the plan, so nothing nags twice. */}
+      {proposals.length > 0 && !planComplete && (
+        <div style={{ marginBottom: 16 }}>
+          {proposals.map(p => (
+            <div key={p.id} style={{ background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 12, padding: 13, marginBottom: 8 }}>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: TEXT, fontWeight: 700, marginBottom: 4 }}>{p.title}</div>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: SUB, lineHeight: 1.55, marginBottom: 10 }}>{p.reason}</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {p.kind === 'note' ? (
+                  <button onClick={() => handleApplyProposal(p)}
+                    style={{ fontFamily: FONT_BODY, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 14px', color: TEXT, fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>
+                    Got it
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={() => handleApplyProposal(p)}
+                      style={{ fontFamily: FONT_BODY, background: 'var(--accent)', border: 'none', borderRadius: 9, padding: '8px 14px', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
+                      Apply
+                    </button>
+                    <button onClick={() => handleDismissProposal(p)}
+                      style={{ fontFamily: FONT_BODY, background: 'none', border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 14px', color: SUB, fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>
+                      No thanks
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

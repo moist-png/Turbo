@@ -18,6 +18,7 @@
 import {
   generatePlan, validatePlan, isHighStress, WORKOUT_PURPOSE,
   workoutDifficulty, progressionLevels,
+  planProposals, applyPlanProposal, planHealth, planWeekWindow, applyCheckin,
 } from '../src/planner.js';
 import { loadLibrary } from './extract-library.js';
 
@@ -44,8 +45,16 @@ let weeksChecked = 0;
 // so rotation is asserted per plan, per purpose.
 function checkPlan(input) {
   const plan = generatePlan({ ...input, library: LIBRARY, currentFtp: 200 });
+  assertPlan(plan, input);
+  return plan;
+}
+
+// Assert every invariant on an existing plan (freshly generated OR modified
+// by a check-in / repair proposal). `input` supplies the ramp-cap and
+// cadence expectations; `tag` marks scenario runs in failure output.
+function assertPlan(plan, input, tag) {
   plansChecked++;
-  const label = JSON.stringify({
+  const label = (tag ? tag + ' ' : '') + JSON.stringify({
     goal: input.goalKey, weeks: input.totalWeeks, days: input.daysPerWeek,
     hours: input.weeklyHours, multi: input.multiSport, age: input.trainingAge,
     band: input.riderAgeBand, recentTss: input.recentWeeklyTss,
@@ -209,6 +218,143 @@ for (const levels of syntheticLevelSets)
       for (const weeklyHours of [3, 6, 12])
         for (const totalWeeks of [8, 16])
           checkPlan({ goalKey, totalWeeks, daysPerWeek, weeklyHours, multiSport: false, trainingAge: null, riderAgeBand: null, recentWeeklyTss: 0, progressionLevels: levels });
+
+
+// ============================================================================
+// Stage 2 scenario suite: check-ins and repair proposals
+// ============================================================================
+// For representative plans, synthesise realistic histories (missed weeks,
+// missed key sessions, overshooting load, easy-rated hard sessions with a
+// stale FTP), collect the proposals the engine produces, APPLY each one, and
+// assert every invariant still holds on the resulting plan. Also asserts the
+// proposals themselves behave: they fire when they should, cap at 3, and
+// stay dismissed once dismissed.
+
+function historyFor(plan, weekNumbers, { share = 1, effortRating = null, tssScale = 1 } = {}) {
+  // Synthesise completed sessions for the given plan weeks: `share` of each
+  // week's days ridden, TSS scaled by tssScale, dated inside the week window.
+  const out = [];
+  let n = 0;
+  for (const wn of weekNumbers) {
+    const w = plan.weeks.find(x => x.weekNumber === wn);
+    if (!w) continue;
+    const { start } = planWeekWindow(plan, wn);
+    const count = Math.round(w.days.length * share);
+    w.days.slice(0, count).forEach((d, i) => {
+      out.push({
+        id: 'syn' + (n++), workoutId: d.workoutId, date: new Date(start.getTime() + (i + 0.5) * 86400000).toISOString(),
+        completed: true, tss: Math.round((d.plannedTss || 0) * tssScale), effortRating, outdoor: false,
+      });
+    });
+  }
+  return out;
+}
+
+function agedPlan(plan, weeksElapsed) {
+  // Re-date the plan so `weeksElapsed` full weeks sit in the past.
+  return { ...plan, createdAt: new Date(Date.now() - weeksElapsed * 7 * 86400000 - 3600000).toISOString() };
+}
+
+let scenarioCount = 0;
+const scenarioCombos = [];
+for (const goalKey of ['general-fitness', 'road-race', 'century', 'triathlon-bike'])
+  for (const [daysPerWeek, weeklyHours] of [[3, 4], [4, 8], [6, 12]])
+    for (const multiSport of [false, goalKey === 'triathlon-bike'])
+      scenarioCombos.push({ goalKey, totalWeeks: 8, daysPerWeek, weeklyHours, multiSport, trainingAge: null, riderAgeBand: null, recentWeeklyTss: 0 });
+
+for (const input of scenarioCombos) {
+  const base = generatePlan({ ...input, library: LIBRARY, currentFtp: 200 });
+
+  // --- Scenario A: week mostly missed → reentry proposal, applied ---
+  {
+    const plan = agedPlan(base, 3); // weeks 1-3 in the past, week 4 current
+    const hist = [
+      ...historyFor(plan, [1, 2], { share: 1 }),
+      ...historyFor(plan, [3], { share: 0 }), // week 3 fully missed
+    ];
+    const props = planProposals({ plan, workoutHistory: hist, ftpHistory: [], library: LIBRARY });
+    const reentry = props.find(p => p.kind === 'reentry');
+    if (!reentry) failures.push(`Scenario A: no reentry proposal after fully-missed week\n    at ${JSON.stringify(input)}`);
+    else {
+      const applied = applyPlanProposal(plan, reentry, LIBRARY);
+      assertPlan(applied, input, '[scenario A reentry]');
+      // The REMAINING plan's total load must drop. (The re-entry week itself
+      // can legitimately rise when it replaces a now-pointless deload week —
+      // it's the block as a whole that has to ease off.)
+      const sumFrom = p => p.weeks.filter(w => w.weekNumber >= reentry.params.fromWeek).reduce((a, w) => a + w.targetTss, 0);
+      if (sumFrom(applied) >= sumFrom(plan)) failures.push(`Scenario A: remaining load ${sumFrom(applied)} not below original ${sumFrom(plan)}\n    at ${JSON.stringify(input)}`);
+      scenarioCount++;
+    }
+  }
+
+  // --- Scenario B: overshooting load → pull-recovery proposal, applied ---
+  {
+    const plan = agedPlan(base, 2);
+    const hist = historyFor(plan, [1, 2], { share: 1, tssScale: 1.3 });
+    const props = planProposals({ plan, workoutHistory: hist, ftpHistory: [], library: LIBRARY });
+    const pull = props.find(p => p.kind === 'pull-recovery');
+    if (pull) {
+      const applied = applyPlanProposal(plan, pull, LIBRARY);
+      assertPlan(applied, input, '[scenario B pull-recovery]');
+      const w = applied.weeks.find(x => x.weekNumber === pull.params.weekNumber);
+      if (!w.isRecovery) failures.push(`Scenario B: pulled week not marked recovery\n    at ${JSON.stringify(input)}`);
+      scenarioCount++;
+    }
+    const health = planHealth(plan, hist);
+    if (health.status !== 'running-hot') failures.push(`Scenario B: 130% actuals not flagged running-hot (got ${health.status})\n    at ${JSON.stringify(input)}`);
+  }
+
+  // --- Scenario C: on-track rider → NO noisy proposals ---
+  {
+    const plan = agedPlan(base, 2);
+    const hist = historyFor(plan, [1, 2], { share: 1, effortRating: 3 });
+    const props = planProposals({ plan, workoutHistory: hist, ftpHistory: [{ date: new Date().toISOString(), ftp: 250 }], library: LIBRARY });
+    const loud = props.filter(p => p.kind !== 'note');
+    if (loud.length) failures.push(`Scenario C: on-track rider got proposals: ${loud.map(p => p.kind).join(',')}\n    at ${JSON.stringify(input)}`);
+    const health = planHealth(plan, hist);
+    if (health.status !== 'on-track') failures.push(`Scenario C: full compliance not on-track (got ${health.status})\n    at ${JSON.stringify(input)}`);
+  }
+
+  // --- Scenario D: stale FTP + hard sessions rated easy → retest, applied ---
+  {
+    const plan = agedPlan(base, 2);
+    const hist = historyFor(plan, [1, 2], { share: 1, effortRating: 2 });
+    const staleFtp = [{ date: new Date(Date.now() - 70 * 86400000).toISOString(), ftp: 250 }];
+    const props = planProposals({ plan, workoutHistory: hist, ftpHistory: staleFtp, library: LIBRARY });
+    const retest = props.find(p => p.kind === 'ftp-retest');
+    if (retest) {
+      const applied = applyPlanProposal(plan, retest, LIBRARY);
+      const day = applied.weeks.find(w => w.weekNumber === retest.params.weekNumber).days[retest.params.dayIndex];
+      if (day.workoutId !== 'ramp-ftp-test') failures.push(`Scenario D: test day not scheduled\n    at ${JSON.stringify(input)}`);
+      // A test day is deliberate; invariant 5 forbids tests only for normal
+      // slots, so validate the rest of the plan via validatePlan instead.
+      const v = validatePlan(applied);
+      if (!v.ok) failures.push(`Scenario D: validatePlan failed after retest: ${v.errors.join('|')}\n    at ${JSON.stringify(input)}`);
+      scenarioCount++;
+    }
+  }
+
+  // --- Scenario E: dismissal is remembered ---
+  {
+    const plan = agedPlan(base, 3);
+    const hist = historyFor(plan, [1, 2], { share: 1 });
+    const props = planProposals({ plan, workoutHistory: hist, ftpHistory: [], library: LIBRARY });
+    if (props.length) {
+      const dismissedPlan = { ...plan, dismissedProposals: props.map(p => p.id) };
+      const again = planProposals({ plan: dismissedPlan, workoutHistory: hist, ftpHistory: [], library: LIBRARY });
+      const repeats = again.filter(p => props.some(q => q.id === p.id));
+      if (repeats.length) failures.push(`Scenario E: dismissed proposals returned: ${repeats.map(p => p.id).join(',')}\n    at ${JSON.stringify(input)}`);
+    }
+  }
+
+  // --- Scenario F: every check-in answer produces a valid plan ---
+  for (const feedback of ['too-easy', 'about-right', 'too-hard', 'missed-a-lot']) {
+    const adjusted = applyCheckin(base, 2, feedback, LIBRARY, feedback === 'missed-a-lot' ? 'fatigue' : null);
+    assertPlan(adjusted, input, `[scenario F checkin:${feedback}]`);
+    scenarioCount++;
+  }
+}
+console.log(`Stage 2 scenarios exercised: ${scenarioCount} applied adjustments across ${scenarioCombos.length} plan shapes.`);
 
 // --- Report ---
 if (failures.length) {

@@ -662,11 +662,19 @@ const RAMP = {
 // non-null entry means "this week's target is fixed" (used when re-planning
 // after a check-in — the weeks already ridden stay put, and the ramp continues
 // smoothly from the last locked loading week).
-export function weeklyLoadTargets({ startWeeklyTss, phaseByWeek, recoveryFlags, multiSport, trainingAge, lockedTargets }) {
+// `rampBaseline` (optional): when re-planning after a check-in or a repair,
+// the future ramp should restart from an ADJUSTED baseline (e.g. "the rider
+// said too hard, ease back 15%" or "ramp from what was actually ridden, not
+// what was planned"). Without this, the locked weeks re-seed the ramp with
+// their original targets and any adjustment silently evaporates — which is
+// exactly the bug this parameter fixes: the first unlocked week now ramps
+// from `rampBaseline` instead of the last locked loading week's target.
+export function weeklyLoadTargets({ startWeeklyTss, phaseByWeek, recoveryFlags, multiSport, trainingAge, lockedTargets, rampBaseline }) {
   let maxRamp = multiSport ? RAMP.maxRampMulti : RAMP.maxRampSolo;
   if (trainingAge === 'new') maxRamp = Math.min(maxRamp, RAMP.maxRampNewRider);
   const targets = [];
   let lastLoadingLoad = startWeeklyTss; // the last non-recovery, non-taper load
+  let baselinePending = rampBaseline != null;
   phaseByWeek.forEach((phase, i) => {
     // If this week is locked, honour its fixed target and, if it's a loading
     // week, use it as the new ramp baseline so future weeks stay continuous.
@@ -675,6 +683,8 @@ export function weeklyLoadTargets({ startWeeklyTss, phaseByWeek, recoveryFlags, 
       if (!recoveryFlags[i] && phase !== 'taper') lastLoadingLoad = lockedTargets[i];
       return;
     }
+    // First unlocked week: restart the ramp from the adjusted baseline.
+    if (baselinePending) { lastLoadingLoad = rampBaseline; baselinePending = false; }
     let target;
     if (phase === 'taper') {
       // Progressive taper: each taper week sheds more volume.
@@ -1729,8 +1739,12 @@ export function applyCheckin(plan, weekNumber, feedback, library, reason) {
   // The first future loading week should land at baseTss * factor. Since
   // weeklyLoadTargets ramps the baseline up by (1+maxRamp) for the first
   // loading week, divide that step out here so the boundary ramp stays legal.
+  // The factor is also clamped so an upward adjustment ('too easy') can never
+  // exceed the rider's ramp cap — multi-sport riders cap at 5%, so their
+  // "too easy" bump is 5%, not 8%.
   const maxRamp = basePlan.multiSport ? RAMP.maxRampMulti : RAMP.maxRampSolo;
-  const adjustedBaseline = Math.max(80, Math.round((baseTss * factor) / (1 + maxRamp)));
+  const effectiveFactor = Math.min(factor, 1 + maxRamp);
+  const adjustedBaseline = Math.max(80, Math.round((baseTss * effectiveFactor) / (1 + maxRamp)));
 
   const targets = weeklyLoadTargets({
     startWeeklyTss: adjustedBaseline,
@@ -1738,6 +1752,7 @@ export function applyCheckin(plan, weekNumber, feedback, library, reason) {
     recoveryFlags,
     multiSport: basePlan.multiSport,
     lockedTargets,
+    rampBaseline: adjustedBaseline,
   });
 
   const weeks = basePlan.weeks.map((w, i) => {
@@ -1907,4 +1922,391 @@ export function changePlanDaysPerWeek(plan, newDays, fromWeek, library) {
     weekdayPattern: normalizeWeekdayPattern(plan.weekdayPattern, effectiveDays),
     dayChange: { fromWeek, requested: clamped, applied: effectiveDays, at: new Date().toISOString() },
   };
+}
+
+// ---------------------------------------------------------------------------
+// 12. Load intelligence (Stage 2)
+// ---------------------------------------------------------------------------
+// Everything below closes the loop between what was PLANNED and what actually
+// HAPPENED. It's all pure functions over the plan + workout history — no new
+// storage, no ML: the standard, decades-old impulse-response load model plus
+// explicit, explainable repair rules. Proposals are only ever suggestions;
+// nothing changes the plan until the rider accepts.
+// ---------------------------------------------------------------------------
+
+// --- 12a. Fitness / fatigue / freshness (the classic CTL/ATL/TSB model) ---
+// Fitness  = 42-day exponentially-weighted average of daily TSS (slow-moving)
+// Fatigue  =  7-day exponentially-weighted average (fast-moving)
+// Freshness = fitness − fatigue (negative = carrying fatigue, positive = fresh)
+export function loadModel(workoutHistory, now = new Date()) {
+  const DAYS = 120; // enough runway for the 42-day average to settle
+  const daily = new Array(DAYS).fill(0);
+  const dayMs = 86400000;
+  const startMs = now.getTime() - (DAYS - 1) * dayMs;
+  for (const s of workoutHistory || []) {
+    if (!s.tss) continue;
+    const t = new Date(s.date).getTime();
+    if (isNaN(t) || t < startMs || t > now.getTime() + dayMs) continue;
+    const idx = Math.min(DAYS - 1, Math.max(0, Math.floor((t - startMs) / dayMs)));
+    daily[idx] += s.tss;
+  }
+  const kFit = 1 / 42;
+  const kFat = 1 / 7;
+  let fitness = 0;
+  let fatigue = 0;
+  for (const tss of daily) {
+    fitness += (tss - fitness) * kFit;
+    fatigue += (tss - fatigue) * kFat;
+  }
+  return {
+    fitness: Math.round(fitness * 10) / 10,
+    fatigue: Math.round(fatigue * 10) / 10,
+    freshness: Math.round((fitness - fatigue) * 10) / 10,
+  };
+}
+
+// --- 12b. Plan calendar helpers ---
+// A plan's week N covers [createdAt + (N-1)*7d, +7d). Each Monday-start
+// weekday occurs exactly once inside that window, so a session slot's
+// concrete date is the date in the window whose weekday matches the slot's
+// weekdayPattern entry.
+export function planWeekWindow(plan, weekNumber) {
+  const start = new Date(new Date(plan.createdAt).getTime() + (weekNumber - 1) * 7 * 86400000);
+  const end = new Date(start.getTime() + 7 * 86400000);
+  return { start, end };
+}
+
+function slotDate(plan, weekNumber, slotIndex) {
+  const pattern = normalizeWeekdayPattern(plan.weekdayPattern, plan.daysPerWeek);
+  const wd = pattern[slotIndex];
+  if (wd == null) return null;
+  const { start } = planWeekWindow(plan, weekNumber);
+  for (let d = 0; d < 7; d++) {
+    const date = new Date(start.getTime() + d * 86400000);
+    if ((date.getDay() + 6) % 7 === wd) return date; // JS Sunday-start → Monday-start
+  }
+  return null;
+}
+
+// Sessions from history that fall inside a plan week's window (indoor plan
+// rides and confirmed outdoor rides both count toward load).
+function sessionsInWeek(plan, workoutHistory, weekNumber) {
+  const { start, end } = planWeekWindow(plan, weekNumber);
+  return (workoutHistory || []).filter(s => {
+    const t = new Date(s.date).getTime();
+    return !isNaN(t) && t >= start.getTime() && t < end.getTime();
+  });
+}
+
+export function actualWeeklyTss(plan, workoutHistory, weekNumber) {
+  return Math.round(sessionsInWeek(plan, workoutHistory, weekNumber).reduce((a, s) => a + (s.tss || 0), 0));
+}
+
+// Was this plan day actually ridden? Matched by workout id first; a
+// same-purpose completed session inside the week also counts (the rider
+// swapped, which is fine — the purpose got trained).
+function dayWasRidden(plan, workoutHistory, weekNumber, day) {
+  const sessions = sessionsInWeek(plan, workoutHistory, weekNumber);
+  if (sessions.some(s => s.completed && s.workoutId === day.workoutId)) return true;
+  return sessions.some(s => s.completed && s.workoutId && WORKOUT_PURPOSE[s.workoutId] === day.purpose);
+}
+
+// --- 12c. Plan health: actual vs planned, in one calm line ---
+// Looks at up to the last 3 FULLY COMPLETED plan weeks. Statuses:
+//   'on-track'   actuals within a sensible band of plan
+//   'running-hot' meaningfully over plan (risk: under-recovery)
+//   'detraining'  meaningfully under plan (risk: losing the adaptation)
+//   'no-data'     plan too young / nothing ridden yet
+export function planHealth(plan, workoutHistory, now = new Date()) {
+  if (!plan || !plan.weeks || !plan.createdAt) return { status: 'no-data' };
+  const cur = currentPlanWeek(plan, now);
+  const completedWeeks = plan.weeks.filter(w => w.weekNumber < cur).slice(-3);
+  if (!completedWeeks.length) return { status: 'no-data' };
+  let planned = 0;
+  let actual = 0;
+  for (const w of completedWeeks) {
+    // Compare against what was actually SCHEDULED (the sum of the week's
+    // session TSS), not the internal ramp target — when the time budget
+    // clamps a week below target, the rider can only ride what's on screen,
+    // and shouldn't be told they're behind for completing all of it.
+    planned += w.plannedTss || w.targetTss || 0;
+    actual += actualWeeklyTss(plan, workoutHistory, w.weekNumber);
+  }
+  if (planned <= 0) return { status: 'no-data' };
+  const ratio = actual / planned;
+  let status = 'on-track';
+  if (ratio >= 1.15) status = 'running-hot';
+  else if (ratio <= 0.75) status = 'detraining';
+  return {
+    status, ratio: Math.round(ratio * 100) / 100,
+    actualTss: actual, plannedTss: planned,
+    weeksConsidered: completedWeeks.map(w => w.weekNumber),
+    model: loadModel(workoutHistory, now),
+  };
+}
+
+// --- 12d. Repair & adjustment proposals (2.2–2.4) ---
+// Analyse plan vs reality and return AT MOST `maxProposals` suggestions,
+// each with a plain-English reason. The rider applies or dismisses each;
+// dismissals are remembered on the plan so the same suggestion never nags
+// twice. Priority when more than 3 fire: re-entry > key-session rescue >
+// early recovery > FTP retest > missed-easy note.
+
+const KEY_SESSION_PRIORITY = ['race', 'vo2max', 'threshold', 'sweetspot', 'anaerobic', 'climbing', 'tempo', 'endurance', 'recovery'];
+
+function keySessionIndex(days) {
+  let best = -1;
+  let bestRank = KEY_SESSION_PRIORITY.length;
+  days.forEach((d, i) => {
+    const rank = KEY_SESSION_PRIORITY.indexOf(d.purpose);
+    if (rank >= 0 && rank < bestRank) { bestRank = rank; best = i; }
+  });
+  return best;
+}
+
+function hasAdjacentHighStress(days) {
+  for (let i = 1; i < days.length; i++) {
+    if (isHighStress(days[i].purpose) && isHighStress(days[i - 1].purpose)) return true;
+  }
+  return false;
+}
+
+export function planProposals({ plan, workoutHistory, ftpHistory, library, now = new Date(), maxProposals = 3 }) {
+  if (!plan || !plan.weeks || !plan.createdAt) return [];
+  const dismissed = new Set(plan.dismissedProposals || []);
+  const cur = currentPlanWeek(plan, now);
+  const out = [];
+
+  // (1) Re-entry after a mostly-missed week (2.2c + 2.3b). Fires when the
+  // last completed week had most of its sessions unridden and hasn't already
+  // been answered via the weekly check-in.
+  const lastWeek = plan.weeks.find(w => w.weekNumber === cur - 1);
+  if (lastWeek && !lastWeek.checkin && lastWeek.days && lastWeek.days.length) {
+    const ridden = lastWeek.days.filter(d => dayWasRidden(plan, workoutHistory, lastWeek.weekNumber, d)).length;
+    const missedShare = 1 - ridden / lastWeek.days.length;
+    if (missedShare >= 0.6 && cur <= plan.weeks.length) {
+      // Ramp caps must be honoured from ACTUAL recent load, not the plan's.
+      const recentActual = Math.max(
+        actualWeeklyTss(plan, workoutHistory, cur - 1),
+        cur >= 3 ? Math.round(actualWeeklyTss(plan, workoutHistory, cur - 2) * 0.85) : 0,
+      );
+      const nextIsRecovery = (plan.weeks.find(w => w.weekNumber === cur) || {}).isRecovery;
+      out.push({
+        id: `reentry-w${cur}`,
+        kind: 'reentry',
+        title: 'Ease back in',
+        reason: `Most of week ${cur - 1} didn’t happen — that’s life. The safest restart is a lighter re-entry week ramping from what you actually rode, not what was planned.${nextIsRecovery ? ' The recovery week that was scheduled next isn’t needed now, so it becomes a light training week instead.' : ''}`,
+        params: { fromWeek: cur, actualBaseline: Math.max(80, recentActual) },
+      });
+    }
+  }
+
+  // (2) Key-session rescue (2.2b): this week's most important session was
+  // missed, and a later easy slot this week can host it instead.
+  const thisWeek = plan.weeks.find(w => w.weekNumber === cur);
+  if (thisWeek && thisWeek.days && thisWeek.days.length > 1 && !thisWeek.isRecovery) {
+    const keyIdx = keySessionIndex(thisWeek.days);
+    if (keyIdx >= 0 && isHighStress(thisWeek.days[keyIdx].purpose)) {
+      const keyDate = slotDate(plan, cur, keyIdx);
+      const keyMissed = keyDate
+        && now.getTime() > keyDate.getTime() + 86400000
+        && !dayWasRidden(plan, workoutHistory, cur, thisWeek.days[keyIdx]);
+      if (keyMissed) {
+        // Find a later easy slot whose day hasn't passed yet.
+        let toIdx = -1;
+        for (let i = 0; i < thisWeek.days.length; i++) {
+          const d = thisWeek.days[i];
+          const date = slotDate(plan, cur, i);
+          const upcoming = date && now.getTime() <= date.getTime() + 86400000;
+          const easy = ['endurance', 'recovery', 'tempo'].includes(d.purpose);
+          if (upcoming && easy && !dayWasRidden(plan, workoutHistory, cur, d)) { toIdx = i; break; }
+        }
+        if (toIdx >= 0) {
+          const swapped = thisWeek.days.slice();
+          [swapped[keyIdx], swapped[toIdx]] = [swapped[toIdx], swapped[keyIdx]];
+          if (!hasAdjacentHighStress(swapped)) {
+            out.push({
+              id: `rescue-w${cur}-${thisWeek.days[keyIdx].workoutId}`,
+              kind: 'rescue-key-session',
+              title: 'Rescue the key session',
+              reason: `${thisWeek.days[keyIdx].name} is this week's key session and its day has passed. It can take the ${WEEKDAY_LABELS_FULL[normalizeWeekdayPattern(plan.weekdayPattern, plan.daysPerWeek)[toIdx]]} slot instead — the easy ride moves to the earlier day, and no two hard days end up back-to-back.`,
+              params: { weekNumber: cur, fromIdx: keyIdx, toIdx },
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // (3) Pull the recovery week earlier (2.3a): actuals have been running
+  // meaningfully over plan and the next scheduled deload is still 2+ weeks out.
+  const health = planHealth(plan, workoutHistory, now);
+  if (health.status === 'running-hot') {
+    const next = plan.weeks.find(w => w.weekNumber === cur + 1);
+    const upcomingRecovery = plan.weeks.find(w => w.weekNumber > cur && w.isRecovery);
+    const recoveryFarAway = !upcomingRecovery || upcomingRecovery.weekNumber - cur >= 3;
+    if (next && next.phase !== 'taper' && !next.isRecovery && recoveryFarAway) {
+      out.push({
+        id: `pull-recovery-w${next.weekNumber}`,
+        kind: 'pull-recovery',
+        title: 'Take the recovery week early',
+        reason: `You've ridden about ${Math.round(health.ratio * 100)}% of the planned load over the last few weeks — more than the plan expected. Pulling the recovery week forward to next week lets that work actually sink in before building again.`,
+        params: { weekNumber: next.weekNumber },
+      });
+    }
+  }
+
+  // (4) FTP staleness (2.4): the number is old AND recent hard sessions keep
+  // coming back rated easy — the classic sign it's now too low.
+  const latestFtp = (ftpHistory || []).reduce((a, b) => (!a || new Date(b.date) > new Date(a.date) ? b : a), null);
+  const ftpAgeDays = latestFtp ? (now.getTime() - new Date(latestFtp.date).getTime()) / 86400000 : Infinity;
+  if (ftpAgeDays >= 49 && (ftpHistory || []).length) {
+    const recentHard = (workoutHistory || []).filter(s => {
+      const t = new Date(s.date).getTime();
+      if (isNaN(t) || now.getTime() - t > 35 * 86400000) return false;
+      if (!s.completed || s.outdoor || s.effortRating == null) return false;
+      return isHighStress(WORKOUT_PURPOSE[s.workoutId]);
+    });
+    const easies = recentHard.filter(s => s.effortRating <= 2).length;
+    const struggles = recentHard.filter(s => s.effortRating >= 4).length;
+    if (easies >= 2 && struggles === 0) {
+      // Schedule the test into the next loading week, replacing its key session.
+      const target = plan.weeks.find(w => w.weekNumber > cur && !w.isRecovery && w.phase !== 'taper');
+      const testWorkout = library.find(w => w.id === 'ramp-ftp-test');
+      if (target && testWorkout) {
+        const dayIdx = keySessionIndex(target.days || []);
+        if (dayIdx >= 0) {
+          out.push({
+            id: `ftp-retest-w${target.weekNumber}`,
+            kind: 'ftp-retest',
+            title: 'Time to retest your FTP',
+            reason: `Your FTP is ${Math.round(ftpAgeDays / 7)} weeks old and your recent hard sessions keep coming back rated easy — it's probably gone up. A ramp test slots into week ${target.weekNumber} in place of its hardest session, as a proper test day.`,
+            params: { weekNumber: target.weekNumber, dayIndex: dayIdx },
+          });
+        }
+      }
+    }
+  }
+
+  // (5) Missed easy day this week (2.2a): let it go, and say so.
+  if (thisWeek && thisWeek.days) {
+    for (let i = 0; i < thisWeek.days.length; i++) {
+      const d = thisWeek.days[i];
+      if (!['endurance', 'recovery'].includes(d.purpose)) continue;
+      const date = slotDate(plan, cur, i);
+      const passed = date && now.getTime() > date.getTime() + 86400000;
+      if (passed && !dayWasRidden(plan, workoutHistory, cur, d)) {
+        out.push({
+          id: `missed-easy-w${cur}-${i}`,
+          kind: 'note',
+          title: 'Missed an easy day — let it go',
+          reason: `${d.name} didn’t happen this week. Easy rides are the right ones to lose: don’t squeeze it in on top of the rest, just carry on with the week as planned.`,
+          params: {},
+        });
+        break; // one note is enough
+      }
+    }
+  }
+
+  return out.filter(p => !dismissed.has(p.id)).slice(0, maxProposals);
+}
+
+// Apply one accepted proposal. Returns a NEW plan; the original is untouched.
+export function applyPlanProposal(plan, proposal, library) {
+  if (!plan || !proposal) return plan;
+  const log = [...(plan.adaptationLog || []), {
+    at: new Date().toISOString(), id: proposal.id, kind: proposal.kind, reason: proposal.reason,
+  }];
+
+  if (proposal.kind === 'note') {
+    // Nothing to change — acknowledging just records it and stops the nag.
+    return { ...plan, adaptationLog: log, dismissedProposals: [...(plan.dismissedProposals || []), proposal.id] };
+  }
+
+  if (proposal.kind === 'rescue-key-session') {
+    const { weekNumber, fromIdx, toIdx } = proposal.params;
+    const weeks = plan.weeks.map(w => {
+      if (w.weekNumber !== weekNumber) return w;
+      const days = w.days.slice();
+      [days[fromIdx], days[toIdx]] = [days[toIdx], days[fromIdx]];
+      return { ...w, days };
+    });
+    return { ...plan, weeks, adaptationLog: log };
+  }
+
+  if (proposal.kind === 'pull-recovery') {
+    const { weekNumber } = proposal.params;
+    const recoveryFlags = plan.weeks.map(w => (w.weekNumber === weekNumber ? true : w.isRecovery));
+    const lockedTargets = plan.weeks.map(w => (w.weekNumber < weekNumber ? w.targetTss : null));
+    const targets = weeklyLoadTargets({
+      startWeeklyTss: plan.startWeeklyTss,
+      phaseByWeek: plan.weeks.map(w => w.phase),
+      recoveryFlags,
+      multiSport: plan.multiSport,
+      lockedTargets,
+    });
+    const weeks = plan.weeks.map((w, i) => (w.weekNumber < weekNumber
+      ? w
+      : { ...w, targetTss: targets[i], isRecovery: recoveryFlags[i], insertedRecovery: recoveryFlags[i] && !plan.weeks[i].isRecovery }));
+    return rebuildWeekWorkouts({ ...plan, weeks, adaptationLog: log }, library, weekNumber);
+  }
+
+  if (proposal.kind === 'reentry') {
+    const { fromWeek, actualBaseline } = proposal.params;
+    // The mostly-missed week WAS, in reality, a rest week — record it as one
+    // so recovery-cadence bookkeeping (and the rider's view of the block)
+    // matches what actually happened. And a scheduled recovery week
+    // immediately after it is pointless — nothing to recover from — so it
+    // converts to a light loading week.
+    const recoveryFlags = plan.weeks.map(w => {
+      if (w.weekNumber === fromWeek - 1) return true;
+      if (w.weekNumber === fromWeek) return false;
+      return w.isRecovery;
+    });
+    const lockedTargets = plan.weeks.map(w => (w.weekNumber < fromWeek ? w.targetTss : null));
+    // The remaining plan re-ramps from the load that ACTUALLY happened, not
+    // the planned number the missed week never reached. Divide out the first
+    // ramp step so the re-entry week itself lands at ~the actual baseline.
+    const maxRamp = plan.multiSport ? RAMP.maxRampMulti : RAMP.maxRampSolo;
+    const rampBaseline = Math.max(74, Math.round(actualBaseline / (1 + maxRamp)));
+    const targets = weeklyLoadTargets({
+      startWeeklyTss: rampBaseline,
+      phaseByWeek: plan.weeks.map(w => w.phase),
+      recoveryFlags,
+      multiSport: plan.multiSport,
+      lockedTargets,
+      rampBaseline,
+    });
+    const weeks = plan.weeks.map((w, i) => {
+      if (w.weekNumber === fromWeek - 1) return { ...w, isRecovery: true, deFactoRecovery: true };
+      if (w.weekNumber < fromWeek) return w;
+      return { ...w, targetTss: targets[i], isRecovery: recoveryFlags[i], insertedRecovery: false, reentry: w.weekNumber === fromWeek ? true : w.reentry };
+    });
+    return rebuildWeekWorkouts({ ...plan, weeks, adaptationLog: log }, library, fromWeek);
+  }
+
+  if (proposal.kind === 'ftp-retest') {
+    const { weekNumber, dayIndex } = proposal.params;
+    const testWorkout = library.find(w => w.id === 'ramp-ftp-test');
+    if (!testWorkout) return plan;
+    const nativeSeconds = testWorkout.intervals.reduce((a, b) => a + b.duration, 0);
+    const nativeTss = estimateWorkoutTss(testWorkout.intervals);
+    const weeks = plan.weeks.map(w => {
+      if (w.weekNumber !== weekNumber) return w;
+      const days = w.days.map((d, i) => (i === dayIndex
+        ? { purpose: 'test', workoutId: testWorkout.id, name: testWorkout.name, nativeSeconds, nativeTss, fixedLength: true, plannedSeconds: nativeSeconds, plannedTss: nativeTss, isTestDay: true }
+        : d));
+      return { ...w, days, plannedTss: days.reduce((a, d) => a + d.plannedTss, 0), plannedSeconds: days.reduce((a, d) => a + d.plannedSeconds, 0) };
+    });
+    return { ...plan, weeks, adaptationLog: log };
+  }
+
+  return plan;
+}
+
+// Dismiss a proposal without applying it — remembered on the plan so the
+// same suggestion never returns.
+export function dismissPlanProposal(plan, proposal) {
+  if (!plan || !proposal) return plan;
+  return { ...plan, dismissedProposals: [...(plan.dismissedProposals || []), proposal.id] };
 }
