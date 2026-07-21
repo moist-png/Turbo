@@ -60,7 +60,30 @@ above.
 
 ---
 
-## Batch 2 — Repo hygiene: untrack `dist/` and `node_modules/`
+## Batch 2 — Repo hygiene: untrack `dist/` and `node_modules/` — ✅ SHIPPED 21 July 2026
+
+22,090 files untracked (22,069 node_modules + 21 dist) — the repo's
+tracked file count dropped from 22,239 to ~150 actual source files.
+Shipped as its own commit with nothing else in it.
+
+- Precondition 1 verified: both Codemagic workflows run `npm ci` +
+  `npm run build` before `npx cap sync` — nothing relies on committed
+  build output.
+- Precondition 2 verified: Vercel project uses the standard Vite
+  framework build (no overridden build command).
+- `.gitignore` added (node_modules/, dist/, .DS_Store).
+- History deliberately NOT rewritten — the old blobs stay in `.git`
+  (clones stay chunky) but every future commit/diff/status is clean.
+- Vercel production deploy after the push: green, verified.
+- **Still open when you next look:** glance at Codemagic and confirm the
+  iOS + Android builds triggered by this push both went green (couldn't
+  be watched from the session — no Codemagic connector).
+- The trbo-ops skill's workflow step 7 ("revert dist/ before
+  committing") is now obsolete — update the skill next time it's edited.
+
+Original steps for reference below.
+
+### Original plan (completed)
 
 The repo tracks ~22,000 files of build output and installed packages.
 This slows every clone and creates the recurring "revert dist/ before
