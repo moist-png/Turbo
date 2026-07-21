@@ -1003,6 +1003,20 @@ create policy "Users can rename own saved queues" on public.saved_queues for upd
 drop policy if exists "Users can delete own saved queues" on public.saved_queues;
 create policy "Users can delete own saved queues" on public.saved_queues for delete using (auth.uid() = user_id);
 
+-- 20c. Post-ride effort survey (Stage 1.1 of the planner roadmap). After a
+--      completed session the app asks one tap-to-answer question ("How did
+--      that feel?"); the answer lands in effort_rating (1 Easy .. 5 Couldn't
+--      finish). intensity_adjust records the intensity offset (percent, e.g.
+--      -10) the rider ended the ride on -- finishing a threshold day at -10%
+--      is itself a meaningful difficulty signal. Both are nullable and the
+--      app degrades gracefully if these columns don't exist yet. The UPDATE
+--      policy is new: the survey answer arrives a few seconds after the row
+--      is inserted, so riders need to be able to update their own rows.
+alter table public.workout_history add column if not exists effort_rating smallint;
+alter table public.workout_history add column if not exists intensity_adjust smallint;
+drop policy if exists "Users can update own workout history" on public.workout_history;
+create policy "Users can update own workout history" on public.workout_history for update using (auth.uid() = user_id);
+
 -- 21. The BEFORE UPDATE trigger in section 6b stops writes to the
 --     credential/billing columns, but does nothing about reads -- Supabase's
 --     default table-wide SELECT grant meant a signed-in person's own

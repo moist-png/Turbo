@@ -5997,7 +5997,7 @@ function clearActiveSession() {
   try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch (e) {}
 }
 
-function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, isDemo, queueInfo, onQueueAdvance, workoutHistory, resume, sessionMeta }) {
+function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSaveFtpResult, onApplyFtp, onSessionEnd, onEffortRating, isDemo, queueInfo, onQueueAdvance, workoutHistory, resume, sessionMeta }) {
   const intervals = workout.intervals;
   const isRampTest = !!workout.autoStopTest;
   const [currentIndex, setCurrentIndex] = useState(() => (resume && resume.index < intervals.length ? resume.index : 0));
@@ -6026,6 +6026,8 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const underPowerStreakRef = useRef(0); // consecutive seconds under the fail threshold
   const triggerAutoStopRef = useRef(() => {});
   const loggedRef = useRef(false); // guards against logging the same session twice
+  const sessionIdRef = useRef(null); // id of the history row this session wrote, for the post-ride survey
+  const [effortGiven, setEffortGiven] = useState(0); // 0 = not answered yet
   const halfwayPlayedRef = useRef(false); // guards the halfway chime from repeating
   const offTargetStreakRef = useRef(0); // consecutive seconds off-target, for the nudge tone
   const confettiRef = useRef([]); // randomized confetti pieces, generated once per celebration
@@ -6087,14 +6089,23 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     // to our database or sent to any third party. Keeping heart rate out of
     // stored records keeps it from becoming health data that we hold.
     if (onSessionEnd) {
-      onSessionEnd({
+      // The intensity offset the rider ended on (e.g. -10 for 90%) is itself
+      // a difficulty signal for the planner: finishing a threshold day at
+      // -10% says something without a survey answer. Only recorded for
+      // adjustable workouts, and only when it was actually moved.
+      const endAdjust = (!workout.fixedLength && intensityAdjust !== 1)
+        ? Math.round((intensityAdjust - 1) * 100)
+        : null;
+      const sid = onSessionEnd({
         workoutId: workout.id || null,
         name: workout.name,
         category: workout.category || 'Custom',
         duration: dur,
         completed,
         avgPower, maxPower, tss, calories,
+        intensityAdjust: endAdjust,
       });
+      sessionIdRef.current = sid || null;
     }
   }
 
@@ -6394,6 +6405,8 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     setCelebrate(false);
     sessionPowerRef.current = [];
     sessionHrRef.current = [];
+    sessionIdRef.current = null;
+    setEffortGiven(0);
   }
   // Exit and restart both throw away an in-progress effort, so while the
   // workout is actively running we interrupt with a confirmation dialog
@@ -6581,6 +6594,41 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           {isDone && (
             <div style={{ fontFamily: FONT_BODY, fontSize: 16, color: SUB, marginTop: 6 }}>
               {testResult ? 'Estimated FTP — saved to your FTP history' : 'Nice work — here’s how it went.'}
+            </div>
+          )}
+
+          {/* One-tap post-ride survey. Skippable (just leave it), never shown
+              for FTP tests or demo rides, and it disappears into a quiet
+              thank-you once answered. The answer updates the history row
+              this session just wrote. */}
+          {isDone && !testResult && !isDemo && onEffortRating && (
+            <div style={{ marginTop: 14, maxWidth: 440, margin: '14px auto 0' }}>
+              {effortGiven ? (
+                <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: SUB, textAlign: 'center' }}>
+                  Noted — this helps your plan learn what suits you.
+                </div>
+              ) : (
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px' }}>
+                  <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: SUB, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', textAlign: 'center', marginBottom: 10 }}>
+                    How did that feel?
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {[
+                      { v: 1, label: 'Easy' },
+                      { v: 2, label: 'Moderate' },
+                      { v: 3, label: 'Hard' },
+                      { v: 4, label: 'Very hard' },
+                      { v: 5, label: "Couldn’t finish" },
+                    ].map(o => (
+                      <button key={o.v}
+                        onClick={() => { setEffortGiven(o.v); onEffortRating(sessionIdRef.current, o.v); }}
+                        style={{ padding: '7px 12px', borderRadius: 999, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontFamily: FONT_BODY, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -7929,7 +7977,7 @@ export default function App() {
       const { data: history } = await supabase.from('ftp_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
       if (mounted && history) setFtpHistory(history.map(h => ({ id: h.id, date: h.date, ftp: h.ftp, source: h.source })));
       const { data: sessions } = await supabase.from('workout_history').select('*').eq('user_id', user.id).order('date', { ascending: true });
-      if (mounted && sessions) setWorkoutHistory(sessions.map(s => ({ id: s.id, date: s.date, workoutId: s.workout_id, name: s.name, category: s.category, duration: s.duration, completed: s.completed, avgPower: s.avg_power, maxPower: s.max_power, tss: s.tss, calories: s.calories })));
+      if (mounted && sessions) setWorkoutHistory(sessions.map(s => ({ id: s.id, date: s.date, workoutId: s.workout_id, name: s.name, category: s.category, duration: s.duration, completed: s.completed, avgPower: s.avg_power, maxPower: s.max_power, tss: s.tss, calories: s.calories, outdoor: !!s.outdoor, rpe: s.rpe ?? null, intensityAdjust: s.intensity_adjust ?? null, effortRating: s.effort_rating ?? null })));
       // Archived (finished/retired) training plans. Wrapped so that if the
       // archived_plans table hasn't been created yet, the app still loads
       // fine and simply shows no history.
@@ -8153,15 +8201,23 @@ export default function App() {
   // Heart rate is intentionally absent from everything below. It is displayed
   // live during a ride and included in the file the rider exports themselves,
   // but it is never written to our database and never sent to Strava.
-  function recordWorkoutSession({ workoutId, name, category, duration, completed, avgPower, maxPower, tss, calories, outdoor, rpe }) {
-    const entry = { id: newId(), date: new Date().toISOString(), workoutId, name, category, duration, completed, avgPower, maxPower, tss, calories, outdoor: !!outdoor, rpe: rpe ?? null };
+  function recordWorkoutSession({ workoutId, name, category, duration, completed, avgPower, maxPower, tss, calories, outdoor, rpe, intensityAdjust }) {
+    const entry = { id: newId(), date: new Date().toISOString(), workoutId, name, category, duration, completed, avgPower, maxPower, tss, calories, outdoor: !!outdoor, rpe: rpe ?? null, intensityAdjust: intensityAdjust ?? null, effortRating: null };
     setWorkoutHistory(list => [...list, entry]);
-    if (user) supabase.from('workout_history').insert({
-      id: entry.id, user_id: user.id, workout_id: workoutId, name, category, duration, completed, date: entry.date,
-      avg_power: avgPower ?? null, max_power: maxPower ?? null,
-      tss: tss ?? null, calories: calories ?? null,
-      outdoor: !!outdoor, rpe: rpe ?? null,
-    }).then(() => {});
+    if (user) {
+      const baseRow = {
+        id: entry.id, user_id: user.id, workout_id: workoutId, name, category, duration, completed, date: entry.date,
+        avg_power: avgPower ?? null, max_power: maxPower ?? null,
+        tss: tss ?? null, calories: calories ?? null,
+        outdoor: !!outdoor, rpe: rpe ?? null,
+      };
+      // Try the full row first; if the survey columns haven't been added to
+      // the database yet, the insert fails as a whole -- so retry without
+      // them rather than lose the ride from history.
+      supabase.from('workout_history').insert({ ...baseRow, intensity_adjust: intensityAdjust ?? null }).then(({ error }) => {
+        if (error) supabase.from('workout_history').insert(baseRow).then(() => {});
+      });
+    }
     // Only push genuinely finished rides of real length to Strava — not
     // aborted attempts, and not confirmed-outdoor entries, since those were
     // ridden outside the app and the rider's own head unit/computer has
@@ -8173,6 +8229,16 @@ export default function App() {
         body: JSON.stringify({ name, durationSeconds: duration, date: entry.date, avgPower, maxPower }),
       }).catch(() => {});
     }
+    return entry.id;
+  }
+  // One-tap post-ride survey answer (1 Easy .. 5 Couldn't finish), attached
+  // to the session row that was just recorded. Fails silently if the
+  // effort_rating column doesn't exist yet -- the local copy still updates,
+  // so the finish screen behaves the same either way.
+  function rateWorkoutSession(sessionId, rating) {
+    if (!sessionId || !rating) return;
+    setWorkoutHistory(list => list.map(e => (e.id === sessionId ? { ...e, effortRating: rating } : e)));
+    if (user) supabase.from('workout_history').update({ effort_rating: rating }).eq('id', sessionId).eq('user_id', user.id).then(() => {});
   }
   // A confirmed outdoor ride logged after the fact (no live session, so no
   // power data) — duration + RPE feed estimateOutdoorTss for a fallback load
@@ -8498,7 +8564,7 @@ export default function App() {
         <style>{globalStyle}</style>
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
           <PlayerView key={current.id + '_q' + activeQueueIndex} workout={current} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate}
-            onExit={exitQueue} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession}
+            onExit={exitQueue} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} onEffortRating={rateWorkoutSession}
             queueInfo={queueInfo} onQueueAdvance={advanceQueue} workoutHistory={workoutHistory}
             resume={resume} sessionMeta={{ kind: 'queue', queueWorkouts: activeQueue, queueIndex: activeQueueIndex }} />
         </OrientationGate>
@@ -8512,7 +8578,7 @@ export default function App() {
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
         <OrientationGate preferredOrientation={settings.preferredOrientation}>
-          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => { clearActiveSession(); setActiveWorkout(null); }} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} workoutHistory={workoutHistory}
+          <PlayerView workout={activeWorkout} ftp={ftp} settings={settings} trainer={trainer} heartRate={heartRate} onExit={() => { clearActiveSession(); setActiveWorkout(null); }} onSaveFtpResult={recordFtpResult} onApplyFtp={setFtp} onSessionEnd={recordWorkoutSession} onEffortRating={rateWorkoutSession} workoutHistory={workoutHistory}
             resume={resume} sessionMeta={{ kind: 'single' }} />
         </OrientationGate>
       </div>
