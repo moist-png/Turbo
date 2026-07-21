@@ -61,7 +61,7 @@ async function apiFetch(url, options = {}) {
 // created_at, which the UI never reads either. Row Level Security limits
 // *which row* someone can read, not which columns in it, so naming exactly
 // the columns wanted here is what keeps those tokens out of the browser.
-const PROFILE_COLUMNS = 'id, name, ftp, trial_start, subscribed, settings, strava_athlete_id, training_plan, comp_access, comp_expires_at';
+const PROFILE_COLUMNS = 'id, name, ftp, trial_start, subscribed, settings, strava_athlete_id, training_plan, comp_access, comp_expires_at, subscription_paused, subscription_paid_through';
 
 // ---------- palette ----------
 // TEXT/SUB/PANEL/PANEL2/LINE/RED/BG/MUTED resolve through CSS custom
@@ -6755,10 +6755,35 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 }
 
 // ---------- settings view ----------
-function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, testerCompActive, testerCompDaysLeft, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
+function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, testerCompActive, testerCompDaysLeft, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava, subscriptionPaused, subscriptionPaidThrough }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalError, setPortalError] = useState('');
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [confirmPause, setConfirmPause] = useState(false);
+
+  // Pausing stops the card being charged without cancelling. A full reload
+  // afterwards is deliberate: subscription state is read once when the app
+  // starts, and this is a rare enough action that a clean reload is more
+  // trustworthy than threading the new state back up by hand.
+  async function setPaused(nextPaused) {
+    setPauseBusy(true);
+    setPortalError('');
+    try {
+      const res = await apiFetch('/api/pause-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: nextPaused ? 'pause' : 'resume' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not update your membership.');
+      window.location.reload();
+    } catch (err) {
+      setPortalError(err.message || 'Something went wrong. Please try again.');
+      setPauseBusy(false);
+      setConfirmPause(false);
+    }
+  }
 
   // Sends the rider to Stripe's own subscription management page, where they
   // can change the card on file, download invoices, or cancel. The URL is
@@ -7004,6 +7029,31 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           </SettingRow>
           {portalError && (
             <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: RED, padding: '0 0 10px' }}>{portalError}</div>
+          )}
+          {subscribed && !compAccess && (
+            <SettingRow
+              label={subscriptionPaused ? 'Membership paused' : 'Taking a break?'}
+              sub={subscriptionPaused
+                ? (subscriptionPaidThrough
+                    ? `You won't be charged again. Access runs until ${new Date(subscriptionPaidThrough).toLocaleDateString()}, then resume any time to pick up where you left off.`
+                    : "You won't be charged again. Resume any time to pick up where you left off.")
+                : 'Pause billing over the off-season. Your plan, history and FTP all stay put, and you keep riding until the month you\u2019ve already paid for runs out.'}
+            >
+              {subscriptionPaused ? (
+                <button onClick={() => setPaused(false)} disabled={pauseBusy} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: pauseBusy ? 'default' : 'pointer', opacity: pauseBusy ? 0.6 : 1 }}>
+                  {pauseBusy ? 'Resuming…' : 'Resume'}
+                </button>
+              ) : confirmPause ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setConfirmPause(false)} disabled={pauseBusy} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: SUB, fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => setPaused(true)} disabled={pauseBusy} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 10px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: pauseBusy ? 'default' : 'pointer', opacity: pauseBusy ? 0.6 : 1 }}>
+                    {pauseBusy ? 'Pausing…' : 'Confirm pause'}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmPause(true)} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Pause membership</button>
+              )}
+            </SettingRow>
           )}
         </>
       )}
@@ -8565,7 +8615,14 @@ export default function App() {
   }
 
   const account = { name: profile.name || user.user_metadata?.name || 'Rider', email: user.email };
-  const subscribed = !!profile.subscribed;
+  // A paused membership stays "subscribed" in Stripe's eyes -- billing just
+  // stops. So paused riders keep everything until the period they already
+  // paid for runs out, and only then does access lapse. Without this second
+  // condition, pausing would quietly become a free membership for life.
+  const subscriptionPaused = !!profile.subscription_paused;
+  const paidThroughAt = profile.subscription_paid_through ? new Date(profile.subscription_paid_through).getTime() : null;
+  const pausedAccessExpired = subscriptionPaused && paidThroughAt != null && paidThroughAt <= Date.now();
+  const subscribed = !!profile.subscribed && !pausedAccessExpired;
   const compAccess = !!profile.comp_access; // friends & family: free, permanent access, no card ever
   // Tester comp: free access that expires on its own -- granted automatically
   // (see handle_new_user in supabase-setup.sql) to anyone who signs up via a
@@ -8671,6 +8728,7 @@ export default function App() {
                 settings={settings} updateSetting={updateSetting} ftp={ftp} setFtp={setFtp} trainer={trainer} heartRate={heartRate}
                 customWorkouts={customWorkouts} onResetCustom={resetCustomWorkouts} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory}
                 account={account} daysLeft={daysLeft} subscribed={subscribed} compAccess={compAccess} testerCompActive={testerCompActive} testerCompDaysLeft={testerCompDaysLeft} onLogout={handleLogout} onShowPaywall={() => setShowPaywallModal(true)}
+                subscriptionPaused={subscriptionPaused} subscriptionPaidThrough={profile.subscription_paid_through}
                 ownerStats={ownerStats}
                 stravaConnected={!!(profile && profile.strava_athlete_id)} onConnectStrava={connectStrava} onDisconnectStrava={disconnectStrava}
               />

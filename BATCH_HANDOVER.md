@@ -177,7 +177,38 @@ check — Settings → Billing → Subscriptions and emails: confirm smart
 retries are on and the after-final-failure outcome is set to cancel the
 subscription.
 
-### 4.2 Subscription pause — ⚠️ PARTIALLY SHIPPED 21 July 2026 (pause blocked)
+### 4.2 Subscription pause — ✅ SHIPPED 21 July 2026 (custom build, not portal)
+
+Pause is live via our own endpoint, since Stripe's portal doesn't offer
+self-serve pause. `api/pause-subscription.js` sets `pause_collection`
+(behavior `void`) to pause and clears it to resume; a Pause/Resume row
+sits under Account & subscription in Settings, behind a confirm step.
+
+**The trap this had to avoid:** a paused Stripe subscription keeps status
+`active`, so the webhook's status check alone would have granted free
+access forever. Two new profile columns fix that —
+`subscription_paused` and `subscription_paid_through` — written by the
+webhook (and optimistically by the endpoint) and enforced in App.jsx:
+a paused rider keeps access until their already-paid period ends, then
+it lapses. Both columns are in the `protect_service_only_columns`
+trigger, so the browser can read but never write them. Verified against
+8 access cases including cancel-while-paused and comped testers.
+
+**Hubert must run `supabase-setup.sql`** (section 22) before this works
+— until the columns exist the fields read as undefined, access behaves
+exactly as it does today, and nothing breaks.
+
+**Still to verify in live mode on Hubert's own account:** that
+`pause_collection` is accepted under Managed Payments once eligibility
+clears. It isn't on Stripe's list of unsupported Managed Payments
+operations, but it wasn't confirmable from here. If it's rejected, the
+fallback is cancel-at-period-end plus a re-subscribe prompt.
+
+4.3 may now use "pause any time" as a headline once the above is
+confirmed working live.
+
+### Earlier finding (kept for context)
+### 4.2 Subscription pause — portal route investigated
 
 **Shipped:** `api/customer-portal.js` + a "Manage subscription" button in
 Settings (subscribers only). Card updates, invoices, and self-serve

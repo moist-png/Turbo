@@ -1039,3 +1039,52 @@ grant select (
   strava_athlete_id, training_plan, comp_access, comp_expires_at
 ) on public.profiles to authenticated, anon;
 
+
+-- 22. Subscription pause ("seasonal rider"). Riders who stop training over
+--     winter can pause billing instead of cancelling outright.
+--
+--     How it works: pausing sets `pause_collection` on the Stripe
+--     subscription, which stops Stripe charging the card. Crucially the
+--     subscription's *status* stays "active" the whole time it's paused --
+--     so the status check in api/stripe-webhook.js alone would happily
+--     grant free access forever. These two columns are what prevent that:
+--     the webhook records that the subscription is paused and the date the
+--     already-paid-for period runs out, and the app grants access only
+--     until that date passes.
+alter table public.profiles add column if not exists subscription_paused boolean not null default false;
+alter table public.profiles add column if not exists subscription_paid_through timestamptz;
+
+-- Both are billing state, so they belong in the same locked-down group as
+-- `subscribed` -- otherwise a rider could set subscription_paid_through to
+-- the year 3000 from their browser console and ride free indefinitely.
+-- (This replaces the version of the function in section 6b; re-running the
+-- whole file is safe and lands on this final definition.)
+create or replace function public.protect_service_only_columns()
+returns trigger as $$
+begin
+  if current_user not in ('postgres', 'service_role') then
+    if new.subscribed is distinct from old.subscribed
+       or new.stripe_customer_id is distinct from old.stripe_customer_id
+       or new.stripe_subscription_id is distinct from old.stripe_subscription_id
+       or new.subscription_paused is distinct from old.subscription_paused
+       or new.subscription_paid_through is distinct from old.subscription_paid_through
+       or new.comp_access is distinct from old.comp_access
+       or new.comp_expires_at is distinct from old.comp_expires_at
+       or new.strava_access_token is distinct from old.strava_access_token
+       or new.strava_refresh_token is distinct from old.strava_refresh_token
+       or new.strava_token_expires_at is distinct from old.strava_token_expires_at then
+      raise exception 'This field can only be changed by the server.';
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security invoker;
+
+-- The rider's own browser needs to *read* these two to know whether to show
+-- "Pause" or "Resume" and when paused access runs out. Reading is fine --
+-- the trigger above is what stops them being written.
+grant select (
+  id, name, ftp, trial_start, subscribed, settings, created_at,
+  strava_athlete_id, training_plan, comp_access, comp_expires_at,
+  subscription_paused, subscription_paid_through
+) on public.profiles to authenticated, anon;

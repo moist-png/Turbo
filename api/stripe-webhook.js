@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       }
       // Fired later on renewals, failed payments, or cancellations \u2014 keeps
       // the "subscribed" flag accurate for the life of the subscription.
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
@@ -75,9 +76,31 @@ export default async function handler(req, res) {
         // all fail, the status moves to canceled/unpaid and this same
         // handler flips access off then.
         const isActive = ['active', 'trialing', 'past_due'].includes(subscription.status);
+
+        // A paused subscription keeps the status "active" -- Stripe simply
+        // stops collecting. So status alone can't tell us whether to grant
+        // access; without the two fields below, pausing would hand out a
+        // free membership forever. We record the pause and the date the
+        // already-paid-for period ends, and the app cuts access after it.
+        const paused = !!subscription.pause_collection;
+
+        // Stripe moved current_period_end from the subscription onto its
+        // items in newer API versions. Read whichever one this account's
+        // version provides rather than assuming.
+        const periodEndSeconds =
+          subscription.current_period_end ??
+          subscription.items?.data?.[0]?.current_period_end ??
+          null;
+        const paidThrough = periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null;
+
+        const update = { subscribed: isActive, subscription_paused: paused };
+        // Don't blank an existing date if this particular event didn't
+        // carry one -- a null here would read as "paid through never".
+        if (paidThrough) update.subscription_paid_through = paidThrough;
+
         await supabaseAdmin
           .from('profiles')
-          .update({ subscribed: isActive })
+          .update(update)
           .eq('stripe_subscription_id', subscription.id);
         break;
       }
