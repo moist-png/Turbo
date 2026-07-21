@@ -6757,6 +6757,30 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 // ---------- settings view ----------
 function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, testerCompActive, testerCompDaysLeft, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava }) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [portalError, setPortalError] = useState('');
+
+  // Sends the rider to Stripe's own subscription management page, where they
+  // can change the card on file, download invoices, or cancel. The URL is
+  // single-use and expires quickly, so it's fetched fresh on each tap rather
+  // than stored anywhere.
+  async function openBillingPortal() {
+    setPortalBusy(true);
+    setPortalError('');
+    try {
+      const res = await apiFetch('/api/customer-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not open subscription management.');
+      window.location.href = data.url;
+    } catch (err) {
+      setPortalError(err.message || 'Something went wrong. Please try again.');
+      setPortalBusy(false);
+    }
+  }
+
   const cvd = settings.colorblindMode;
   const connectedColor = cvd ? '#009E73' : '#8FC93A';
   const connectingColor = cvd ? '#E69F00' : '#FF9F40';
@@ -6967,12 +6991,20 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           </SettingRow>
           <SettingRow
             label={compAccess ? 'Friends & family — free access' : testerCompActive ? `Tester access — ${testerCompDaysLeft} day${testerCompDaysLeft === 1 ? '' : 's'} left` : subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
-            sub={compAccess ? 'Complimentary access, no card on file' : testerCompActive ? 'Thanks for testing — this expires automatically, no action needed' : subscribed ? 'Manage billing or cancel from your Stripe receipt email' : 'No charge yet in this demo'}
+            sub={compAccess ? 'Complimentary access, no card on file' : testerCompActive ? 'Thanks for testing — this expires automatically, no action needed' : subscribed ? 'Update your card, view invoices, or cancel any time' : 'No charge yet in this demo'}
           >
             {!subscribed && !compAccess && (
               <button onClick={onShowPaywall} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
             )}
+            {subscribed && !compAccess && (
+              <button onClick={openBillingPortal} disabled={portalBusy} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: portalBusy ? 'default' : 'pointer', opacity: portalBusy ? 0.6 : 1 }}>
+                {portalBusy ? 'Opening…' : 'Manage subscription'}
+              </button>
+            )}
           </SettingRow>
+          {portalError && (
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: RED, padding: '0 0 10px' }}>{portalError}</div>
+          )}
         </>
       )}
 
