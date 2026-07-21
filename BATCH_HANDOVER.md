@@ -114,7 +114,28 @@ Update the trbo-ops skill's workflow step 7 note once this lands.
 
 ---
 
-## Batch 3 — Performance: load screens on demand + small backend tidy
+## Batch 3 — Performance: load screens on demand + small backend tidy — ✅ SHIPPED 21 July 2026
+
+- **3.1** MiniGames, PlannerView, Feedback, TermsPage, PrivacyPage all
+  lazy-loaded. Main chunk 793.06 kB → 694.87 kB (gzip 216.60 → 190.35 kB).
+  PWA precache includes the new chunks (verified: 25 → 30 entries).
+  Deviations from plan, both deliberate:
+  - PublicPages stays eager — App.jsx needs TrboMark at first paint and
+    the whole file is only 220 lines, so splitting it saves nothing.
+  - MiniGames/Feedback use named exports, handled with `.then(m =>
+    ({default: m.X}))` wrappers rather than changing their export style.
+    The home hero's Race the Pros button now dynamic-imports the games
+    chunk on tap (it needed the BEAT_THE_PROS data constant).
+- **3.2** Cron batches email lookups via one `listUsers` page into a
+  Map; per-profile `getUserById` kept as a fallback for anyone missing
+  from the page, unchanged error handling.
+- Vercel production deploy after the push: green, verified.
+- **Still open:** one TestFlight sanity pass — open each lazy screen
+  (Games, Planner, Feedback) with airplane mode ON to confirm the
+  local chunks load offline in the native app. Ride along with the
+  next TestFlight session; also glance at Codemagic for today's builds.
+
+### Original plan (completed)
 
 ### 3.1 Lazy-load non-core screens
 `src/main.jsx` / `src/App.jsx` currently import everything eagerly.
