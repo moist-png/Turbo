@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useContext, Suspense, lazy } from 'react';
 import {
   Play, Pause, SkipForward, SkipBack, RotateCcw, X, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight,
   Search, Library, Wrench, Gauge, Save, Edit3, Copy, Settings as SettingsIcon, Bluetooth,
@@ -7,16 +7,37 @@ import {
   Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered, MessageSquare, GripVertical, Skull, Info,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import PlannerView from './PlannerView';
+// planner.js (the logic module) stays an ordinary import -- WORKOUT_PURPOSE
+// etc. are needed the moment the library renders. Only the *screens* below
+// are loaded on demand: each becomes its own file that the browser fetches
+// the first time that screen is opened, instead of everyone paying for all
+// of them up front. MiniGames and Feedback use named exports, so each lazy
+// wrapper picks its component out of the loaded module.
 import { currentPlanWeek, PHASE, WORKOUT_PURPOSE, estimateOutdoorTss } from './planner';
 import { TrboMark } from './PublicPages';
-import { MiniGamesView, MiniGamePlayer, BEAT_THE_PROS } from './MiniGames';
-import FeedbackView, { FeedbackHeroCard } from './Feedback';
 import {
   isNative, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
   nativeOpenAuthUrl, nativeCloseAuthUrl, nativeOnAuthCallback,
 } from './nativeBle';
 import { ColorblindContext } from './colorblindContext';
+
+const PlannerView = lazy(() => import('./PlannerView'));
+const MiniGamesView = lazy(() => import('./MiniGames').then(m => ({ default: m.MiniGamesView })));
+const MiniGamePlayer = lazy(() => import('./MiniGames').then(m => ({ default: m.MiniGamePlayer })));
+const FeedbackView = lazy(() => import('./Feedback'));
+const FeedbackHeroCard = lazy(() => import('./Feedback').then(m => ({ default: m.FeedbackHeroCard })));
+
+// Minimal centered spinner shown for the moment a lazy screen's file is
+// still being fetched. In the native apps the chunks are local files, so
+// this is rarely visible for more than a frame.
+function LazyFallback() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+      <style>{'@keyframes trboSpin { to { transform: rotate(360deg); } }'}</style>
+      <div style={{ width: 28, height: 28, border: '3px solid rgba(47,197,174,0.25)', borderTopColor: '#2FC5AE', borderRadius: '50%', animation: 'trboSpin 0.8s linear infinite' }} aria-label="Loading" />
+    </div>
+  );
+}
 
 // Calls one of our own /api/... functions the same way fetch() does, but
 // first attaches the current sign-in token (if there is one) as a standard
@@ -4218,14 +4239,14 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
         <TrainingLoadPanel workoutHistory={workoutHistory} includePower={false} />
         <PersonalRecordsPanel workoutHistory={workoutHistory} />
 
-        <FeedbackHeroCard onNavigate={onNavigate} />
+        <Suspense fallback={null}><FeedbackHeroCard onNavigate={onNavigate} /></Suspense>
 
         <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: 600, color: TEXT, marginBottom: 14 }}>What are we riding?</div>
 
         {/* hero cards — 2-column grid, since primary navigation already lives in the sidebar/tab bar */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           {heroes.map(h => (
-            <button key={h.key} onClick={() => h.key === 'games' ? onPlayGame(BEAT_THE_PROS) : onNavigate(h.key)} style={{ padding: 0, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', background: PANEL, display: 'block', textAlign: 'left', minWidth: 0 }}>
+            <button key={h.key} onClick={() => h.key === 'games' ? import('./MiniGames').then(m => onPlayGame(m.BEAT_THE_PROS)) : onNavigate(h.key)} style={{ padding: 0, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', background: PANEL, display: 'block', textAlign: 'left', minWidth: 0 }}>
               <div style={{ position: 'relative', height: 84, ...(h.photo ? { backgroundImage: `url(${h.photo})`, backgroundSize: 'cover', backgroundPosition: h.photoPos } : { background: h.surface }), display: 'flex', alignItems: 'flex-end' }}>
                 <div style={{ width: 32, height: 32, borderRadius: 10, background: h.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 10px 10px' }}>
                   <h.icon size={16} color={h.ink} />
@@ -8315,7 +8336,9 @@ export default function App() {
     return (
       <div style={wrapStyle}>
         <style>{globalStyle}</style>
-        <MiniGamePlayer game={activeGame} ftp={ftp} trainer={trainer} heartRate={heartRate} onExit={() => setActiveGame(null)} cvd={settings.colorblindMode} />
+        <Suspense fallback={<LazyFallback />}>
+          <MiniGamePlayer game={activeGame} ftp={ftp} trainer={trainer} heartRate={heartRate} onExit={() => setActiveGame(null)} cvd={settings.colorblindMode} />
+        </Suspense>
       </div>
     );
   }
@@ -8346,6 +8369,7 @@ export default function App() {
           >
             {!hasFullAccess && <TrialBanner daysLeft={daysLeft} onUpgrade={() => setShowPaywallModal(true)} />}
 
+            <Suspense fallback={<LazyFallback />}>
             {view === 'home' && <HomeView account={account} ftpHistory={ftpHistory} workoutHistory={workoutHistory} trainingPlan={trainingPlan} onNavigate={setView} onPlayGame={setActiveGame} />}
             {view === 'library' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} category={libCategory} onCategoryChange={setLibCategory} starredIds={starredIds} onToggleStar={toggleStar} />}
             {view === 'basics' && <LibraryView customWorkouts={customWorkouts} onOpen={setDetailWorkout} lockedCategory="Basics" title="Basics" starredIds={starredIds} onToggleStar={toggleStar} />}
@@ -8366,6 +8390,7 @@ export default function App() {
                 stravaConnected={!!(profile && profile.strava_athlete_id)} onConnectStrava={connectStrava} onDisconnectStrava={disconnectStrava}
               />
             )}
+            </Suspense>
           </div>
         </div>
 

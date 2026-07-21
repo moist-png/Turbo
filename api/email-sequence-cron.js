@@ -43,6 +43,19 @@ export default async function handler(req, res) {
       .gte('created_at', cutoff);
     if (profErr) throw profErr;
 
+    // One lookup for everyone's email address instead of one call per
+    // person. The cohort is at most ~15 days of signups, comfortably
+    // inside a single page at current scale; if it ever grows past
+    // perPage, the per-profile fallback below still catches anyone
+    // missing from the first page, so nothing silently breaks.
+    const emailById = new Map();
+    try {
+      const { data: usersPage } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      for (const u of usersPage?.users || []) emailById.set(u.id, u.email);
+    } catch (listErr) {
+      console.error('listUsers failed, falling back to per-user lookups:', listErr);
+    }
+
     for (const profile of profiles || []) {
       try {
         if (profile.email_opt_out) { summary.skipped++; continue; }
@@ -75,9 +88,12 @@ export default async function handler(req, res) {
           if (count > 0) { summary.skipped++; continue; }
         }
 
-        const { data: userRes, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id);
-        if (userErr || !userRes?.user?.email) { summary.errors++; continue; }
-        const email = userRes.user.email;
+        let email = emailById.get(profile.id);
+        if (!email) {
+          const { data: userRes, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+          if (userErr || !userRes?.user?.email) { summary.errors++; continue; }
+          email = userRes.user.email;
+        }
         const firstName = (profile.name || '').trim().split(' ')[0] || 'there';
 
         const ctx = {
