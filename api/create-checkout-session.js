@@ -33,7 +33,7 @@ const MANAGED_PAYMENTS_API_VERSION = '2026-02-25.preview';
 // Membership" product and its two prices exist in the Stripe Dashboard
 // (Product catalog -> Create product). Price IDs look like price_1AbCdE...
 // Keep the dollar amounts themselves in sync with MONTHLY_PRICE_LABEL /
-// ANNUAL_PRICE_LABEL in src/App.jsx -- $5.99/month, $65.99/year.
+// ANNUAL_PRICE_LABEL in src/App.jsx -- $8.99/month, $89.99/year.
 const MONTHLY_PRICE_ID = process.env.STRIPE_PRICE_MONTHLY;
 const ANNUAL_PRICE_ID = process.env.STRIPE_PRICE_ANNUAL;
 

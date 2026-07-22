@@ -84,7 +84,7 @@ function trialDay6(ctx) {
     subject: 'Your trial ends tomorrow',
     html: wrap(
       h1('One day left') +
-      p(`${ctx.firstName}, your free trial wraps up tomorrow. If Trbo\u2019s earned a spot in your training, keeping it going is $5.99/month — or $65.89/year, which works out to 11 months paid for 12.`) +
+      p(`${ctx.firstName}, your free trial wraps up tomorrow. If Trbo\u2019s earned a spot in your training, keeping it going is $8.99/month — or $89.99/year, which works out to 10 months paid for 12.`) +
       button('Keep your access', SITE),
       ctx.unsubscribeUrl
     ),
