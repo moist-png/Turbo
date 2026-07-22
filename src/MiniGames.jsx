@@ -752,6 +752,22 @@ export function MiniGamePlayer({ game, ftp, trainer, heartRate, onExit, cvd }) {
                 <span style={{ fontSize: 12.5, color: SUB }}>Practice without a trainer (control power with a slider)</span>
               </label>
             )}
+            {/* For an ERG game (Beat the Pros), spell out whether the trainer
+                will actually set the resistance — the difference between the
+                trainer winding up to the pro's watts on its own vs. the rider
+                having to chase a number by spinning, which reads as "the erg
+                didn't bring the resistance up." */}
+            {trainer.status === 'connected' && game.usesErg && (
+              trainer.hasControl ? (
+                <div style={{ fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
+                  ERG ready — the trainer sets its own resistance to the pro's exact wattage. Don't spin frantically to catch them; hold a steady cadence and let the resistance do the work. If a target is higher than your trainer can physically produce (some cap around 1,000–2,000W), it'll hold at its own ceiling.
+                </div>
+              ) : (
+                <div style={{ fontSize: 11.5, color: cvd ? '#E69F00' : '#FF9F40', lineHeight: 1.45 }}>
+                  Heads up: this trainer is connected for power readings only — the app can't drive its resistance, so it won't wind up to the pro's wattage on its own. You'll have to reach the target yourself (harder gear, ride harder). Automatic resistance needs a trainer that supports FTMS or Wahoo ERG control.
+                </div>
+              )
+            )}
           </div>
 
           <button onClick={start} disabled={noSource} style={{ ...primaryBtn, width: '100%', padding: 15, fontSize: 15.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: noSource ? 0.45 : 1, cursor: noSource ? 'default' : 'pointer' }}>

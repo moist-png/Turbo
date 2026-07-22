@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import { CalendarDays, ChevronRight, ChevronDown, ChevronUp, Play, RefreshCw, Trash2, Target, Flag, TrendingUp, Check, X, Sun, Info } from 'lucide-react';
 import {
   GOALS, PHASE, PURPOSE_LABEL, WORKOUT_PURPOSE,
-  generatePlan, validatePlan, swapOptionsForPurpose, swapDayWorkout, applyCheckin,
+  generatePlan, validatePlan, swapOptionsForPurpose, swapDayWorkout, projectedSlotTss, applyCheckin,
   progressionLevels, planHealth, planProposals, applyPlanProposal, dismissPlanProposal,
   weeklyReviewDue, markReviewDone, weekReviewSummary,
   applyVacation, estimateFtpFromProfile, FTP_SELF_ASSESSMENTS,
@@ -222,7 +222,10 @@ function PlannerSetup({ ftp, recentWeeklyTss, archivedPlans, hasFtpTest, onSetFt
       )}
 
       {/* Weekly hours */}
-      <div style={sectionLabel}>Roughly how many hours a week?</div>
+      <div style={{ ...sectionLabel, display: 'flex', alignItems: 'center', gap: 6 }}>
+        Roughly how many hours a week?
+        <InfoDot text="Cycling hours only — how much time you're planning to spend on the bike each week. Don't count any running, swimming or gym time here; if you also do those, tell us on the next question and the plan will leave room for them." />
+      </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
         {[3, 4, 6, 8, 10, 12].map(h => (
           <button key={h} onClick={() => setHours(h)} style={chip(hours === h)}>{h}h</button>
@@ -233,7 +236,7 @@ function PlannerSetup({ ftp, recentWeeklyTss, archivedPlans, hasFtpTest, onSetFt
       <div style={sectionLabel}>Are you also doing other structured training?</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
         <button onClick={() => setMultiSport(false)} style={chip(!multiSport)}>Cycling only</button>
-        <button onClick={() => setMultiSport(true)} style={chip(multiSport)}>Also running / swim / gym</button>
+        <button onClick={() => setMultiSport(true)} style={chip(multiSport)}>Also run, swim, or gym</button>
       </div>
       {multiSport && (
         <div style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: SUB, marginBottom: 18, lineHeight: 1.5 }}>
@@ -384,16 +387,24 @@ function DayRow({ day, weekday, library, onOpen, onSwap, onLogOutdoor }) {
       )}
       {swapping && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: SUB, marginBottom: 6 }}>Swap for another {(PURPOSE_LABEL[day.purpose] || day.purpose).toLowerCase()} session:</div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: SUB, marginBottom: 6 }}>Swap for another {(PURPOSE_LABEL[day.purpose] || day.purpose).toLowerCase()} session. Each is shown at the load it'll carry once fitted to this slot:</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {options.map(o => {
               const active = o.id === day.workoutId;
+              // Show the TSS each option WOULD carry once resized to this slot
+              // (matching what the swap actually does), including the current
+              // ride's own — so the rider can see how far off the mark an
+              // alternative is, not just guess from the two either side.
+              const slotTss = projectedSlotTss(o, day);
               return (
                 <button key={o.id} disabled={active}
                   onClick={() => { onSwap(o.id); setSwapping(false); }}
                   style={{ textAlign: 'left', background: active ? PANEL2 : 'transparent', border: `1px solid ${active ? 'var(--accent)' : LINE}`, borderRadius: 8, padding: '7px 10px', cursor: active ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</span>
-                  {active ? <Check size={13} color="var(--accent)" style={{ flexShrink: 0 }} /> : <span style={{ fontFamily: FONT_BODY, fontSize: 11, color: SUB, flexShrink: 0 }}>~{estimateWorkoutTss(o.intervals)} TSS</span>}
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {active && <Check size={13} color="var(--accent)" style={{ flexShrink: 0 }} />}
+                    {o.name}
+                  </span>
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 11, color: active ? 'var(--accent)' : SUB, fontWeight: active ? 700 : 400, flexShrink: 0 }}>~{slotTss} TSS{active ? ' · now' : ''}</span>
                 </button>
               );
             })}

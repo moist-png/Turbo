@@ -219,6 +219,21 @@ export const WORKOUT_PURPOSE = {
   'ride-station-sprints': 'anaerobic',
   'ride-green-lights': 'anaerobic',
   'ride-final-two-hundred': 'anaerobic',
+  // --- 12 high-texture replacement rides (6 tempo, 6 sweet spot). These
+  // replace the demoted road-word tempo/sweet-spot rides; the demoted ones
+  // keep their purpose tags but move to the Basics tab. ---
+  'ride-snaefell-circuit': 'tempo',
+  'ride-otago-rail-trail': 'tempo',
+  'ride-bonneville-speed-week': 'tempo',
+  'ride-camino-frances': 'tempo',
+  'ride-island-hopper': 'tempo',
+  'ride-zeeland-delta': 'tempo',
+  'ride-cheddar-gorge': 'sweetspot',
+  'ride-sa-calobra': 'sweetspot',
+  'ride-atacama-haul-road': 'sweetspot',
+  'ride-blue-ridge-parkway': 'sweetspot',
+  'ride-mount-lemmon': 'sweetspot',
+  'ride-carter-bar': 'sweetspot',
 };
 
 // Human-readable labels for each purpose (used in the UI on day rows).
@@ -439,6 +454,19 @@ export const WORKOUT_TERRAIN = {
   'ride-station-sprints': ['urban', 'flat'],
   'ride-green-lights': ['urban', 'punchy'],
   'ride-final-two-hundred': ['flat', 'paceline'],
+  // --- 12 high-texture replacement rides (6 tempo, 6 sweet spot) ---
+  'ride-snaefell-circuit': ['rolling', 'mixed', 'punchy'],
+  'ride-otago-rail-trail': ['sustained-climb', 'flat'],
+  'ride-bonneville-speed-week': ['flat', 'windy', 'paceline'],
+  'ride-camino-frances': ['flat', 'punchy'],
+  'ride-island-hopper': ['flat', 'windy', 'scenic'],
+  'ride-zeeland-delta': ['flat', 'windy', 'paceline'],
+  'ride-cheddar-gorge': ['steep', 'sustained-climb'],
+  'ride-sa-calobra': ['hairpins', 'sustained-climb'],
+  'ride-atacama-haul-road': ['sustained-climb', 'gravel', 'hairpins'],
+  'ride-blue-ridge-parkway': ['sustained-climb', 'windy', 'rolling'],
+  'ride-mount-lemmon': ['sustained-climb', 'scenic'],
+  'ride-carter-bar': ['multi-climb', 'windy', 'rolling'],
 };
 
 // Human-readable labels for each terrain tag (for any UI that surfaces them).
@@ -1122,6 +1150,24 @@ export function markRecentlyUsed(recentByPurpose, purpose, workoutId) {
 // library (this is what the swap UI shows). Excludes tests.
 export function swapOptionsForPurpose(purpose, library) {
   return library.filter(w => WORKOUT_PURPOSE[w.id] === purpose && WORKOUT_PURPOSE[w.id] !== 'test');
+}
+
+// The TSS a workout would actually carry if swapped into a given day slot.
+// Mirrors the resize-to-slot logic in swapDayWorkout so the swap picker shows
+// the load the rider will really get (flexible aerobic rides resized to the
+// slot), not the ride's raw native TSS. Used to show each option's — and the
+// current ride's own — matched TSS in the planner.
+export function projectedSlotTss(workout, day) {
+  const intervals = workout && workout.intervals;
+  if (!intervals || !intervals.length) return 0;
+  const nativeSeconds = intervals.reduce((a, b) => a + b.duration, 0) || 1;
+  const nativeTss = estimateWorkoutTss(intervals);
+  const flexible = !workout.fixedLength && day && FIXED_LENGTH_EXEMPT.has(day.purpose);
+  if (flexible && day.plannedSeconds) {
+    const ps = Math.max(1200, Math.min(18000, day.plannedSeconds));
+    return Math.round(nativeTss * (ps / nativeSeconds));
+  }
+  return nativeTss;
 }
 
 // ---------------------------------------------------------------------------
@@ -1917,14 +1963,28 @@ export function swapDayWorkout(plan, weekNumber, dayIndex, newWorkoutId, library
   if (!w) return plan;
   const nativeSeconds = w.intervals.reduce((a, b) => a + b.duration, 0);
   const nativeTss = estimateWorkoutTss(w.intervals);
+  const fixedLength = !!w.fixedLength;
   const weeks = plan.weeks.map(week => {
     if (week.weekNumber !== weekNumber) return week;
     const days = week.days.map((d, i) => {
       if (i !== dayIndex) return d;
+      // Resize the swapped-in ride to the slot it's filling, the same way the
+      // generator does when it first builds the week. Flexible aerobic
+      // purposes (endurance/recovery/tempo) get stretched or shrunk to the
+      // slot's prescribed duration so a swap keeps the planned load instead of
+      // jumping to the new ride's native length. Fixed interval sessions
+      // (sweet spot, threshold, VO2, etc.) keep their authored length — the
+      // swap list only ever offers same-purpose, similar-length options there.
+      const flexible = !fixedLength && FIXED_LENGTH_EXEMPT.has(d.purpose);
+      let plannedSeconds = nativeSeconds;
+      if (flexible && d.plannedSeconds) {
+        plannedSeconds = Math.max(1200, Math.min(18000, d.plannedSeconds));
+      }
+      const plannedTss = Math.round(nativeTss * (plannedSeconds / nativeSeconds));
       return {
         ...d, workoutId: w.id, name: w.name,
-        nativeSeconds, nativeTss, fixedLength: !!w.fixedLength,
-        plannedSeconds: nativeSeconds, plannedTss: nativeTss,
+        nativeSeconds, nativeTss, fixedLength,
+        plannedSeconds, plannedTss,
       };
     });
     return {

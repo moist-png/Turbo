@@ -86,6 +86,47 @@ export async function nativeRequestAndConnect(serviceUuid, onDisconnect) {
   });
 }
 
+// Scans for `durationMs`, collecting every unique device advertising any of
+// the given services, and resolves with the list — so the UI can show a
+// "which device?" picker. iOS has no built-in Bluetooth chooser the way Web
+// Bluetooth's requestDevice does, which is why the app has to run this scan
+// and present the list itself. `onUpdate(devices)` fires as each new device
+// appears so the list can populate live while the scan is still running.
+export async function nativeScanForDevices(serviceUuid, { durationMs = 6000, onUpdate } = {}) {
+  const BleClient = await getBle();
+  const services = Array.isArray(serviceUuid) ? serviceUuid : [serviceUuid];
+  const found = new Map();
+  return new Promise((resolve, reject) => {
+    let stopped = false;
+    const finish = async () => {
+      if (stopped) return;
+      stopped = true;
+      await BleClient.stopLEScan().catch(() => {});
+      resolve(Array.from(found.values()));
+    };
+    const timer = setTimeout(finish, durationMs);
+    BleClient.requestLEScan({ services }, (result) => {
+      const id = result.device && result.device.deviceId;
+      if (!id || found.has(id)) return;
+      found.set(id, { deviceId: id, name: result.device.name || result.localName || 'Unnamed device' });
+      if (onUpdate) onUpdate(Array.from(found.values()));
+    }).catch((e) => {
+      if (stopped) return;
+      stopped = true;
+      clearTimeout(timer);
+      reject(e);
+    });
+  });
+}
+
+// Connects to one already-discovered device by id (the picker's counterpart
+// to nativeRequestAndConnect, which scans and grabs the first match itself).
+export async function nativeConnectDevice(deviceId, onDisconnect) {
+  const BleClient = await getBle();
+  await BleClient.connect(deviceId, () => onDisconnect && onDisconnect());
+  return { deviceId };
+}
+
 export async function nativeStartNotifications(deviceId, serviceUuid, characteristicUuid, onValue) {
   const BleClient = await getBle();
   await BleClient.startNotifications(deviceId, serviceUuid, characteristicUuid, (value) => {

@@ -16,7 +16,7 @@ import { supabase } from './supabaseClient';
 import { currentPlanWeek, PHASE, WORKOUT_PURPOSE, estimateOutdoorTss } from './planner';
 import { TrboMark } from './PublicPages';
 import {
-  isNative, isNativeBle, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
+  isNative, isNativeBle, nativeRequestAndConnect, nativeScanForDevices, nativeConnectDevice, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
   nativeOpenAuthUrl, nativeCloseAuthUrl, nativeOnAuthCallback,
 } from './nativeBle';
 import { ColorblindContext } from './colorblindContext';
@@ -1908,7 +1908,7 @@ const LIBRARY = [
   // narrative route the way build/peak phases intend.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-valley-sweetspot', name: 'Valley Sweet Spot Roll', category: 'Rides',
+    id: 'ride-valley-sweetspot', name: 'Sweet spot 10+10+8', category: 'Basics',
     description: 'Rolling valley roads with three sweet spot blocks stitched between the scenic cruising — the workhorse tempo session with a view.',
     intervals: [
       iv('Warm up', 420, 'power', 58),
@@ -2102,7 +2102,7 @@ const LIBRARY = [
   // See planner.js WORKOUT_PURPOSE / WORKOUT_TERRAIN for tagging.
   // ==========================================================================
   {
-    id: 'ride-harbor-circuit', name: 'Harbor Circuit', category: 'Rides',
+    id: 'ride-harbor-circuit', name: 'Tempo 6×10 with surges', category: 'Basics',
     description: 'A looping harbor-town road with headland corners that keep kicking the pace up before it settles again.',
     intervals: [
       iv('Warm up', 720, 'power', 60),
@@ -2111,7 +2111,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-canal-towpath', name: 'Canal Towpath', category: 'Rides',
+    id: 'ride-canal-towpath', name: 'Tempo 9×7 with ramps', category: 'Basics',
     description: 'A flat towpath grind broken every few minutes by a short punchy ramp up onto a lock gate.',
     intervals: [
       iv('Warm up', 600, 'power', 58),
@@ -2120,7 +2120,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-border-run', name: 'Border Run', category: 'Rides',
+    id: 'ride-border-run', name: 'Tempo 2×60, building', category: 'Basics',
     description: 'A long flat road along a borderland — calm outbound, then a building headwind for the way home.',
     intervals: [
       iv('Warm up', 720, 'power', 60),
@@ -2130,7 +2130,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-orchard-backroads', name: 'Orchard Backroads', category: 'Rides',
+    id: 'ride-orchard-backroads', name: 'Rolling tempo 9×5', category: 'Basics',
     description: 'Quiet backroads through orchard country, a steady rhythm with just enough undulation to keep it honest.',
     intervals: [
       iv('Warm up', 600, 'power', 58),
@@ -2139,7 +2139,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-reservoir-ring', name: 'Reservoir Ring', category: 'Rides',
+    id: 'ride-reservoir-ring', name: 'Progressive tempo 3×28', category: 'Basics',
     description: 'Three laps of a reservoir road, each one a notch harder than the last.',
     intervals: [
       iv('Warm up', 600, 'power', 60),
@@ -2150,7 +2150,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-delta-causeway', name: 'Delta Causeway', category: 'Rides',
+    id: 'ride-delta-causeway', name: 'Tempo 8×7 with kicks', category: 'Basics',
     description: 'A chain of low bridges over marsh country — tempo pace with a hard kick over every crossing.',
     intervals: [
       iv('Warm up', 600, 'power', 60),
@@ -2159,7 +2159,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-quarry-climb-ladder', name: 'Quarry Climb Ladder', category: 'Rides',
+    id: 'ride-quarry-climb-ladder', name: 'Sweet spot ladder 12/18/22', category: 'Basics',
     description: 'A long steady drag up an old quarry road, tackled in ever-longer sweet spot rungs.',
     intervals: [
       iv('Warm up', 720, 'power', 60),
@@ -2172,7 +2172,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-meadowline-rollers', name: 'Meadowline Rollers', category: 'Rides',
+    id: 'ride-meadowline-rollers', name: 'Sweet spot rollers 15×5', category: 'Basics',
     description: 'Low meadow country, one climb blurring into the next — the effort never really settles.',
     intervals: [
       iv('Warm up', 720, 'power', 60),
@@ -2181,7 +2181,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-timber-road-sweetspot', name: 'Timber Road Sweet Spot', category: 'Rides',
+    id: 'ride-timber-road-sweetspot', name: 'Sweet spot 40+35', category: 'Basics',
     description: 'A long forest logging-road climb, sheltered until the exposed clearing at the top.',
     intervals: [
       iv('Warm up', 1200, 'power', 58),
@@ -2192,7 +2192,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-twin-peaks-sweep', name: 'Twin Peaks Sweep', category: 'Rides',
+    id: 'ride-twin-peaks-sweep', name: 'Sweet spot 2×27', category: 'Basics',
     description: 'Two short sustained climbs linked by a valley sweep — a taste of a proper climbing day without the full epic length.',
     intervals: [
       iv('Warm up', 720, 'power', 58),
@@ -2499,7 +2499,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-hollow-road-sweetspot', name: 'Hollow Road Sweet Spot', category: 'Rides',
+    id: 'ride-hollow-road-sweetspot', name: 'Sweet spot rolling 3-phase (short)', category: 'Basics',
     // v2: same 50min / ~54 TSS as the original 7-interval version, restructured
     // into three rolling phases (each its own repeatIv group, so the duration
     // slider can grow/shrink them independently) plus a final kick, instead of
@@ -2518,7 +2518,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-tableland-traverse', name: 'Tableland Traverse', category: 'Rides',
+    id: 'ride-tableland-traverse', name: 'Sweet spot rolling 4-phase (long)', category: 'Basics',
     // v2: same 103min / ~114 TSS as the original 9-interval version. Each of
     // the four plateaus is now its own rolling repeatIv group instead of one
     // flat block, so the ride reads as genuine terrain texture rather than
@@ -2713,7 +2713,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-corridor-run', name: 'Corridor Run', category: 'Rides',
+    id: 'ride-corridor-run', name: 'Sweet spot rolling 5+4 (short)', category: 'Basics',
     description: "A compact sweet spot ride — two rolling, undulating phases with a short recovery between.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
@@ -2724,7 +2724,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-ridge-line', name: 'Ridge Line', category: 'Rides',
+    id: 'ride-ridge-line', name: 'Sweet spot rolling 6+5', category: 'Basics',
     description: "A longer rolling sweet spot ride — more reps per phase, undulating rather than flat.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
@@ -2737,7 +2737,7 @@ const LIBRARY = [
 
   // --- 51-75min bucket (4 tempo, 3 sweetspot, 2 threshold, 1 race) ---
   {
-    id: 'ride-long-straightaway', name: 'Long Straightaway', category: 'Rides',
+    id: 'ride-long-straightaway', name: 'Rolling tempo 13×2', category: 'Basics',
     description: "Straightforward rolling tempo, one wave pattern held for the whole ride.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
@@ -2746,7 +2746,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-steady-state-special', name: 'Steady State Special', category: 'Rides',
+    id: 'ride-steady-state-special', name: 'Tempo blocks 7+4', category: 'Basics',
     description: "Tempo in two blocks with a breather between — the second block runs slightly harder than the first.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
@@ -2757,7 +2757,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-cruise-control', name: 'Cruise Control', category: 'Rides',
+    id: 'ride-cruise-control', name: 'Rolling tempo 11×2', category: 'Basics',
     description: "A gentle tempo ride — long, evenly paced rolling waves start to finish.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
@@ -2766,7 +2766,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-wide-open-road', name: 'Wide Open Road', category: 'Rides',
+    id: 'ride-wide-open-road', name: 'Tempo blocks 8+5', category: 'Basics',
     description: "Rolling tempo in two blocks either side of a recovery, building slightly into the second.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
@@ -2777,7 +2777,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-overpass-circuit', name: 'Overpass Circuit', category: 'Rides',
+    id: 'ride-overpass-circuit', name: 'Sweet spot rolling 6+6', category: 'Basics',
     description: "Two rolling sweet spot phases with a proper recovery between them.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
@@ -2788,7 +2788,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-backbone-ridge', name: 'Backbone Ridge', category: 'Rides',
+    id: 'ride-backbone-ridge', name: 'Sweet spot rolling 7+6', category: 'Basics',
     description: "A full hour of rolling sweet spot effort, with a longer warm-up to match.",
     intervals: [
       iv('Warm up', 420, 'power', 58),
@@ -2799,7 +2799,7 @@ const LIBRARY = [
     ],
   },
   {
-    id: 'ride-causeway-crossing', name: 'Causeway Crossing', category: 'Rides',
+    id: 'ride-causeway-crossing', name: 'Sweet spot rolling 8+7', category: 'Basics',
     description: "Two long rolling sweet spot phases separated by a short recovery, building through repeated surges.",
     intervals: [
       iv('Warm up', 420, 'power', 58),
@@ -3036,6 +3036,254 @@ const LIBRARY = [
       iv('Full gas leadout', 60, 'power', 108),
       iv('Sprint for the line', 15, 'power', 160),
       iv('Cool down', 270, 'power', 50),
+    ],
+  },
+
+  // ==========================================================================
+  // 12 high-texture replacement Rides (6 tempo, 6 sweet spot) — built to the
+  // "recipe vs place" standard: each is a named real-world road with a profile
+  // that only reads in one direction. They replace the demoted road-word
+  // tempo/sweet-spot rides. Purpose + terrain tags live in planner.js.
+  // ==========================================================================
+  {
+    id: 'ride-snaefell-circuit', name: 'Snaefell Circuit', category: 'Rides',
+    description: "A lap of the island's mountain road circuit — village drags, the long climb over the shoulder, and a fast run back down to the promenade.",
+    intervals: [
+      iv('Warm up', 420, 'power', 57),
+      iv('Promenade rollout', 300, 'power', 66),
+      iv('Union Mills drag', 240, 'power', 76),
+      iv('Ballacraine bends', 180, 'power', 82),
+      iv('Kirk Michael straight', 300, 'power', 74),
+      iv('Barregarrow dip', 120, 'power', 86),
+      iv('Ramsey hairpin', 90, 'power', 70),
+      iv('The Mountain Mile', 600, 'power', 80),
+      iv('Gust at the Bungalow', 120, 'power', 88),
+      iv('Brandywell', 240, 'power', 78),
+      iv('Creg-ny-Baa descent', 300, 'power', 55),
+      iv('Hillberry run-in', 240, 'power', 77),
+      iv('Sprint to the grandstand', 60, 'rpe', 9),
+      iv('Cool down', 420, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-otago-rail-trail', name: 'Otago Rail Trail', category: 'Rides',
+    description: 'An old goods line turned gravel path — a gradient so consistent it never lets you settle, through two tunnels and a schist gorge.',
+    intervals: [
+      iv('Warm up', 480, 'power', 57),
+      iv('Middlemarch flats', 300, 'power', 68),
+      iv('The grade begins', 480, 'power', 76),
+      iv('Prices Creek viaduct', 180, 'power', 72),
+      iv('Schist cutting', 630, 'power', 78),
+      iv('Poolburn tunnel', 240, 'power', 82),
+      iv('Between tunnels', 120, 'power', 70),
+      iv('Second tunnel', 210, 'power', 83),
+      iv('Gorge headwind', 360, 'power', 79),
+      iv('Auripo straight', 360, 'power', 77),
+      iv('Summit at Wedderburn', 180, 'power', 66),
+      iv('Long freewheel', 300, 'power', 55),
+      iv('Ranfurly run-in', 240, 'power', 74),
+      iv('Cool down', 420, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-bonneville-speed-week', name: 'Bonneville Speed Week', category: 'Rides',
+    description: 'Rotating turns across the salt with two others. Nobody says it, but the turns keep getting shorter.',
+    intervals: [
+      iv('Warm up', 540, 'power', 57),
+      iv('Roll out to the flats', 360, 'power', 68),
+      iv('Turn on the front', 300, 'power', 84),
+      iv('In the wheels', 210, 'power', 72),
+      iv('Turn on the front', 270, 'power', 85),
+      iv('In the wheels', 210, 'power', 71),
+      iv('Gust across the salt', 60, 'power', 89),
+      iv('Turn on the front', 240, 'power', 85),
+      iv('In the wheels', 180, 'power', 72),
+      iv('Heat haze', 300, 'power', 76),
+      iv('Turn on the front', 180, 'power', 86),
+      iv('In the wheels', 180, 'power', 71),
+      iv('Turn on the front', 150, 'power', 87),
+      iv('In the wheels', 150, 'power', 72),
+      iv('Turn on the front', 120, 'power', 88),
+      iv('In the wheels', 120, 'power', 73),
+      iv('Mirage section', 360, 'power', 74),
+      iv('Salt crust drag', 240, 'power', 79),
+      iv('Alone to the marker', 480, 'power', 78),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-camino-frances', name: 'Camino Francés', category: 'Rides',
+    description: 'The pilgrim road across the meseta. Hours of wheat and sky, and then a hill town appears with its church on top of it.',
+    intervals: [
+      iv('Warm up', 660, 'power', 57),
+      iv('Meseta rollout', 900, 'power', 70),
+      iv('Cruz de Ferro drag', 300, 'power', 78),
+      iv('Descent to the valley', 240, 'power', 58),
+      iv('Hill town: Castrojeriz', 360, 'power', 86),
+      iv('Wheat plains', 720, 'power', 72),
+      iv('Hill town: Villafranca', 420, 'power', 88),
+      iv('River crossing', 300, 'power', 66),
+      iv('Open meseta', 780, 'power', 74),
+      iv('Hill town: O Cebreiro', 480, 'power', 89),
+      iv('Ridge road to Sarria', 720, 'power', 76),
+      iv('Cool down', 720, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-island-hopper', name: 'Island Hopper', category: 'Rides',
+    description: 'Three islands, two ferries. Chase the sailing, sit on the deck watching your legs go cold, then start again on the other side.',
+    intervals: [
+      iv('Warm up', 660, 'power', 56),
+      iv('Machair coast road', 1020, 'power', 72),
+      iv('Chasing the sailing', 780, 'power', 82),
+      iv('Slipway queue', 240, 'power', 42),
+      iv('The crossing', 480, 'power', 38),
+      iv('Ramp off, cold legs', 300, 'power', 66),
+      iv('Causeway crosswind', 600, 'power', 78),
+      iv('Moor road', 900, 'power', 74),
+      iv('Second slipway', 180, 'power', 44),
+      iv('Short crossing', 300, 'power', 38),
+      iv('Final island, headwind', 1140, 'power', 79),
+      iv('Last village drag', 360, 'power', 85),
+      iv('Cool down', 660, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-zeeland-delta', name: 'Zeeland Delta', category: 'Rides',
+    description: 'Dyke roads and storm barriers with nothing between you and the North Sea. The echelon forms, and then it breaks.',
+    intervals: [
+      iv('Warm up', 780, 'power', 56),
+      iv('Polder rollout', 900, 'power', 68),
+      iv('Dyke road, tailwind', 720, 'power', 72),
+      iv('Turn into the wind', 600, 'power', 80),
+      iv('Echelon forms', 420, 'power', 84),
+      iv('Sheltered village', 300, 'power', 66),
+      iv('Storm barrier bridge', 480, 'power', 82),
+      iv('Exposed span', 240, 'power', 88),
+      iv('Descent off the bridge', 180, 'power', 58),
+      iv('Second polder', 900, 'power', 74),
+      iv('Crosswind sector', 600, 'power', 81),
+      iv('Gap in the echelon', 120, 'power', 90),
+      iv('Regroup', 360, 'power', 70),
+      iv('Long dyke drag', 900, 'power', 77),
+      iv('Harbour approach', 600, 'power', 75),
+      iv('Final bridge', 300, 'power', 84),
+      iv('Cool down', 780, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-cheddar-gorge', name: 'Cheddar Gorge', category: 'Rides',
+    description: "Straight out of the village into the limestone. The hairpin at the bottom is the hardest thing you'll do all day, and it's in the first two minutes.",
+    intervals: [
+      iv('Warm up', 600, 'power', 58),
+      iv('Through the village', 240, 'power', 70),
+      iv('The hairpin', 120, 'power', 93),
+      iv('First cliffs', 360, 'power', 90),
+      iv('Steeper pinch', 180, 'power', 94),
+      iv('Between the crags', 240, 'power', 89),
+      iv('Horseshoe bend', 150, 'power', 93),
+      iv('Easing to the plateau', 300, 'power', 88),
+      iv('Top road', 180, 'power', 78),
+      iv('Cool down', 360, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-sa-calobra', name: 'Sa Calobra', category: 'Rides',
+    description: 'Up from the cove through twenty-six bends. Each hairpin pitches, each straight lets you off — barely.',
+    intervals: [
+      iv('Warm up', 540, 'power', 58),
+      iv('Sea-level cove', 300, 'power', 68),
+      iv('Ramp out of the cove', 180, 'power', 88),
+      iv('Bend', 90, 'power', 92),
+      iv('Straight', 90, 'power', 84),
+      iv('Bend', 90, 'power', 93),
+      iv('Straight', 120, 'power', 85),
+      iv('Bend', 120, 'power', 94),
+      iv('Straight', 120, 'power', 86),
+      iv('The knot bridge', 60, 'power', 90),
+      iv('Bend', 90, 'power', 93),
+      iv('Straight', 120, 'power', 85),
+      iv('Bend', 90, 'power', 94),
+      iv('Open drag', 180, 'power', 89),
+      iv('Bend', 90, 'power', 93),
+      iv('Final ramps', 180, 'power', 92),
+      iv('Tunnels', 120, 'power', 87),
+      iv('Summit', 60, 'power', 65),
+      iv('Descent', 600, 'power', 48),
+      iv('Cool down', 360, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-atacama-haul-road', name: 'Atacama Haul Road', category: 'Rides',
+    description: "A copper mine's spiral haul road, wide enough for trucks. Three ramps out of the pit, and the terraces between them get shorter every time.",
+    intervals: [
+      iv('Warm up', 720, 'power', 58),
+      iv('Pit floor approach', 300, 'power', 70),
+      iv('Ramp one', 720, 'power', 89),
+      iv('Loading terrace', 240, 'power', 65),
+      iv('Switchback', 120, 'power', 93),
+      iv('Ramp two', 660, 'power', 91),
+      iv('Terrace two', 180, 'power', 65),
+      iv('Switchback', 120, 'power', 94),
+      iv('Ramp three', 600, 'power', 92),
+      iv('Dust section', 180, 'power', 87),
+      iv('Rim road', 240, 'power', 70),
+      iv('Cool down', 420, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-blue-ridge-parkway', name: 'Blue Ridge Parkway', category: 'Rides',
+    description: 'Long exposed ridge blocks with brief tree cover between them. The wind finds you every time the canopy opens.',
+    intervals: [
+      iv('Warm up', 720, 'power', 58),
+      iv('Valley approach', 360, 'power', 70),
+      iv('First ridge block', 900, 'power', 88),
+      iv('Tree cover', 240, 'power', 68),
+      iv('Overlook pinch', 120, 'power', 93),
+      iv('Exposed section', 1080, 'power', 91),
+      iv('Gap saddle', 300, 'power', 66),
+      iv('Wind on the ridge', 180, 'power', 92),
+      iv('Long final ridge', 900, 'power', 90),
+      iv('Tunnel', 120, 'power', 85),
+      iv('Descent', 240, 'power', 55),
+      iv('Cool down', 360, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-mount-lemmon', name: 'Mount Lemmon', category: 'Rides',
+    description: 'Desert floor to pine forest at a gradient that barely varies for forty kilometres. The most metronomic climb there is.',
+    intervals: [
+      iv('Warm up', 720, 'power', 57),
+      iv('Desert floor', 420, 'power', 70),
+      iv('Milepost one to five', 1200, 'power', 89),
+      iv('Windy Point pull-out', 300, 'power', 66),
+      iv('Milepost six to twelve', 1020, 'power', 90),
+      iv('Cactus flat', 240, 'power', 78),
+      iv('Milepost thirteen to eighteen', 900, 'power', 91),
+      iv('Switchback', 180, 'power', 93),
+      iv('Final pines', 720, 'power', 92),
+      iv('Ski village', 180, 'power', 70),
+      iv('Cool down', 540, 'power', 50),
+    ],
+  },
+  {
+    id: 'ride-carter-bar', name: 'Carter Bar', category: 'Rides',
+    description: 'Two moorland passes on the old border road, with a full descent to the border post in between. No shelter on either one.',
+    intervals: [
+      iv('Warm up', 840, 'power', 57),
+      iv('Redesdale valley', 600, 'power', 70),
+      iv('First moor climb, lower', 900, 'power', 89),
+      iv('Cattle grid pinch', 120, 'power', 93),
+      iv('First moor climb, upper', 780, 'power', 90),
+      iv('Border post summit', 240, 'power', 66),
+      iv('Descent into Scotland', 480, 'power', 55),
+      iv('Valley link', 480, 'power', 74),
+      iv('Second climb, lower', 900, 'power', 89),
+      iv('Exposed shoulder', 300, 'power', 92),
+      iv('Second climb, upper', 720, 'power', 91),
+      iv('Wind gap', 120, 'power', 94),
+      iv('Ridge run', 420, 'power', 70),
+      iv('Cool down', 600, 'power', 50),
     ],
   },
 
@@ -3290,6 +3538,8 @@ function useTrainer() {
   const [power, setPower] = useState(null);
   const [cadence, setCadence] = useState(null);
   const [hasControl, setHasControl] = useState(false);
+  const [devices, setDevices] = useState([]);   // native scan results (picker)
+  const [scanning, setScanning] = useState(false);
   const deviceRef = useRef(null);
   const controlRef = useRef(null);
   const nativeIdRef = useRef(null);
@@ -3356,6 +3606,79 @@ function useTrainer() {
     setHasControl(false);
     cpsCrankRef.current = { revs: null, time: null };
   }
+  // Everything after a native trainer is connected: subscribe to power/cadence
+  // and set up ERG control. Shared by the auto-connect path (connect) and the
+  // pick-from-a-list path (connectTo).
+  async function setupNativeTrainer(deviceId, name) {
+    nativeIdRef.current = deviceId;
+    const ftmsSvc = uuid16(0x1826);
+    const cpsSvc = uuid16(0x1818);
+    let usedFtms = true;
+    try {
+      await nativeStartNotifications(deviceId, ftmsSvc, uuid16(0x2ad2), handleBikeData);
+    } catch (e) {
+      // Trainer doesn't have the FTMS bike-data characteristic — fall back to
+      // the older Cycling Power service for power/cadence.
+      usedFtms = false;
+      try { await nativeStartNotifications(deviceId, cpsSvc, uuid16(0x2a63), handleCyclingPower); } catch (e2) {}
+    }
+    if (usedFtms) {
+      try {
+        await nativeWrite(deviceId, ftmsSvc, uuid16(0x2ad9), new Uint8Array([0x00]));
+        controlRef.current = { protocol: 'ftms', native: true, characteristic: null };
+        // FTMS "Start or Resume" (0x07). Some trainers' firmware expects this
+        // right after "Request Control" before it will honour later
+        // mode-change commands — including the "release back to free ride"
+        // call sent when a mini game like Beat the Pros ends. Missing this
+        // step is a likely reason some trainers stay locked in ERG mode.
+        await writeControl(new Uint8Array([0x07]));
+        setHasControl(true);
+      } catch (e) { controlRef.current = null; setHasControl(false); }
+    } else {
+      // No FTMS control point, but some trainers — including this AC59 KICKR
+      // SNAP — layer a proprietary control characteristic on top of the
+      // Cycling Power Service instead. Try it before giving up on ERG.
+      try {
+        await nativeStartNotifications(deviceId, cpsSvc, WAHOO_CONTROL_UUID, () => {}).catch(() => {});
+        await nativeWrite(deviceId, cpsSvc, WAHOO_CONTROL_UUID, new Uint8Array([WAHOO_OP.unlock, 0xee, 0xfc]));
+        controlRef.current = { protocol: 'wahoo', native: true, characteristic: null };
+        setHasControl(true);
+      } catch (e) { controlRef.current = null; setHasControl(false); }
+    }
+    setDeviceName(name || 'Trainer');
+    setStatus('connected');
+  }
+  // Native only: scan and return the list of trainers in range so the UI can
+  // show a picker. On web the browser's own requestDevice chooser handles
+  // this, so scan() just falls through to connect().
+  async function scan() {
+    if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return []; }
+    if (!isNativeBle) { await connect(); return []; }
+    setErrorMsg(null); setDevices([]); setScanning(true);
+    try {
+      const found = await nativeScanForDevices([uuid16(0x1826), uuid16(0x1818)], { durationMs: 6000, onUpdate: setDevices });
+      setDevices(found);
+      if (!found.length) setErrorMsg('No trainer found nearby. Make sure it’s powered on, woken up (give the pedals a turn), and not already connected in another app.');
+      return found;
+    } catch (e) {
+      setErrorMsg((e && e.message) ? e.message : 'Could not scan for trainers.');
+      return [];
+    } finally {
+      setScanning(false);
+    }
+  }
+  // Native only: connect to a specific device the rider chose from the scan.
+  async function connectTo(deviceId, name) {
+    setStatus('connecting'); setErrorMsg(null);
+    cpsCrankRef.current = { revs: null, time: null };
+    try {
+      await nativeConnectDevice(deviceId, handleDisconnected);
+      await setupNativeTrainer(deviceId, name);
+    } catch (e) {
+      setErrorMsg((e && e.message) ? e.message : 'Could not connect to that trainer.');
+      setStatus('error');
+    }
+  }
   async function connect() {
     if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return; }
     setStatus('connecting'); setErrorMsg(null);
@@ -3365,43 +3688,7 @@ function useTrainer() {
         const ftmsSvc = uuid16(0x1826);
         const cpsSvc = uuid16(0x1818);
         const { deviceId, name } = await nativeRequestAndConnect([ftmsSvc, cpsSvc], handleDisconnected);
-        nativeIdRef.current = deviceId;
-        let usedFtms = true;
-        try {
-          await nativeStartNotifications(deviceId, ftmsSvc, uuid16(0x2ad2), handleBikeData);
-        } catch (e) {
-          // Trainer doesn't have the FTMS bike-data characteristic — fall
-          // back to the older Cycling Power service for power/cadence.
-          usedFtms = false;
-          try { await nativeStartNotifications(deviceId, cpsSvc, uuid16(0x2a63), handleCyclingPower); } catch (e2) {}
-        }
-        if (usedFtms) {
-          try {
-            await nativeWrite(deviceId, ftmsSvc, uuid16(0x2ad9), new Uint8Array([0x00]));
-            controlRef.current = { protocol: 'ftms', native: true, characteristic: null };
-            // FTMS "Start or Resume" (0x07). Some trainers' firmware expects
-            // this right after "Request Control" before it will honour later
-            // mode-change commands — including the "release back to free
-            // ride" call sent when a mini game like Beat the Pros ends.
-            // Missing this step is a likely reason some trainers stay locked
-            // in ERG mode after the effort finishes.
-            await writeControl(new Uint8Array([0x07]));
-            setHasControl(true);
-          } catch (e) { controlRef.current = null; setHasControl(false); }
-        } else {
-          // No FTMS control point, but some trainers — including this AC59
-          // KICKR SNAP — layer a proprietary control characteristic on top
-          // of the Cycling Power Service instead. Try it before giving up
-          // on ERG control entirely.
-          try {
-            await nativeStartNotifications(deviceId, cpsSvc, WAHOO_CONTROL_UUID, () => {}).catch(() => {});
-            await nativeWrite(deviceId, cpsSvc, WAHOO_CONTROL_UUID, new Uint8Array([WAHOO_OP.unlock, 0xee, 0xfc]));
-            controlRef.current = { protocol: 'wahoo', native: true, characteristic: null };
-            setHasControl(true);
-          } catch (e) { controlRef.current = null; setHasControl(false); }
-        }
-        setDeviceName(name || 'Trainer');
-        setStatus('connected');
+        await setupNativeTrainer(deviceId, name);
       } catch (e) {
         setErrorMsg((e && e.message) ? e.message : 'Could not connect to a trainer.');
         setStatus('error');
@@ -3528,7 +3815,7 @@ function useTrainer() {
       await writeControl(new Uint8Array([0x11, 0, 0, 0, 0, 0, 0]));
     } catch (e) {}
   }
-  return { supported, status, deviceName, errorMsg, power, cadence, hasControl, connect, disconnect, setErgTarget, endErg };
+  return { supported, status, deviceName, errorMsg, power, cadence, hasControl, devices, scanning, isNative: isNativeBle, scan, connectTo, connect, disconnect, setErgTarget, endErg };
 }
 
 // Standard Bluetooth Heart Rate Service (0x180D) / Heart Rate Measurement
@@ -3539,6 +3826,8 @@ function useHeartRate() {
   const [deviceName, setDeviceName] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [bpm, setBpm] = useState(null);
+  const [devices, setDevices] = useState([]);
+  const [scanning, setScanning] = useState(false);
   const deviceRef = useRef(null);
   const nativeIdRef = useRef(null);
   const supported = isNativeBle || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
@@ -3554,6 +3843,42 @@ function useHeartRate() {
     setStatus('disconnected');
     setBpm(null);
   }
+  async function setupNativeHr(deviceId, name) {
+    nativeIdRef.current = deviceId;
+    await nativeStartNotifications(deviceId, uuid16(0x180d), uuid16(0x2a37), handleHrData);
+    setDeviceName(name || 'Heart rate monitor');
+    setStatus('connected');
+  }
+  // Native only: scan and return heart-rate monitors in range for a picker.
+  // Many watches (e.g. Coros, Garmin) only broadcast heart rate after you
+  // start an activity or turn on "broadcast HR" — call that out so people
+  // aren't left wondering why the watch never appears.
+  async function scan() {
+    if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return []; }
+    if (!isNativeBle) { await connect(); return []; }
+    setErrorMsg(null); setDevices([]); setScanning(true);
+    try {
+      const found = await nativeScanForDevices(uuid16(0x180d), { durationMs: 6000, onUpdate: setDevices });
+      setDevices(found);
+      if (!found.length) setErrorMsg('No heart rate monitor found. Chest straps need to be worn (the sensor wakes on skin contact). A watch like a Coros or Garmin only shows up once you turn on “Broadcast Heart Rate” on the watch itself.');
+      return found;
+    } catch (e) {
+      setErrorMsg((e && e.message) ? e.message : 'Could not scan for heart rate monitors.');
+      return [];
+    } finally {
+      setScanning(false);
+    }
+  }
+  async function connectTo(deviceId, name) {
+    setStatus('connecting'); setErrorMsg(null);
+    try {
+      await nativeConnectDevice(deviceId, handleDisconnected);
+      await setupNativeHr(deviceId, name);
+    } catch (e) {
+      setErrorMsg((e && e.message) ? e.message : 'Could not connect to that heart rate monitor.');
+      setStatus('error');
+    }
+  }
   async function connect() {
     if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return; }
     setStatus('connecting'); setErrorMsg(null);
@@ -3561,10 +3886,7 @@ function useHeartRate() {
       try {
         const svc = uuid16(0x180d);
         const { deviceId, name } = await nativeRequestAndConnect(svc, handleDisconnected);
-        nativeIdRef.current = deviceId;
-        await nativeStartNotifications(deviceId, svc, uuid16(0x2a37), handleHrData);
-        setDeviceName(name || 'Heart rate monitor');
-        setStatus('connected');
+        await setupNativeHr(deviceId, name);
       } catch (e) {
         setErrorMsg((e && e.message) ? e.message : 'Could not connect to a heart rate monitor.');
         setStatus('error');
@@ -3596,7 +3918,7 @@ function useHeartRate() {
     }
     setStatus('disconnected'); setDeviceName(null); setBpm(null);
   }
-  return { supported, status, deviceName, errorMsg, bpm, connect, disconnect };
+  return { supported, status, deviceName, errorMsg, bpm, devices, scanning, isNative: isNativeBle, scan, connectTo, connect, disconnect };
 }
 
 // ---------- profile chart ----------
@@ -4241,24 +4563,29 @@ function computePersonalRecords(workoutHistory) {
   const totalRides = completed.length;
   const totalSeconds = completed.reduce((a, w) => a + w.duration, 0);
 
-  // Unique calendar days ridden, sorted, for streak math.
-  const dayTimes = Array.from(new Set(completed.map(w => new Date(w.date).toDateString())))
-    .map(s => new Date(s).getTime())
-    .sort((a, b) => a - b);
-  let longestStreak = 1, run = 1;
-  for (let i = 1; i < dayTimes.length; i++) {
-    const gap = Math.round((dayTimes[i] - dayTimes[i - 1]) / 86400000);
-    run = gap === 1 ? run + 1 : 1;
-    if (run > longestStreak) longestStreak = run;
+  // Weekly streak: consecutive Monday-start weeks with at least one ride.
+  // Replaces the old daily streak — nobody rides every day, so a rest day
+  // shouldn't break a run. A week "counts" the moment you ride once in it.
+  const WEEK_MS = 604800000;
+  const weekTimes = Array.from(new Set(completed.map(w => startOfWeek(w.date)))).sort((a, b) => a - b);
+  let longestWeekStreak = weekTimes.length ? 1 : 0, wrun = weekTimes.length ? 1 : 0;
+  for (let i = 1; i < weekTimes.length; i++) {
+    const gap = Math.round((weekTimes[i] - weekTimes[i - 1]) / WEEK_MS);
+    wrun = gap === 1 ? wrun + 1 : 1;
+    if (wrun > longestWeekStreak) longestWeekStreak = wrun;
   }
-  let currentStreak = 0;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const gapFromToday = Math.round((today.getTime() - dayTimes[dayTimes.length - 1]) / 86400000);
-  if (gapFromToday <= 1) {
-    currentStreak = 1;
-    for (let i = dayTimes.length - 1; i > 0; i--) {
-      if (Math.round((dayTimes[i] - dayTimes[i - 1]) / 86400000) === 1) currentStreak += 1;
-      else break;
+  let currentWeekStreak = 0;
+  if (weekTimes.length) {
+    const thisWeek = startOfWeek(new Date());
+    const gapWeeks = Math.round((thisWeek - weekTimes[weekTimes.length - 1]) / WEEK_MS);
+    // The streak is live if the most recent ride was this week or last week
+    // (this week may just not have happened yet).
+    if (gapWeeks <= 1) {
+      currentWeekStreak = 1;
+      for (let i = weekTimes.length - 1; i > 0; i--) {
+        if (Math.round((weekTimes[i] - weekTimes[i - 1]) / WEEK_MS) === 1) currentWeekStreak += 1;
+        else break;
+      }
     }
   }
 
@@ -4266,7 +4593,7 @@ function computePersonalRecords(workoutHistory) {
   completed.forEach(w => { const wk = startOfWeek(w.date); weekCounts[wk] = (weekCounts[wk] || 0) + 1; });
   const bestWeekCount = Object.values(weekCounts).reduce((a, b) => Math.max(a, b), 0);
 
-  return { longest, bestAvgPower, bestPeakPower, totalRides, totalSeconds, longestStreak, currentStreak, bestWeekCount };
+  return { longest, bestAvgPower, bestPeakPower, totalRides, totalSeconds, currentWeekStreak, longestWeekStreak, bestWeekCount };
 }
 
 function Sparkline({ values, height = 28, color }) {
@@ -4322,8 +4649,8 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
   const ftpDelta = currentFtpVal != null && prevFtpVal != null ? currentFtpVal - prevFtpVal : null;
 
   const pr = computePersonalRecords(workoutHistory);
-  const streak = pr ? pr.currentStreak : 0;
-  const bestStreak = pr ? pr.longestStreak : 0;
+  const streak = pr ? pr.currentWeekStreak : 0;
+  const bestStreak = pr ? pr.longestWeekStreak : 0;
 
   const workoutCount = LIBRARY.filter(w => w.category === 'Basics').length;
   const rideCount = LIBRARY.filter(w => w.category === 'Rides').length;
@@ -4376,9 +4703,9 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
             <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT, lineHeight: 1.1 }}>{firstName}</div>
           </div>
           {streak > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 999, padding: '6px 12px' }}>
+            <div title={`${streak} week${streak === 1 ? '' : 's'} in a row with a ride`} style={{ display: 'flex', alignItems: 'center', gap: 6, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 999, padding: '6px 12px' }}>
               <Flame size={15} color="var(--flame)" fill="var(--flame)" />
-              <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 13, color: TEXT }}>{streak}</span>
+              <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 13, color: TEXT }}>{streak}w</span>
             </div>
           )}
         </div>
@@ -4417,9 +4744,9 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
             ) : <div style={{ fontSize: 10.5, color: SUB, marginTop: 2 }}>No tests</div>}
           </div>
           <div style={cardBase}>
-            <div style={kick}>Streak</div>
-            <div style={monoVal}>{streak}d</div>
-            <div style={{ fontSize: 10.5, color: SUB, marginTop: 2 }}>Best: {bestStreak}</div>
+            <div style={kick}>Weekly streak</div>
+            <div style={monoVal}>{streak}w</div>
+            <div style={{ fontSize: 10.5, color: SUB, marginTop: 2 }}>Best: {bestStreak}w</div>
           </div>
         </div>
 
@@ -4474,7 +4801,7 @@ function PersonalRecordsPanel({ workoutHistory }) {
     { label: 'Longest ride', value: fmtLong(pr.longest.duration), sub: pr.longest.name, icon: Bike },
     pr.bestAvgPower && { label: 'Best average power', value: `${pr.bestAvgPower.avgPower}W`, sub: pr.bestAvgPower.name, icon: Zap },
     pr.bestPeakPower && { label: 'Peak power', value: `${pr.bestPeakPower.maxPower}W`, sub: pr.bestPeakPower.name, icon: Zap },
-    { label: 'Current streak', value: `${pr.currentStreak} day${pr.currentStreak === 1 ? '' : 's'}`, sub: pr.longestStreak > pr.currentStreak ? `Best: ${pr.longestStreak} days` : pr.currentStreak > 0 ? 'Personal best' : `Best: ${pr.longestStreak} days`, icon: Flame },
+    { label: 'Weekly streak', value: `${pr.currentWeekStreak} week${pr.currentWeekStreak === 1 ? '' : 's'}`, sub: pr.longestWeekStreak > pr.currentWeekStreak ? `Best: ${pr.longestWeekStreak} weeks` : pr.currentWeekStreak > 0 ? 'Personal best' : `Best: ${pr.longestWeekStreak} weeks`, icon: Flame },
     { label: 'Best week', value: `${pr.bestWeekCount} session${pr.bestWeekCount === 1 ? '' : 's'}`, sub: null, icon: CalendarDays },
     { label: 'All-time', value: fmtLong(pr.totalSeconds), sub: `${pr.totalRides} ride${pr.totalRides === 1 ? '' : 's'}`, icon: Trophy },
   ].filter(Boolean);
@@ -6474,6 +6801,17 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
   const FONT_BODY = "'Manrope', sans-serif";
   const FONT_NUM = "'Space Grotesk', sans-serif";
 
+  // Big-text mode on a phone: at 2x/4x the numbers are too large to sit around
+  // the timer ring or the curved watts dial, so on portrait we strip both and
+  // let the timer fill the screen — just timer, target watts, current watts
+  // and the pause button. (Landscape/tablet keeps the full visuals: 2x was
+  // designed for a tablet mounted further from the bars.)
+  const bigText = textScale >= 2;
+  const stripVisuals = bigText && isPortrait && !isDone;
+  // In stripped mode show the target as clean watts, dropping the verbose
+  // "RPE · %FTP · W" breakdown that would wrap across the whole screen.
+  const simpleTargetTxt = displayCurrent.type === 'power' ? `${targetWattsForGauge}W` : targetTxt;
+
   function StatChip({ label, value, valueColor }) {
     return (
       <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: isPortrait ? '8px 10px' : '8px 14px', minWidth: 80, width: isPortrait ? 'min(220px, 72vw)' : undefined, boxSizing: 'border-box' }}>
@@ -6506,7 +6844,20 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
     <StatChip label="Target" value={targetTxt} />
   );
   const currentChip = <StatChip label="Current" value={currentPowerTxt} valueColor={trainer.status === 'connected' ? 'var(--accent)' : TEXT} />;
-  const ringTimerBlock = (
+  // Large side-by-side stat used only in stripped big-text mode.
+  function SimpleStat({ label, value, accent }) {
+    return (
+      <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 8px', flex: 1, minWidth: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: SUB, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</div>
+        <div style={{ fontFamily: FONT_NUM, fontSize: 'min(15vw, 9vh)', fontWeight: 700, color: accent ? 'var(--accent)' : TEXT, marginTop: 4, lineHeight: 1, wordBreak: 'break-word' }}>{value}</div>
+      </div>
+    );
+  }
+  const ringTimerBlock = stripVisuals ? (
+    <div className="player-timer" style={{ fontFamily: FONT_NUM, fontSize: 'min(40vw, 34vh)', fontWeight: 700, color: TEXT, lineHeight: 0.9, letterSpacing: -1, textAlign: 'center', margin: '0 auto' }}>
+      {fmt(Math.max(0, timeLeft))}
+    </div>
+  ) : (
     <div className="ring-box" style={{ position: 'relative', width: ringSize, height: ringSize, display: 'flex', alignItems: 'center', justifyContent: 'center', isolation: 'isolate', flexShrink: 0, margin: isPortrait || isDone ? '0 auto' : undefined }}>
       {settings.visualProgressRing && <ProgressRing progress={isDone ? 1 : ringProgress} color={z.color} size={ringSize} />}
       <div className="player-timer" style={{ fontFamily: FONT_NUM, fontSize: timerFontSize, fontWeight: 600, color: TEXT, lineHeight: 1 }}>
@@ -6542,7 +6893,15 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
           </div>
 
           {!isDone ? (
-            isPortrait ? (
+            stripVisuals ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                {ringTimerBlock}
+                <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                  <SimpleStat label="Target" value={simpleTargetTxt} />
+                  <SimpleStat label="Current" value={currentPowerTxt} accent={trainer.status === 'connected'} />
+                </div>
+              </div>
+            ) : isPortrait ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                 {ringTimerBlock}
                 {targetChip}
@@ -6576,7 +6935,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
             </div>
           )}
 
-          {!isDone && settings.visualPowerGauge && trainer.status === 'connected' && current.type === 'power' && (
+          {!isDone && !stripVisuals && settings.visualPowerGauge && trainer.status === 'connected' && current.type === 'power' && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: isPortrait ? 18 : 6 }}>
               <PowerGauge power={trainer.power || 0} targetWatts={targetWattsForGauge} width={gaugeSize.width} height={gaugeSize.height} radius={gaugeSize.radius} stroke={gaugeSize.stroke} cvd={settings.colorblindMode} />
             </div>
@@ -6815,6 +7174,45 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
   const hrStatusColor = heartRate.status === 'connected' ? connectedColor : heartRate.status === 'connecting' ? connectingColor : heartRate.status === 'error' ? errorColor : SUB;
   const hrStatusLabel = heartRate.status === 'connected' ? `Connected · ${heartRate.deviceName}` : heartRate.status === 'connecting' ? 'Connecting…' : heartRate.status === 'error' ? 'Connection failed' : 'Not connected';
 
+  // Status row + connect control. On the web the browser has its own device
+  // chooser, so it's a single Connect button. In the native app (iOS) there's
+  // no built-in chooser, so we scan and show a list of what's actually in
+  // range for the rider to pick from — the step that was missing before.
+  function BleConnectRow({ conn, statusColor, statusLabel }) {
+    const native = conn.isNative;
+    const busy = conn.status === 'connecting' || conn.scanning;
+    const btnBase = { fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, fontSize: 13, cursor: busy ? 'default' : 'pointer' };
+    return (
+      <>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+          <div style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 14, color: TEXT }}>{conn.scanning ? 'Scanning…' : statusLabel}</div>
+          {conn.status === 'connected' ? (
+            <button onClick={conn.disconnect} style={{ ...btnBase, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT }}>Disconnect</button>
+          ) : (
+            <button onClick={() => (native ? conn.scan() : conn.connect())} disabled={busy}
+              style={{ ...btnBase, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, opacity: busy ? 0.6 : 1 }}>
+              {native ? (conn.scanning ? 'Scanning…' : (conn.devices.length ? 'Rescan' : 'Scan')) : (conn.status === 'connecting' ? 'Connecting…' : 'Connect')}
+            </button>
+          )}
+        </div>
+        {native && conn.status !== 'connected' && conn.devices.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase' }}>{conn.scanning ? 'Looking…' : 'Tap to connect'}</div>
+            {conn.devices.map(d => (
+              <button key={d.deviceId} onClick={() => conn.connectTo(d.deviceId, d.name)} disabled={busy}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, padding: '9px 12px', cursor: busy ? 'default' : 'pointer' }}>
+                <Bluetooth size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <span style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 13.5, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+                <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>Connect</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -6831,15 +7229,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 4 }}>Trainer, sounds and how the app looks.</div>
 
       <SectionHeader icon={<Bluetooth size={16} color="var(--accent)" />} title="Trainer connectivity" />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
-        <div style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 14, color: TEXT }}>{statusLabel}</div>
-        {trainer.status === 'connected' ? (
-          <button onClick={trainer.disconnect} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
-        ) : (
-          <button onClick={trainer.connect} disabled={trainer.status === 'connecting'} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
-        )}
-      </div>
+      <BleConnectRow conn={trainer} statusColor={statusColor} statusLabel={statusLabel} />
       {!trainer.supported && (
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
           Bluetooth isn't available here. This works in Chrome on desktop or Android with a trainer that supports the FTMS standard — not in Safari or iOS.
@@ -6854,15 +7244,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       </SettingRow>
 
       <SectionHeader icon={<HeartPulse size={16} color="var(--accent)" />} title="Heart rate monitor" />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: hrStatusColor, flexShrink: 0 }} />
-        <div style={{ fontFamily: "'Manrope', sans-serif", flex: 1, fontSize: 14, color: TEXT }}>{hrStatusLabel}</div>
-        {heartRate.status === 'connected' ? (
-          <button onClick={heartRate.disconnect} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13, cursor: 'pointer' }}>Disconnect</button>
-        ) : (
-          <button onClick={heartRate.connect} disabled={heartRate.status === 'connecting'} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Connect</button>
-        )}
-      </div>
+      <BleConnectRow conn={heartRate} statusColor={hrStatusColor} statusLabel={hrStatusLabel} />
       {!heartRate.supported && (
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
           Bluetooth isn't available here. Works with any standard BLE chest strap or armband — Polar, Wahoo, Garmin and most others.
@@ -7003,7 +7385,14 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           <Chip active={settings.workoutTextScale === 1.25} onClick={() => updateSetting('workoutTextScale', 1.25)}>Large</Chip>
           <Chip active={settings.workoutTextScale === 1.5} onClick={() => updateSetting('workoutTextScale', 1.5)}>XL</Chip>
           <Chip active={settings.workoutTextScale === 2} onClick={() => updateSetting('workoutTextScale', 2)}>2x (tablet)</Chip>
+          <Chip active={settings.workoutTextScale === 4} onClick={() => updateSetting('workoutTextScale', 4)}>4x (max)</Chip>
         </div>
+        {settings.workoutTextScale >= 2 && (
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: 'var(--flame)', marginTop: 8, lineHeight: 1.5, display: 'flex', gap: 6 }}>
+            <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>At this size on a phone, the timer ring and the watts dial are hidden to make room — you'll see just the big timer, target, current watts and the pause button. Turn the text size back down to bring them back.</span>
+          </div>
+        )}
       </div>
       <SettingRow label="Keep screen awake" sub="Prevent the screen from sleeping while riding"><Switch checked={settings.keepAwake} onChange={v => updateSetting('keepAwake', v)} /></SettingRow>
       </CollapsibleSection>
@@ -7653,9 +8042,18 @@ function useOrientation() {
   return isPortrait;
 }
 
+const ROTATE_HINT_SEEN_KEY = 'trbo_rotate_hint_seen_v1';
 function OrientationGate({ preferredOrientation, children }) {
   const isPortrait = useOrientation();
-  const [dismissed, setDismissed] = useState(false);
+  // Dismissal is remembered for good — once the rider says "continue in
+  // portrait anyway", the rotate prompt never comes back, on this device.
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(ROTATE_HINT_SEEN_KEY) === '1'; } catch (e) { return false; }
+  });
+  function dismiss() {
+    setDismissed(true);
+    try { localStorage.setItem(ROTATE_HINT_SEEN_KEY, '1'); } catch (e) {}
+  }
 
   // Best-effort real lock: only works in some installed/fullscreen Android
   // Chrome contexts. iOS Safari does not support the Orientation Lock API
@@ -7680,10 +8078,10 @@ function OrientationGate({ preferredOrientation, children }) {
           <div style={{ fontSize: 13.5, color: SUB, maxWidth: 320, lineHeight: 1.6, marginBottom: 22 }}>
             This app is designed for landscape — it's easier to read your timer and chart when your device is mounted on the bars. Turn your device sideways for the best experience.
           </div>
-          <button onClick={() => setDismissed(true)} style={{ padding: '11px 20px', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13.5, cursor: 'pointer' }}>
+          <button onClick={dismiss} style={{ padding: '11px 20px', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13.5, cursor: 'pointer' }}>
             Continue in portrait anyway
           </button>
-          <div style={{ fontSize: 11.5, color: SUB, marginTop: 10, maxWidth: 280 }}>Some screens may look cramped or stretched in portrait. You can change your default under Settings → Visuals.</div>
+          <div style={{ fontSize: 11.5, color: SUB, marginTop: 10, maxWidth: 280 }}>We won't ask again. Some screens may look cramped or stretched in portrait. You can change your default under Settings → Visuals.</div>
         </div>
       )}
     </>
