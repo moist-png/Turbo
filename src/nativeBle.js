@@ -35,6 +35,16 @@ async function getBle() {
 
 export const isNative = Capacitor.isNativePlatform();
 
+// BLE-specific flag: iOS only. Android's Capacitor WebView is Chrome-based
+// and has working navigator.bluetooth support, same as desktop/Android
+// Chrome, so it should keep using the normal Web Bluetooth code path rather
+// than this iOS-only bridge. Gating BLE on the general isNative flag above
+// (true for iOS AND Android) was causing Android to try to dynamically
+// import @capacitor-community/bluetooth-le, which isn't wired up for
+// Android here and surfaced as "Failed to fetch dynamically imported
+// module" when testers tried to connect a trainer or HR monitor.
+export const isNativeBle = Capacitor.getPlatform() === 'ios';
+
 // Scans for the first device advertising `serviceUuid`, connects, and
 // resolves with the deviceId. Mirrors navigator.bluetooth.requestDevice +
 // device.gatt.connect() combined, since capacitor-community/bluetooth-le

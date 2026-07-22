@@ -16,7 +16,7 @@ import { supabase } from './supabaseClient';
 import { currentPlanWeek, PHASE, WORKOUT_PURPOSE, estimateOutdoorTss } from './planner';
 import { TrboMark } from './PublicPages';
 import {
-  isNative, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
+  isNative, isNativeBle, nativeRequestAndConnect, nativeStartNotifications, nativeWrite, nativeDisconnect, uuid16,
   nativeOpenAuthUrl, nativeCloseAuthUrl, nativeOnAuthCallback,
 } from './nativeBle';
 import { ColorblindContext } from './colorblindContext';
@@ -3295,7 +3295,7 @@ function useTrainer() {
   const nativeIdRef = useRef(null);
   const writeQueueRef = useRef(Promise.resolve());
   const cpsCrankRef = useRef({ revs: null, time: null });
-  const supported = isNative || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
+  const supported = isNativeBle || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
 
   function handleBikeData(dv) {
     try {
@@ -3360,7 +3360,7 @@ function useTrainer() {
     if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return; }
     setStatus('connecting'); setErrorMsg(null);
     cpsCrankRef.current = { revs: null, time: null };
-    if (isNative) {
+    if (isNativeBle) {
       try {
         const ftmsSvc = uuid16(0x1826);
         const cpsSvc = uuid16(0x1818);
@@ -3463,7 +3463,7 @@ function useTrainer() {
     }
   }
   function disconnect() {
-    if (isNative) {
+    if (isNativeBle) {
       nativeDisconnect(nativeIdRef.current);
       nativeIdRef.current = null;
     } else {
@@ -3541,7 +3541,7 @@ function useHeartRate() {
   const [bpm, setBpm] = useState(null);
   const deviceRef = useRef(null);
   const nativeIdRef = useRef(null);
-  const supported = isNative || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
+  const supported = isNativeBle || (typeof navigator !== 'undefined' && !!navigator.bluetooth);
 
   function handleHrData(dv) {
     try {
@@ -3557,7 +3557,7 @@ function useHeartRate() {
   async function connect() {
     if (!supported) { setErrorMsg('Bluetooth is not available in this browser or environment.'); setStatus('error'); return; }
     setStatus('connecting'); setErrorMsg(null);
-    if (isNative) {
+    if (isNativeBle) {
       try {
         const svc = uuid16(0x180d);
         const { deviceId, name } = await nativeRequestAndConnect(svc, handleDisconnected);
@@ -3588,7 +3588,7 @@ function useHeartRate() {
     }
   }
   function disconnect() {
-    if (isNative) {
+    if (isNativeBle) {
       nativeDisconnect(nativeIdRef.current);
       nativeIdRef.current = null;
     } else {
