@@ -5,6 +5,7 @@ import {
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
   Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered, MessageSquare, GripVertical, Skull, Info,
+  MoreHorizontal,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 // planner.js (the logic module) stays an ordinary import -- WORKOUT_PURPOSE
@@ -8287,16 +8288,113 @@ function SidebarNav({ view, onNavigate, width, category, onSelectCategory }) {
   );
 }
 
-// Classic bottom tab bar — unchanged treatment, kept for portrait phone.
+// Bottom tab bar — portrait phone only.
+//
+// This used to render all nine NAV_ITEMS side by side. On a 390px-wide phone
+// that left each tab under 45px, with 10px labels truncating and icons
+// crowding each other -- the bar read as a stacked mess rather than
+// navigation. It now carries the four everyday destinations and moves the
+// rest into a "More" sheet.
+//
+// NAV_ITEMS itself is deliberately untouched, so the sidebar (landscape
+// phone, tablet, laptop -- where there is plenty of vertical room) still
+// lists all nine exactly as before. This is a phone-only change.
+const BOTTOM_TAB_KEYS = ['home', 'basics', 'rides', 'planner'];
+
+// Everything not on the bar, in the order it appears in the sheet. Note this
+// includes FTP and History, which have never had a bottom-bar entry at all --
+// on a phone they were previously reachable only via the home screen, so the
+// sheet actually widens what's reachable rather than burying things.
+const MORE_ITEMS = [
+  { key: 'library', label: 'Library', Icon: Library },
+  { key: 'queue', label: 'Queue', Icon: ListOrdered },
+  { key: 'builder', label: 'Builder', Icon: Wrench },
+  { key: 'ftp', label: 'FTP', Icon: Gauge },
+  { key: 'history', label: 'History', Icon: BarChart3 },
+  { key: 'feedback', label: 'Feedback', Icon: MessageSquare },
+  { key: 'settings', label: 'Settings', Icon: SettingsIcon },
+];
+
+// Matches the paddingBottom the app wrapper already reserves for the bar, so
+// the sheet sits directly on top of it rather than underneath or overlapping.
+const TABBAR_HEIGHT = 'calc(54px + env(safe-area-inset-bottom))';
+
 function BottomTabBar({ view, onNavigate }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const tabs = BOTTOM_TAB_KEYS.map(k => NAV_ITEMS.find(n => n.key === k)).filter(Boolean);
+  // The More tab reads as selected whenever the screen you're on lives inside
+  // the sheet, so the bar never looks like nothing at all is active.
+  const moreActive = MORE_ITEMS.some(m => m.key === view);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    function onKey(e) { if (e.key === 'Escape') setMoreOpen(false); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [moreOpen]);
+
+  function go(key) { setMoreOpen(false); onNavigate(key); }
+
+  const tabBtn = { flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', minWidth: 0 };
+
   return (
-    <div className="tabbar" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: NAVBG, borderTop: `1px solid ${LINE}`, display: 'flex' }}>
-      {NAV_ITEMS.map(({ key, label, Icon }) => (
-        <button key={key} onClick={() => onNavigate(key)} className="tabbar-btn" style={{ flex: 1, background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: view === key ? 'var(--accent)' : SUB, cursor: 'pointer' }}>
-          <Icon size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+    <>
+      {moreOpen && (
+        <div
+          onClick={() => setMoreOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 60, display: 'flex', alignItems: 'flex-end' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', boxSizing: 'border-box', marginBottom: TABBAR_HEIGHT,
+              background: NAVBG, borderTop: `1px solid ${LINE}`,
+              borderTopLeftRadius: 18, borderTopRightRadius: 18,
+              padding: '10px 12px 14px',
+              // overflowX pinned per the tablet scroll quirk that affects every
+              // other overlay in the app.
+              overflowX: 'hidden', overflowY: 'auto', maxHeight: '60dvh',
+            }}
+          >
+            <div style={{ width: 36, height: 4, borderRadius: 3, background: LINE, margin: '2px auto 12px' }} />
+            {MORE_ITEMS.map(({ key, label, Icon }) => {
+              const active = view === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => go(key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+                    padding: '13px 12px', borderRadius: 10, border: 'none',
+                    background: active ? 'var(--accent)' : 'transparent', color: active ? INK : TEXT,
+                    fontFamily: "'Manrope', sans-serif", fontSize: 15, fontWeight: active ? 700 : 500, cursor: 'pointer',
+                  }}
+                >
+                  <Icon size={18} style={{ flexShrink: 0 }} /> {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Sits above the sheet's backdrop so More stays tappable to dismiss. */}
+      <div className="tabbar" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: NAVBG, borderTop: `1px solid ${LINE}`, display: 'flex', zIndex: 61 }}>
+        {tabs.map(({ key, label, Icon }) => (
+          <button key={key} onClick={() => go(key)} className="tabbar-btn" style={{ ...tabBtn, color: view === key ? 'var(--accent)' : SUB }}>
+            <Icon size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => setMoreOpen(v => !v)}
+          className="tabbar-btn"
+          aria-expanded={moreOpen}
+          style={{ ...tabBtn, color: moreOpen || moreActive ? 'var(--accent)' : SUB }}
+        >
+          <MoreHorizontal size={18} /><span style={{ fontSize: 10, fontWeight: 600 }}>More</span>
         </button>
-      ))}
-    </div>
+      </div>
+    </>
   );
 }
 
