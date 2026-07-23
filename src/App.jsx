@@ -4323,6 +4323,128 @@ function FtpInput({ ftp, setFtp, style }) {
   );
 }
 
+// Resolves the single accent hue into the 3-stop family (dark / main / light,
+// plus an "r,g,b" triple for glow alpha) the length slider needs to paint its
+// fill gradient and drag halo. The four brand-supported accents are pinned to
+// their exact design values; any other accent is derived by darkening and
+// lightening the main hue so a custom colour still yields a coherent family.
+function accentFamily(hex) {
+  const KNOWN = {
+    '#2fc5ae': { dark: '#1F8C7C', main: '#2FC5AE', light: '#6fe0cc', glow: '47,197,174' },   // teal (default)
+    '#9b7ef5': { dark: '#6C4FD1', main: '#9B7EF5', light: '#c4b3fa', glow: '155,126,245' },   // violet
+    '#f5a623': { dark: '#c27d0e', main: '#F5A623', light: '#ffcf70', glow: '245,166,35' },    // amber
+    '#4fa8f5': { dark: '#2E6FB8', main: '#4FA8F5', light: '#8fc9fb', glow: '79,168,245' },     // blue
+  };
+  const key = (hex || '').toLowerCase();
+  if (KNOWN[key]) return KNOWN[key];
+  const m = /^#?([0-9a-f]{6})$/i.exec(key);
+  if (!m) return KNOWN['#2fc5ae'];
+  const int = parseInt(m[1], 16);
+  const r = (int >> 16) & 255, g = (int >> 8) & 255, b = int & 255;
+  const mix = (c, t) => (t < 0 ? c * (1 + t) : c + (255 - c) * t);
+  const toHex = (rr, gg, bb) => '#' + [rr, gg, bb].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('');
+  return {
+    dark: toHex(mix(r, -0.38), mix(g, -0.38), mix(b, -0.38)),
+    main: `#${m[1]}`,
+    light: toHex(mix(r, 0.45), mix(g, 0.45), mix(b, 0.45)),
+    glow: `${r},${g},${b}`,
+  };
+}
+
+// Custom "Adjust length" slider — a genuinely pointer-driven control rather
+// than a native <input type="range">, so the track, fill and thumb can carry
+// the carved-in / raised-knob depth from the design. Pointer capture on the
+// track keeps a drag tracking even when the finger leaves the element; value
+// snaps to `step`-minute increments. The thumb stays a neutral glossy grey in
+// every theme (per spec) so it reads against any accent-coloured fill.
+function LengthSlider({ min, max = 360, step = 5, value, onChange, originalMinutes, accent, valueLabel }) {
+  const trackRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const range = Math.max(1, max - min);
+  const clampPct = p => Math.max(0, Math.min(100, p));
+  const fillPct = clampPct(((value - min) / range) * 100);
+  const originalPct = clampPct(((originalMinutes - min) / range) * 100);
+  const showOriginalMarker = originalMinutes !== value;
+  const thumbSize = dragging ? 14 : 13;
+  // Hour marks that fall inside this workout's actual range, etched as notches.
+  const ticks = [60, 120, 180, 240, 300]
+    .filter(mm => mm > min && mm < max)
+    .map(mm => ({
+      pct: clampPct(((mm - min) / range) * 100),
+      height: mm % 120 === 0 ? 6 : 4,
+      color: mm % 120 === 0 ? 'rgba(20,23,26,0.45)' : 'rgba(20,23,26,0.3)',
+    }));
+
+  function minutesFromEvent(e) {
+    const el = trackRef.current;
+    if (!el) return value;
+    const rect = el.getBoundingClientRect();
+    let pct = (e.clientX - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    const raw = min + pct * (max - min);
+    const stepped = Math.round(raw / step) * step;
+    return Math.max(min, Math.min(max, stepped));
+  }
+  function onDown(e) {
+    const el = trackRef.current;
+    if (el && el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (_) {} }
+    setDragging(true);
+    onChange(minutesFromEvent(e));
+  }
+  function onMove(e) { if (dragging) onChange(minutesFromEvent(e)); }
+  function onUp(e) {
+    setDragging(false);
+    const el = trackRef.current;
+    if (el && el.releasePointerCapture) { try { el.releasePointerCapture(e.pointerId); } catch (_) {} }
+  }
+  function onKey(e) {
+    let d = 0;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') d = -step;
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') d = step;
+    else if (e.key === 'Home') { e.preventDefault(); onChange(min); return; }
+    else if (e.key === 'End') { e.preventDefault(); onChange(max); return; }
+    else return;
+    e.preventDefault();
+    onChange(Math.max(min, Math.min(max, value + d)));
+  }
+
+  const fillGradient = `linear-gradient(90deg, ${accent.dark}, ${accent.main} 70%, ${accent.light})`;
+  const fillTransition = dragging ? 'none' : 'width 0.18s cubic-bezier(.2,.7,.3,1)';
+  const thumbTransition = dragging
+    ? 'width 0.1s ease, height 0.1s ease'
+    : 'left 0.18s cubic-bezier(.2,.7,.3,1), width 0.1s ease, height 0.1s ease';
+  const thumbShadow = dragging
+    ? `0 0 0 6px rgba(${accent.glow},0.16), 0 5px 10px rgba(0,0,0,0.55)`
+    : '0 3px 6px rgba(0,0,0,0.5)';
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+        <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.7, color: SUB }}>Adjust length</span>
+        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 700, color: dragging ? accent.main : TEXT, transition: 'color 0.15s ease' }}>{valueLabel}</span>
+      </div>
+      <div
+        ref={trackRef}
+        role="slider" tabIndex={0}
+        aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} aria-label="Adjust workout length"
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onKeyDown={onKey}
+        style={{ position: 'relative', height: 13, display: 'flex', alignItems: 'center', cursor: dragging ? 'grabbing' : 'pointer', touchAction: 'none', userSelect: 'none' }}
+      >
+        <div style={{ position: 'absolute', left: 0, right: 0, height: 9, borderRadius: 5, background: 'linear-gradient(180deg, #2A2F36, #1A1D21)', overflow: 'hidden', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.04), 0 1px 0 rgba(255,255,255,0.03)' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${fillPct}%`, background: fillGradient, transition: fillTransition, boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.35), inset 0 -1px 0 rgba(255,255,255,0.15)' }} />
+        </div>
+        {ticks.map((t, i) => (
+          <div key={i} style={{ position: 'absolute', left: `${t.pct}%`, top: '50%', width: 2, height: t.height, background: t.color, transform: 'translate(-50%, -50%)', borderRadius: 1, pointerEvents: 'none' }} />
+        ))}
+        {showOriginalMarker && (
+          <div style={{ position: 'absolute', left: `${originalPct}%`, top: '50%', width: 2, height: 20, background: '#E9ECEF', opacity: 0.4, transform: 'translate(-50%, -50%)', pointerEvents: 'none' }} />
+        )}
+        <div style={{ position: 'absolute', left: `${fillPct}%`, top: '50%', width: thumbSize, height: thumbSize, marginLeft: -(thumbSize / 2), marginTop: -(thumbSize / 2), borderRadius: '50%', background: 'radial-gradient(circle at 35% 25%, #ffffff, #d7dbe0 55%, #aeb4bb 100%)', boxShadow: `${thumbShadow}, inset 0 -2px 3px rgba(0,0,0,0.25), inset 0 1.5px 1px rgba(255,255,255,0.9)`, border: '1px solid rgba(0,0,0,0.15)', boxSizing: 'border-box', transition: thumbTransition, pointerEvents: 'none' }} />
+      </div>
+    </>
+  );
+}
+
 function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdit, isCustom, onDelete, onSaveScaled, presetMinutes, starred, onToggleStar, inQueue, onToggleQueue }) {
   const originalTotal = totalDuration(workout.intervals);
   const scalable = !workout.fixedLength;
@@ -4348,6 +4470,7 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
   const actualTotal = totalDuration(scaledIntervals);
   const isScaled = scalable && Math.abs(actualTotal - originalTotal) > 20;
   const needsFtp = scaledIntervals.some(i => i.type === 'power');
+  const accentFam = useMemo(() => accentFamily(settings.accentColor), [settings.accentColor]);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', boxSizing: 'border-box' }} onClick={onClose}>
@@ -4378,15 +4501,15 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
         <ProfileChart intervals={scaledIntervals} />
 
         {scalable && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: SUB, marginBottom: 6 }}>
-              <span>Adjust length</span>
-              <span style={{ color: TEXT }}>{targetMinutes} min{isScaled ? ` → ${fmtLong(actualTotal)} actual` : ''}</span>
-            </div>
-            <input type="range" min={floorMinutes} max={360} step={5} value={targetMinutes}
-              onChange={e => setTargetMinutes(Number(e.target.value))}
-              style={{ width: '100%', accentColor: settings.accentColor }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: SUB, marginTop: 2 }}>
+          <div style={{ marginTop: 18 }}>
+            <LengthSlider
+              min={floorMinutes} max={360} step={5}
+              value={targetMinutes} onChange={setTargetMinutes}
+              originalMinutes={Math.max(floorMinutes, Math.round(originalTotal / 60))}
+              accent={accentFam}
+              valueLabel={`${targetMinutes} min${isScaled ? ` → ${fmtLong(actualTotal)} actual` : ''}`}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: SUB, marginTop: 8 }}>
               <span>{floorMinutes > 10 ? fmtLong(floorMinutes * 60) : '10 min'}</span><span>6 hours</span>
             </div>
             {isScaled && (
@@ -4681,7 +4804,7 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
   const heroes = [
     { key: 'basics', label: 'Workouts', caption: `${workoutCount} sessions`, icon: Dumbbell, photo: '/images/home-workouts.jpg', photoPos: 'center 45%', ink: 'var(--hero1-ink)', chip: 'var(--hero1-chip)' },
     { key: 'rides', label: 'Rides', caption: `${rideCount} routes`, icon: Bike, photo: '/images/home-rides.jpg', photoPos: 'center 74%', ink: 'var(--hero2-ink)', chip: 'var(--hero2-chip)' },
-    { key: 'planner', label: 'Planner', caption: plannerCaption, icon: CalendarDays, photo: '/images/home-planner.jpg', surface: 'var(--hero3)', photoPos: 'center 45%', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
+    { key: 'planner', label: 'Planner', caption: plannerCaption, icon: CalendarDays, photo: '/images/home-planner.jpg', surface: 'var(--hero3)', photoPos: '35% 15%', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
     { key: 'games', label: 'Race the Pros', caption: '5 pro efforts', icon: Mountain, photo: '/images/home-games.jpg', photoPos: 'center 58%', surface: 'var(--hero3)', ink: 'var(--hero3-ink)', chip: 'var(--hero3-chip)' },
   ];
   const slim = [
@@ -7121,6 +7244,34 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
   const [portalError, setPortalError] = useState('');
   const [pauseBusy, setPauseBusy] = useState(false);
   const [confirmPause, setConfirmPause] = useState(false);
+  const [fbCategory, setFbCategory] = useState('bug');
+  const [fbMessage, setFbMessage] = useState('');
+  const [fbStatus, setFbStatus] = useState('idle'); // idle | sending | sent | error
+  const [fbError, setFbError] = useState('');
+
+  // Sends a private message straight to the help@trbo.bike inbox. Identity is
+  // proved by the signed-in session (apiFetch attaches the auth token), so we
+  // never send name/email up from here — the server reads the real account.
+  async function sendFeedback() {
+    const msg = fbMessage.trim();
+    if (!msg || fbStatus === 'sending') return;
+    setFbStatus('sending');
+    setFbError('');
+    try {
+      const res = await apiFetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, category: fbCategory }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not send that. Please try again.');
+      setFbMessage('');
+      setFbStatus('sent');
+    } catch (err) {
+      setFbError(err.message || 'Something went wrong. Please try again.');
+      setFbStatus('error');
+    }
+  }
 
   // Pausing stops the card being charged without cancelling. A full reload
   // afterwards is deliberate: subscription state is read once when the app
@@ -7451,6 +7602,49 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
               )}
             </SettingRow>
           )}
+        </>
+      )}
+
+      {account && (
+        <>
+          <SectionHeader icon={<MessageSquare size={16} color="var(--accent)" />} title="Feedback & support" />
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, lineHeight: 1.5, marginBottom: 12 }}>
+            Found a bug, want a feature, or need a hand? Send it straight to us — it lands in our inbox and we&rsquo;ll reply to you by email.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            {[['bug', 'Bug'], ['idea', 'Idea'], ['praise', 'Praise'], ['other', 'Other']].map(([key, label]) => (
+              <Chip key={key} active={fbCategory === key} onClick={() => setFbCategory(key)}>{label}</Chip>
+            ))}
+          </div>
+          <textarea
+            value={fbMessage}
+            onChange={e => { setFbMessage(e.target.value.slice(0, 4000)); if (fbStatus !== 'idle') setFbStatus('idle'); }}
+            placeholder="What&rsquo;s on your mind?"
+            rows={4}
+            style={{
+              width: '100%', boxSizing: 'border-box', resize: 'vertical', background: PANEL2,
+              border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', fontSize: 13.5,
+              color: TEXT, fontFamily: "'Manrope', sans-serif",
+            }}
+          />
+          {fbStatus === 'sent' && (
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: 'var(--accent)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} /> Thanks — we&rsquo;ve got it and will get back to you at {account.email}.
+            </div>
+          )}
+          {fbStatus === 'error' && fbError && (
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: RED, marginTop: 8 }}>{fbError}</div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <button onClick={sendFeedback} disabled={!fbMessage.trim() || fbStatus === 'sending'} style={{
+              fontFamily: "'Manrope', sans-serif", padding: '9px 18px', borderRadius: 10, border: 'none',
+              background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 13,
+              cursor: (!fbMessage.trim() || fbStatus === 'sending') ? 'default' : 'pointer',
+              opacity: (!fbMessage.trim() || fbStatus === 'sending') ? 0.5 : 1,
+            }}>
+              {fbStatus === 'sending' ? 'Sending…' : 'Send feedback'}
+            </button>
+          </div>
         </>
       )}
 

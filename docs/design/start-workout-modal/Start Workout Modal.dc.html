@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Big+Shoulders+Display:wght@700;800&family=Manrope:wght@500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #14171A; }
+    a { color: #2FC5AE; }
+    a:hover { color: #58d6c3; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #31373F; border-radius: 4px; }
+  </style>
+</helmet>
+
+<div style="min-height: 100vh; width: 100%; background: #14171A; display: flex; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box; font-family: 'Manrope', sans-serif;">
+  <div style="background: #14171A; width: 100%; max-width: 520px; border-radius: 18px; border: 1px solid #31373F; padding: 20px; max-height: min(85vh, 700px); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;">
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+      <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+        <sc-if value="{{ workout.pain }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D4D" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="11" r="8"/><circle cx="9" cy="10" r="1.2" fill="#FF4D4D"/><circle cx="15" cy="10" r="1.2" fill="#FF4D4D"/><path d="M9 15h1v3M14 15h1v3M12 15v3"/></svg>
+          <span style="position: relative; display: inline-flex; flex-shrink: 0;">
+            <button type="button" onClick="{{ togglePainInfo }}" aria-label="More info" style="background: none; border: none; padding: 0; margin: 0; cursor: pointer; display: flex; color: #8B929B;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </button>
+            <sc-if value="{{ painInfoOpen }}">
+              <div style="position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; width: 230px; z-index: 50; background: #242930; border: 1px solid #31373F; border-radius: 8px; padding: 10px; font-family: 'Manrope', sans-serif; font-size: 11.5px; font-weight: 500; color: #E9ECEF; line-height: 1.45; box-shadow: 0 4px 16px rgba(0,0,0,0.35);">These rides are designed to be nearly impossible at your true FTP. You can always dial down the FTP for a taste test.</div>
+            </sc-if>
+          </span>
+        </sc-if>
+        <div style="font-family: 'Big Shoulders Display', sans-serif; font-size: 24px; font-weight: 700; color: #E9ECEF; letter-spacing: 0.3px;">{{ workout.name }}</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px; flex-shrink: 0;">
+        <button onClick="{{ toggleStar }}" title="Star" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="{{ starFill }}" stroke="{{ starColor }}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+        <button title="Close" style="background: none; border: none; color: #8B929B; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div style="font-size: 13px; color: #8B929B; margin-bottom: 14px;">{{ workout.description }}</div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 14px; font-size: 12px; color: #8B929B; flex-wrap: wrap;">
+      <sc-if value="{{ workout.pain }}">
+        <span style="border: 1px solid #FF4D4D; border-radius: 6px; padding: 3px 8px; color: #FF4D4D; font-weight: 600;">Pain</span>
+      </sc-if>
+      <span style="border: 1px solid #31373F; border-radius: 6px; padding: 3px 8px;">{{ workout.category }}</span>
+      <span style="border: 1px solid #31373F; border-radius: 6px; padding: 3px 8px;">{{ actualTotalLabel }}</span>
+      <span style="border: 1px solid #31373F; border-radius: 6px; padding: 3px 8px;">{{ intervalCount }} intervals</span>
+    </div>
+
+    <div style="position: relative; display: flex; align-items: flex-end; height: 84px; width: 100%; background: #242930; border-radius: 8px; overflow: hidden; border: 1px solid #31373F;">
+      <sc-for list="{{ segments }}" as="seg" hint-placeholder-count="8">
+        <div style="width: {{ seg.widthPct }}%; height: 100%; display: flex; align-items: flex-end; border-right: 1px solid #242930;">
+          <div style="width: 100%; height: {{ seg.heightPct }}%; background: {{ seg.background }};"></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ scalable }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <span style="font-size: 11px; font-weight: 700; color: #8B929B; text-transform: uppercase; letter-spacing: 0.7px;">Adjust length</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; color: {{ sliderValueColor }}; transition: color 0.15s ease;">{{ targetMinutes }} min{{ scaledSuffix }}</span>
+        </div>
+        <div style="position: relative; height: 13px; display: flex; align-items: center; cursor: {{ trackCursor }}; touch-action: none; user-select: none;" onPointerDown="{{ onTrackDown }}" onPointerMove="{{ onTrackMove }}" onPointerUp="{{ onTrackUp }}" onPointerCancel="{{ onTrackUp }}">
+          <div style="position: absolute; left: 0; right: 0; height: 9px; border-radius: 5px; background: linear-gradient(180deg, #2A2F36, #1A1D21); overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.04), 0 1px 0 rgba(255,255,255,0.03);">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: {{ fillPct }}%; background: {{ fillGradient }}; transition: {{ fillTransition }}; box-shadow: inset 0 2px 4px rgba(0,0,0,0.35), inset 0 -1px 0 rgba(255,255,255,0.15);"></div>
+          </div>
+          <sc-for list="{{ ticks }}" as="tick" hint-placeholder-count="6">
+            <div style="position: absolute; left: {{ tick.pct }}%; top: 50%; width: 2px; height: {{ tick.height }}px; background: {{ tick.color }}; transform: translate(-50%, -50%); border-radius: 1px; pointer-events: none;"></div>
+          </sc-for>
+          <sc-if value="{{ isScaled }}">
+            <div style="position: absolute; left: {{ originalPct }}%; top: 50%; width: 2px; height: 20px; background: #E9ECEF; opacity: 0.4; transform: translate(-50%, -50%); pointer-events: none;"></div>
+          </sc-if>
+          <div style="position: absolute; left: {{ fillPct }}%; top: 50%; width: {{ thumbSize }}px; height: {{ thumbSize }}px; margin-left: -{{ thumbHalf }}px; margin-top: -{{ thumbHalf }}px; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #ffffff, #d7dbe0 55%, #aeb4bb 100%); box-shadow: {{ thumbShadow }}, inset 0 -2px 3px rgba(0,0,0,0.25), inset 0 1.5px 1px rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.15); box-sizing: border-box; transition: {{ thumbTransition }}; pointer-events: none;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #8B929B; margin-top: 8px;">
+          <span>{{ floorLabel }}</span><span>6 hours</span>
+        </div>
+        <sc-if value="{{ isScaled }}">
+          <button onClick="{{ resetLength }}" style="margin-top: 6px; background: none; border: none; color: {{ accentMain }}; font-size: 12px; cursor: pointer; padding: 0;">Reset to original length</button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <button style="flex: 2; padding: 12px 0; border-radius: 10px; border: none; background: {{ accentMain }}; color: #14171A; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#14171A" stroke="#14171A" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start workout
+      </button>
+      <button onClick="{{ toggleQueue }}" title="Queue" style="flex: 1; padding: 12px 0; border-radius: 10px; border: 1px solid {{ queueBorder }}; background: {{ queueBg }}; color: {{ queueColor }}; font-weight: 700; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg> {{ queueLabel }}
+      </button>
+    </div>
+
+    <sc-if value="{{ needsFtp }}">
+      <div style="display: flex; align-items: center; gap: 10px; margin-top: 16px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ accentMain }}" stroke-width="2"><path d="M12 14 15 10"/><path d="M3.5 19a9 9 0 1 1 17 0"/></svg>
+        <span style="font-size: 13px; color: #8B929B;">Your FTP</span>
+        <input type="text" inputmode="numeric" value="{{ ftpDraft }}" onChange="{{ onFtpChange }}" onBlur="{{ onFtpCommit }}" style="width: 80px; background: #242930; border: 1px solid #31373F; border-radius: 6px; color: #E9ECEF; padding: 6px 8px; font-size: 14px; font-family: 'Space Grotesk', sans-serif;" />
+        <span style="font-size: 13px; color: #8B929B;">watts</span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ workout.notes }}">
+      <div style="margin-top: 16px; background: #1D2126; border: 1px solid #31373F; border-radius: 8px; padding: 12px; font-size: 12.5px; color: #8B929B; line-height: 1.5;">{{ workout.notes }}</div>
+    </sc-if>
+
+    <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+      <sc-for list="{{ intervalRows }}" as="row" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 8px; background: #1D2126; border-radius: 6px;">
+          <div style="width: 4px; height: 24px; background: {{ row.color }}; border-radius: 2px; flex-shrink: 0;"></div>
+          <div style="flex: 1; color: #E9ECEF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.label }}</div>
+          <div style="color: #8B929B;">{{ row.target }}</div>
+          <div style="color: #8B929B; width: 44px; text-align: right;">{{ row.duration }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ showFooterRow }}">
+      <div style="margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <sc-if value="{{ isCustom }}">
+          <button style="flex: 1 1 100px; padding: 12px 0; border-radius: 10px; border: 1px solid #31373F; background: #242930; color: #E9ECEF; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
+          </button>
+          <button style="padding: 12px 14px; border-radius: 10px; border: 1px solid #31373F; background: #242930; color: #FF4D4D; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+        </sc-if>
+        <sc-if value="{{ isScaled }}">
+          <button style="flex: 1 1 140px; padding: 12px 0; border-radius: 10px; border: 1px solid #31373F; background: #242930; color: #E9ECEF; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save as new
+          </button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 560, &quot;height&quot;: 760}, &quot;sampleWorkout&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;vo2-5x3&quot;, &quot;options&quot;: [&quot;vo2-5x3&quot;, &quot;threshold-2x20&quot;, &quot;ramp-ftp-test&quot;, &quot;recovery-spin&quot;], &quot;tsType&quot;: &quot;string&quot;}, &quot;isCustom&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;painMode&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;colorScheme&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;teal&quot;, &quot;options&quot;: [&quot;teal&quot;, &quot;violet&quot;, &quot;amber&quot;, &quot;blue&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Theme&quot;}}">
+
+const ZONE_COLORS = {
+  Recovery: '#4A6FA5', Endurance: '#4FB8A6', Tempo: '#8FC93A',
+  Threshold: '#C9F031', 'VO2 Max': '#FF9F40', Anaerobic: '#FF4D4D', Free: '#4B5563',
+};
+let idCounter = 1;
+function newId() { return 'iv' + (idCounter++) + '_' + Math.random().toString(36).slice(2, 7); }
+function iv(label, duration, type, target) { return { id: newId(), label, duration, type, target }; }
+function repeatIv(count, factory) { const out = []; for (let i = 0; i < count; i++) out.push(...factory(i)); return out; }
+function totalDuration(intervals) { return intervals.reduce((a, b) => a + b.duration, 0); }
+function fmt(sec) { sec = Math.max(0, Math.round(sec)); const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${s.toString().padStart(2, '0')}`; }
+function fmtLong(sec) { const h = Math.floor(sec / 3600); const m = Math.round((sec % 3600) / 60); if (h > 0) return `${h}h ${m}m`; return `${m} min`; }
+function rpeToPct(rpe) { const map = { 1: 40, 2: 48, 3: 55, 4: 62, 5: 70, 6: 78, 7: 88, 8: 96, 9: 108, 10: 130 }; return map[Math.round(rpe)] ?? 70; }
+function zoneFor(interval) {
+  if (interval.type === 'free') return { color: ZONE_COLORS.Free, intensity: 0.16 };
+  const p = interval.type === 'rpe' ? rpeToPct(interval.target) : interval.target;
+  let name;
+  if (p <= 55) name = 'Recovery'; else if (p <= 75) name = 'Endurance'; else if (p <= 90) name = 'Tempo';
+  else if (p <= 105) name = 'Threshold'; else if (p <= 120) name = 'VO2 Max'; else name = 'Anaerobic';
+  return { color: ZONE_COLORS[name], intensity: Math.min(1.3, p / 150) };
+}
+function formatTarget(it, ftp) {
+  if (it.type === 'free') return 'Free / rest';
+  if (it.type === 'rpe') { const pct = rpeToPct(it.target); const watts = Math.round((ftp * pct) / 100); return `RPE ${it.target}/10 · ~${pct}% FTP · ${watts}W`; }
+  const watts = Math.round((ftp * it.target) / 100);
+  return `${it.target}% FTP · ${watts}W`;
+}
+function classifyIv(it, idx, arr) {
+  const label = it.label || '';
+  if (idx === 0 && /warm/i.test(label)) return 'warmup';
+  if (idx === arr.length - 1 && /cool/i.test(label)) return 'cooldown';
+  const hardShort = it.duration <= 300 && ((it.type === 'power' && it.target >= 95) || (it.type === 'rpe' && it.target >= 7));
+  if (hardShort) return 'anchor';
+  const easyShort = it.duration <= 240 && (it.type === 'free' || (it.type === 'power' && it.target !== null && it.target <= 60) || (it.type === 'rpe' && it.target !== null && it.target <= 3));
+  if (easyShort) return 'rest';
+  return 'base';
+}
+function ivBounds(cls, dur) {
+  switch (cls) {
+    case 'warmup': case 'cooldown': return { min: Math.max(60, Math.round(dur * 0.6)), max: Math.max(dur, 900) };
+    case 'anchor': return { min: Math.max(5, Math.round(dur * 0.8)), max: Math.round(dur * 1.2) };
+    case 'rest': return { min: Math.max(5, Math.round(dur * 0.6)), max: Math.round(dur * 1.6) };
+    default: return { min: Math.max(60, Math.round(dur * 0.5)), max: Math.round(dur * 2.2) };
+  }
+}
+function ivSignature(it) { return `${it.type}|${it.target}|${it.duration}`; }
+function findRepeatGroups(intervals) {
+  const n = intervals.length; const groups = []; let i = 0;
+  while (i < n) {
+    let bestLen = 0, bestUnit = 0, bestReps = 0;
+    const maxUnit = Math.min(6, Math.floor((n - i) / 2));
+    for (let unit = 1; unit <= maxUnit; unit++) {
+      const sig = intervals.slice(i, i + unit).map(ivSignature).join(',');
+      let reps = 1;
+      while (i + (reps + 1) * unit <= n) {
+        const nextSig = intervals.slice(i + reps * unit, i + (reps + 1) * unit).map(ivSignature).join(',');
+        if (nextSig === sig) reps++; else break;
+      }
+      if (reps >= 2 && reps * unit > bestLen) { bestLen = reps * unit; bestUnit = unit; bestReps = reps; }
+    }
+    if (bestUnit > 0) { groups.push({ start: i, unit: bestUnit, origReps: bestReps, reps: bestReps, items: intervals.slice(i, i + bestUnit) }); i += bestLen; }
+    else i += 1;
+  }
+  return groups;
+}
+function findSignatureModule(originalIntervals, classes, groups) {
+  if (groups.length > 0) {
+    let best = null;
+    for (const g of groups) { const dur = totalDuration(g.items) * g.origReps; if (!best || dur > best.duration) best = { duration: dur, group: g }; }
+    return { duration: best.duration, build: () => { const out = []; for (let r = 0; r < best.group.origReps; r++) for (const it of best.group.items) out.push({ ...it, id: newId() }); return out; } };
+  }
+  const candidates = originalIntervals.map((it, idx) => ({ it, cls: classes[idx] }))
+    .filter(x => x.cls === 'base' && x.it.duration >= 180 && ((x.it.type === 'power' && x.it.target >= 80) || (x.it.type === 'rpe' && x.it.target >= 6)));
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => (b.it.target || 0) - (a.it.target || 0));
+  const template = candidates[0].it;
+  return { duration: template.duration, build: () => [{ ...template, id: newId() }] };
+}
+function buildLongExtension(diff, targetSeconds, origTotal, module) {
+  const blockCap = 25 * 60; const items = []; let remaining = diff; const extraModules = [];
+  if (module && module.duration > 0) {
+    const spacing = 60 * 60;
+    const desiredExtra = Math.min(4, Math.floor(Math.max(0, targetSeconds - origTotal) / spacing));
+    while (extraModules.length < desiredExtra && remaining > module.duration * 0.9) { extraModules.push(module.build()); remaining -= module.duration; }
+  }
+  if (extraModules.length === 0) {
+    while (remaining > 60) { const d = Math.min(blockCap, remaining); items.push(iv('Endurance', Math.round(d), 'power', 68)); remaining -= d; }
+    return items;
+  }
+  const gaps = extraModules.length + 1; const perGap = remaining / gaps;
+  for (let g = 0; g < gaps; g++) {
+    let gapRemaining = perGap;
+    while (gapRemaining > 60) { const d = Math.min(blockCap, gapRemaining); items.push(iv('Endurance', Math.round(d), 'power', 68)); gapRemaining -= d; }
+    if (g < extraModules.length) items.push(...extraModules[g]);
+  }
+  return items;
+}
+function findCoreModule(originalIntervals, classes) {
+  const n = originalIntervals.length; if (n === 0) return null;
+  let start = 0, end = n;
+  if (classes[0] === 'warmup') start = 1;
+  if (classes[n - 1] === 'cooldown') end = n - 1;
+  if (start >= end) return null;
+  const coreItems = originalIntervals.slice(start, end);
+  const duration = totalDuration(coreItems); if (duration <= 0) return null;
+  return { duration, build: () => coreItems.map(it => ({ ...it, id: newId() })) };
+}
+function assembleScaled(originalIntervals, classes, groups, inGroup, durations, fillers) {
+  const n = originalIntervals.length; const result = []; let i = 0;
+  while (i < n) {
+    const gi = inGroup[i];
+    if (gi >= 0 && groups[gi].start === i) {
+      const g = groups[gi];
+      for (let r = 0; r < g.reps; r++) for (let u = 0; u < g.unit; u++) { const srcIdx = g.start + u; result.push({ ...originalIntervals[srcIdx], id: newId(), duration: Math.max(5, Math.round(durations[srcIdx])) }); }
+      i += g.unit * g.origReps;
+    } else { result.push({ ...originalIntervals[i], duration: Math.max(5, Math.round(durations[i])) }); i += 1; }
+  }
+  if (fillers.length > 0) {
+    const lastIsCooldown = classes[n - 1] === 'cooldown';
+    if (lastIsCooldown && result.length > 0) { const tail = result.pop(); result.push(...fillers, tail); } else result.push(...fillers);
+  }
+  return result;
+}
+function smartScaleWorkout(originalIntervals, targetSeconds, repeatWholeCore) {
+  const n = originalIntervals.length; const origTotal = totalDuration(originalIntervals);
+  if (n === 0 || Math.abs(targetSeconds - origTotal) < 5) return originalIntervals.map(it => ({ ...it }));
+  const classes = originalIntervals.map((it, idx) => classifyIv(it, idx, originalIntervals));
+  const groups = findRepeatGroups(originalIntervals);
+  const inGroup = new Array(n).fill(-1);
+  groups.forEach((g, gi) => { for (let k = g.start; k < g.start + g.unit * g.origReps; k++) inGroup[k] = gi; });
+  const durations = originalIntervals.map(it => it.duration);
+  let diff = targetSeconds - origTotal;
+  function flexibleIndices(clsList) { return originalIntervals.map((_, idx) => idx).filter(idx => inGroup[idx] === -1 && clsList.includes(classes[idx])); }
+  if (diff > 0) {
+    for (const g of groups) {
+      const unitDur = totalDuration(g.items); if (unitDur <= 0) continue;
+      const maxReps = Math.min(Math.ceil(g.origReps * 1.5), g.origReps + 3);
+      while (diff > unitDur * 0.5 && g.reps < maxReps) { g.reps += 1; diff -= unitDur; }
+    }
+    let addedModules = [];
+    if (repeatWholeCore && groups.length === 0) {
+      const module = findCoreModule(originalIntervals, classes);
+      if (module && module.duration > 0) {
+        const maxAdd = 4; const gapSeconds = 12 * 60; const perPass = module.duration + gapSeconds;
+        while (diff >= perPass && addedModules.length < maxAdd) { addedModules.push([iv('Endurance', gapSeconds, 'power', 65), ...module.build()]); diff -= perPass; }
+      }
+    }
+    let flexIdx = flexibleIndices(['base', 'warmup', 'cooldown']);
+    if (diff > 0 && flexIdx.length > 0) {
+      const room = flexIdx.map(idx => ivBounds(classes[idx], durations[idx]).max - durations[idx]);
+      const totalRoom = room.reduce((a, b) => a + b, 0);
+      if (totalRoom > 0) { const use = Math.min(diff, totalRoom); flexIdx.forEach((idx, k) => { durations[idx] += (room[k] / totalRoom) * use; }); diff -= use; }
+    }
+    const fillers = addedModules.reduce((acc, m) => acc.concat(m), []);
+    if (diff > 60) { const module = findSignatureModule(originalIntervals, classes, groups); fillers.push(...buildLongExtension(diff, targetSeconds, origTotal, module)); }
+    if (fillers.length > 0) return assembleScaled(originalIntervals, classes, groups, inGroup, durations, fillers);
+  } else if (diff < 0) {
+    let need = -diff;
+    if (groups.length > 0) {
+      const order = groups.map((g, gi) => ({ g, gi, origDur: totalDuration(g.items) * g.origReps })).sort((a, b) => a.origDur - b.origDur);
+      const primaryGi = order[order.length - 1].gi;
+      for (const { g, gi } of order) {
+        if (need <= 0) break;
+        const unitDur = totalDuration(g.items); if (unitDur <= 0) continue;
+        const floorReps = gi === primaryGi ? 1 : 0;
+        while (need > 0 && g.reps > floorReps) { g.reps -= 1; need -= unitDur; }
+      }
+    }
+    let flexIdx = flexibleIndices(['base', 'warmup', 'cooldown']);
+    if (need > 0 && flexIdx.length > 0) {
+      const room = flexIdx.map(idx => Math.max(0, durations[idx] - ivBounds(classes[idx], durations[idx]).min));
+      const totalRoom = room.reduce((a, b) => a + b, 0);
+      if (totalRoom > 0) { const use = Math.min(need, totalRoom); flexIdx.forEach((idx, k) => { durations[idx] -= (room[k] / totalRoom) * use; }); need -= use; }
+    }
+    let otherIdx = flexibleIndices(['anchor', 'rest']);
+    if (need > 0 && otherIdx.length > 0) {
+      const room = otherIdx.map(idx => Math.max(0, durations[idx] - ivBounds(classes[idx], durations[idx]).min));
+      const totalRoom = room.reduce((a, b) => a + b, 0);
+      if (totalRoom > 0) { const use = Math.min(need, totalRoom); otherIdx.forEach((idx, k) => { durations[idx] -= (room[k] / totalRoom) * use; }); need -= use; }
+    }
+  }
+  return assembleScaled(originalIntervals, classes, groups, inGroup, durations, []);
+}
+
+const SAMPLE_WORKOUTS = {
+  'vo2-5x3': {
+    id: 'vo2-5x3', name: 'VO2 max 5×3', category: 'Basics',
+    description: 'Five 3 minute VO2 efforts with equal recovery.',
+    intervals: [iv('Warm up', 600, 'power', 60), ...repeatIv(5, () => [iv('VO2 max', 180, 'power', 115), iv('Recovery', 180, 'power', 55)]), iv('Cool down', 480, 'power', 50)],
+  },
+  'threshold-2x20': {
+    id: 'threshold-2x20', name: 'Threshold 2×20', category: 'Basics',
+    description: 'Classic two 20 minute blocks at threshold power.',
+    intervals: [iv('Warm up', 600, 'power', 60), iv('Threshold', 1200, 'power', 98), iv('Recovery', 480, 'power', 55), iv('Threshold', 1200, 'power', 100), iv('Cool down', 480, 'power', 50)],
+  },
+  'ramp-ftp-test': {
+    id: 'ramp-ftp-test', name: 'Ramp FTP test', category: 'Basics',
+    description: 'Power climbs a little every minute until you can’t hold it — no long steady effort needed.',
+    notes: 'Ride until you can no longer hold the target power. If a trainer is connected, the app will notice when you fall off the pace and end the test for you automatically, then estimate your FTP. Without a trainer connected, stop yourself, find the last full minute you completed, take its power, and multiply by 0.75 — that’s your new FTP, update it in Settings.',
+    fixedLength: true,
+    intervals: [iv('Warm up', 600, 'power', 55), ...Array.from({ length: 21 }, (_, i) => iv(i === 20 ? 'Max effort' : 'Ramp step', 60, 'power', 50 + i * 5)), iv('Cool down', 300, 'power', 50)],
+  },
+  'recovery-spin': {
+    id: 'recovery-spin', name: 'Recovery spin', category: 'Basics',
+    description: 'Light and easy — flush the legs, nothing more.',
+    intervals: [iv('Keep it light', 1800, 'power', 50)],
+  },
+};
+
+class Component extends DCLogic {
+  state = { targetMinutes: null, ftp: 220, ftpDraft: '220', starred: false, inQueue: false, painInfoOpen: false, dragging: false };
+
+  _minutesFromEvent(e, floorMinutes) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    let pct = (e.clientX - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    const raw = floorMinutes + pct * (360 - floorMinutes);
+    let stepped = Math.round(raw / 5) * 5;
+    return Math.max(floorMinutes, Math.min(360, stepped));
+  }
+
+  componentDidMount() {
+    this._resetMinutes();
+  }
+  componentDidUpdate(prevProps) {
+    if (prevProps.sampleWorkout !== this.props.sampleWorkout) this._resetMinutes();
+  }
+  _getWorkout() {
+    const base = SAMPLE_WORKOUTS[this.props.sampleWorkout ?? 'vo2-5x3'] ?? SAMPLE_WORKOUTS['vo2-5x3'];
+    return this.props.painMode ? { ...base, pain: true } : base;
+  }
+  _floorMinutes(workout) {
+    const scalable = !workout.fixedLength;
+    if (!scalable) return Math.max(10, Math.ceil(totalDuration(workout.intervals) / 60));
+    const floorSeconds = totalDuration(smartScaleWorkout(workout.intervals, 1, workout.repeatWholeCore));
+    return Math.max(10, Math.ceil(floorSeconds / 60));
+  }
+  _resetMinutes() {
+    const workout = this._getWorkout();
+    const originalTotal = totalDuration(workout.intervals);
+    const floorMinutes = this._floorMinutes(workout);
+    this.setState({ targetMinutes: Math.max(floorMinutes, Math.round(originalTotal / 60)) });
+  }
+
+  renderVals() {
+    const SCHEMES = {
+      teal: { main: '#2FC5AE', light: '#6fe0cc', dark: '#1F8C7C', glow: '47,197,174' },
+      violet: { main: '#9B7EF5', light: '#c4b3fa', dark: '#6C4FD1', glow: '155,126,245' },
+      amber: { main: '#F5A623', light: '#ffcf70', dark: '#c27d0e', glow: '245,166,35' },
+      blue: { main: '#4FA8F5', light: '#8fc9fb', dark: '#2E6FB8', glow: '79,168,245' },
+    };
+    const accent = SCHEMES[this.props.colorScheme] ?? SCHEMES.teal;
+    const workout = this._getWorkout();
+    const isCustom = !!this.props.isCustom;
+    const originalTotal = totalDuration(workout.intervals);
+    const scalable = !workout.fixedLength;
+    const floorMinutes = this._floorMinutes(workout);
+    const targetMinutes = this.state.targetMinutes ?? Math.max(floorMinutes, Math.round(originalTotal / 60));
+    const scaledIntervals = scalable ? smartScaleWorkout(workout.intervals, targetMinutes * 60, workout.repeatWholeCore) : workout.intervals;
+    const actualTotal = totalDuration(scaledIntervals);
+    const isScaled = scalable && Math.abs(actualTotal - originalTotal) > 20;
+    const needsFtp = scaledIntervals.some(i => i.type === 'power');
+
+    const segTotal = actualTotal || 1;
+    const segments = scaledIntervals.map(it => {
+      const z = zoneFor(it);
+      return { widthPct: +(it.duration / segTotal * 100).toFixed(3), heightPct: Math.max(14, Math.min(100, z.intensity * 78)), background: it.type === 'free' ? `repeating-linear-gradient(135deg, ${z.color}, ${z.color} 4px, #31373F 4px, #31373F 8px)` : z.color };
+    });
+    const intervalRows = scaledIntervals.map(it => ({ id: it.id, label: it.label, color: zoneFor(it).color, target: formatTarget(it, this.state.ftp), duration: fmt(it.duration) }));
+
+    const sliderRange = Math.max(1, 360 - floorMinutes);
+    const fillPct = Math.max(0, Math.min(100, ((targetMinutes - floorMinutes) / sliderRange) * 100));
+    const originalPct = Math.max(0, Math.min(100, ((Math.round(originalTotal / 60) - floorMinutes) / sliderRange) * 100));
+    const dragging = this.state.dragging;
+    const ticks = [60, 120, 180, 240, 300].filter(m => m > floorMinutes && m < 360).map(m => ({ pct: ((m - floorMinutes) / sliderRange) * 100, height: m % 120 === 0 ? 6 : 4, color: m % 120 === 0 ? 'rgba(20,23,26,0.45)' : 'rgba(20,23,26,0.3)' }));
+    const thumbSize = dragging ? 14 : 13;
+
+    return {
+      workout, isCustom,
+      scalable, floorMinutes, targetMinutes,
+      actualTotalLabel: fmtLong(actualTotal), intervalCount: scaledIntervals.length,
+      segments, intervalRows,
+      isScaled, scaledSuffix: isScaled ? ` → ${fmtLong(actualTotal)} actual` : '',
+      floorLabel: floorMinutes > 10 ? fmtLong(floorMinutes * 60) : '10 min',
+      needsFtp, ftpDraft: this.state.ftpDraft,
+      accentMain: accent.main, accentGlow: accent.glow,
+      starFill: this.state.starred ? accent.main : 'none', starColor: this.state.starred ? accent.main : '#8B929B',
+      inQueue: this.state.inQueue,
+      queueLabel: this.state.inQueue ? 'Queued' : 'Queue',
+      queueBorder: this.state.inQueue ? accent.main : '#31373F',
+      queueBg: this.state.inQueue ? accent.main : '#242930',
+      queueColor: this.state.inQueue ? '#14171A' : '#E9ECEF',
+      showFooterRow: isCustom || isScaled,
+      painInfoOpen: this.state.painInfoOpen,
+      togglePainInfo: () => this.setState(s => ({ painInfoOpen: !s.painInfoOpen })),
+      toggleStar: () => this.setState(s => ({ starred: !s.starred })),
+      toggleQueue: () => this.setState(s => ({ inQueue: !s.inQueue })),
+      fillPct, originalPct, ticks, thumbSize, thumbHalf: thumbSize / 2,
+      trackCursor: dragging ? 'grabbing' : 'pointer',
+      sliderValueColor: dragging ? accent.main : '#E9ECEF',
+      fillTransition: dragging ? 'none' : 'width 0.18s cubic-bezier(.2,.7,.3,1)',
+      thumbTransition: dragging ? 'width 0.1s ease, height 0.1s ease' : 'left 0.18s cubic-bezier(.2,.7,.3,1), width 0.1s ease, height 0.1s ease',
+      thumbShadow: dragging ? `0 0 0 6px rgba(${accent.glow},0.16), 0 5px 10px rgba(0,0,0,0.55)` : '0 3px 6px rgba(0,0,0,0.5)',
+      fillGradient: `linear-gradient(90deg, ${accent.dark}, ${accent.main} 70%, ${accent.light})`,
+      thumbGradient: `radial-gradient(circle at 32% 28%, ${accent.light}, ${accent.main} 55%, ${accent.dark} 100%)`,
+      onTrackDown: e => { e.currentTarget.setPointerCapture(e.pointerId); this.setState({ targetMinutes: this._minutesFromEvent(e, floorMinutes), dragging: true }); },
+      onTrackMove: e => { if (!this.state.dragging) return; this.setState({ targetMinutes: this._minutesFromEvent(e, floorMinutes) }); },
+      onTrackUp: () => this.setState({ dragging: false }),
+      resetLength: () => this.setState({ targetMinutes: Math.max(floorMinutes, Math.round(originalTotal / 60)) }),
+      onFtpChange: e => this.setState({ ftpDraft: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) }),
+      onFtpCommit: () => {
+        const n = parseInt(this.state.ftpDraft, 10);
+        if (!Number.isFinite(n) || this.state.ftpDraft.trim() === '') { this.setState({ ftpDraft: String(this.state.ftp) }); return; }
+        const clamped = Math.min(600, Math.max(50, n));
+        this.setState({ ftp: clamped, ftpDraft: String(clamped) });
+      },
+    };
+  }
+}
+
+</script>
+</body>
+</html>
