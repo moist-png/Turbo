@@ -7121,6 +7121,34 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
   const [portalError, setPortalError] = useState('');
   const [pauseBusy, setPauseBusy] = useState(false);
   const [confirmPause, setConfirmPause] = useState(false);
+  const [fbCategory, setFbCategory] = useState('bug');
+  const [fbMessage, setFbMessage] = useState('');
+  const [fbStatus, setFbStatus] = useState('idle'); // idle | sending | sent | error
+  const [fbError, setFbError] = useState('');
+
+  // Sends a private message straight to the help@trbo.bike inbox. Identity is
+  // proved by the signed-in session (apiFetch attaches the auth token), so we
+  // never send name/email up from here — the server reads the real account.
+  async function sendFeedback() {
+    const msg = fbMessage.trim();
+    if (!msg || fbStatus === 'sending') return;
+    setFbStatus('sending');
+    setFbError('');
+    try {
+      const res = await apiFetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, category: fbCategory }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not send that. Please try again.');
+      setFbMessage('');
+      setFbStatus('sent');
+    } catch (err) {
+      setFbError(err.message || 'Something went wrong. Please try again.');
+      setFbStatus('error');
+    }
+  }
 
   // Pausing stops the card being charged without cancelling. A full reload
   // afterwards is deliberate: subscription state is read once when the app
@@ -7451,6 +7479,49 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
               )}
             </SettingRow>
           )}
+        </>
+      )}
+
+      {account && (
+        <>
+          <SectionHeader icon={<MessageSquare size={16} color="var(--accent)" />} title="Feedback & support" />
+          <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, lineHeight: 1.5, marginBottom: 12 }}>
+            Found a bug, want a feature, or need a hand? Send it straight to us — it lands in our inbox and we&rsquo;ll reply to you by email.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            {[['bug', 'Bug'], ['idea', 'Idea'], ['praise', 'Praise'], ['other', 'Other']].map(([key, label]) => (
+              <Chip key={key} active={fbCategory === key} onClick={() => setFbCategory(key)}>{label}</Chip>
+            ))}
+          </div>
+          <textarea
+            value={fbMessage}
+            onChange={e => { setFbMessage(e.target.value.slice(0, 4000)); if (fbStatus !== 'idle') setFbStatus('idle'); }}
+            placeholder="What&rsquo;s on your mind?"
+            rows={4}
+            style={{
+              width: '100%', boxSizing: 'border-box', resize: 'vertical', background: PANEL2,
+              border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', fontSize: 13.5,
+              color: TEXT, fontFamily: "'Manrope', sans-serif",
+            }}
+          />
+          {fbStatus === 'sent' && (
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: 'var(--accent)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} /> Thanks — we&rsquo;ve got it and will get back to you at {account.email}.
+            </div>
+          )}
+          {fbStatus === 'error' && fbError && (
+            <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: RED, marginTop: 8 }}>{fbError}</div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <button onClick={sendFeedback} disabled={!fbMessage.trim() || fbStatus === 'sending'} style={{
+              fontFamily: "'Manrope', sans-serif", padding: '9px 18px', borderRadius: 10, border: 'none',
+              background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 13,
+              cursor: (!fbMessage.trim() || fbStatus === 'sending') ? 'default' : 'pointer',
+              opacity: (!fbMessage.trim() || fbStatus === 'sending') ? 0.5 : 1,
+            }}>
+              {fbStatus === 'sending' ? 'Sending…' : 'Send feedback'}
+            </button>
+          </div>
         </>
       )}
 

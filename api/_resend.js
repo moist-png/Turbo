@@ -10,11 +10,17 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Trbo <hello@trbo.bike>';
 
-export async function sendEmail({ to, subject, html }) {
+export async function sendEmail({ to, subject, html, replyTo }) {
   if (!RESEND_API_KEY) {
     console.warn(`RESEND_API_KEY not set -- skipping send to ${to}: "${subject}"`);
     return { skipped: true };
   }
+
+  // reply_to lets a support message land in the inbox from our verified
+  // sending domain (so it's actually delivered) while a plain "Reply" still
+  // goes straight back to the rider who wrote in.
+  const payload = { from: FROM_EMAIL, to, subject, html };
+  if (replyTo) payload.reply_to = replyTo;
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -22,7 +28,7 @@ export async function sendEmail({ to, subject, html }) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
