@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// Mini Games — a standalone, replayable game library kept fully separate from
+// Mini Games: a standalone, replayable game library kept fully separate from
 // the workout library. Each game is a small self-contained "engine" (init /
 // tick / Render) registered in MINI_GAMES below, so adding future games means
 // adding one entry here without touching the rest of the app.
@@ -27,7 +27,7 @@ function fmtTime(sec) {
 }
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
-// Rider speed from watts — simple flat-road aero model (CdA ≈ 0.32, sea-level
+// Rider speed from watts: simple flat-road aero model (CdA ≈ 0.32, sea-level
 // air). 200W ≈ 36 km/h, 300W ≈ 41 km/h. Only relative speeds matter in the
 // chase games, so precision isn't critical; it just has to *feel* right.
 function speedFromWatts(w) {
@@ -95,7 +95,7 @@ function MeterBar({ pct, color, height = 14, label }) {
 }
 
 // =============================================================================
-// GAME 1 — The Floor is Lava
+// GAME 1: The Floor is Lava
 // Stay above a rising minimum power. Drop below and your health burns away.
 // =============================================================================
 const lavaGame = {
@@ -109,7 +109,7 @@ const lavaGame = {
   color: '#FF6B4A',
   scoreUnit: 'time survived',
   howTo: [
-    'A minimum power line — the lava — starts easy and rises relentlessly.',
+    'A minimum power line, the lava, starts easy and rises relentlessly.',
     'Ride above the line and your health slowly recovers.',
     'Dip below it and you burn: the deeper you sink, the faster you lose health.',
     'Survive as long as you can. The game ends when your health hits zero (or after 15 minutes, if you\u2019re superhuman).',
@@ -119,7 +119,7 @@ const lavaGame = {
   },
   tick(s, power, dt, api) {
     s.elapsed += dt;
-    // lava rises ~5.5% of FTP per minute — everyone drowns eventually
+    // lava rises ~5.5% of FTP per minute: everyone drowns eventually
     s.floor += api.ftp * 0.00092 * dt;
     if (s.elapsed > 10) { // 10s spin-up grace before damage starts
       if (power < s.floor) {
@@ -159,7 +159,7 @@ const lavaGame = {
           <MeterBar pct={state.health} color={state.health > 40 ? 'var(--accent)' : '#FF6B4A'} label={`Health · ${Math.round(state.health)}%`} />
         </div>
         <div style={{ fontSize: 12.5, color: above ? SUB : '#FF6B4A', fontWeight: above ? 400 : 700 }}>
-          {state.elapsed <= 10 ? 'Spin up — lava arms in a moment' : above ? 'Clear of the lava. It\u2019s still rising\u2026' : 'YOU\u2019RE IN THE LAVA — PUSH!'}
+          {state.elapsed <= 10 ? 'Spin up: lava arms in a moment' : above ? 'Clear of the lava. It\u2019s still rising\u2026' : 'YOU\u2019RE IN THE LAVA: PUSH!'}
         </div>
       </div>
     );
@@ -167,7 +167,7 @@ const lavaGame = {
 };
 
 // =============================================================================
-// GAME 2 — Chase Car
+// GAME 2: Chase Car
 // A pursuit vehicle starts behind you and keeps accelerating. Outrun it.
 // =============================================================================
 const chaseGame = {
@@ -183,7 +183,7 @@ const chaseGame = {
   howTo: [
     'A chase car starts 150 m behind you at a gentle 30 km/h.',
     'Every 10 seconds it speeds up a little. It never stops speeding up.',
-    'Your speed comes from your power — the harder you push, the faster you ride.',
+    'Your speed comes from your power: the harder you push, the faster you ride.',
     'Survive as long as you can before it catches you.',
   ],
   init() {
@@ -226,7 +226,7 @@ const chaseGame = {
           </div>
         </div>
         <div style={{ fontSize: 12.5, color: danger ? '#FF6B4A' : SUB, fontWeight: danger ? 700 : 400 }}>
-          {state.elapsed <= 5 ? 'Rolling start — the car launches in a moment' : danger ? 'IT\u2019S RIGHT BEHIND YOU!' : 'Keep the gap. It\u2019s accelerating\u2026'}
+          {state.elapsed <= 5 ? 'Rolling start: the car launches in a moment' : danger ? 'IT\u2019S RIGHT BEHIND YOU!' : 'Keep the gap. It\u2019s accelerating\u2026'}
         </div>
       </div>
     );
@@ -234,7 +234,7 @@ const chaseGame = {
 };
 
 // =============================================================================
-// GAME 3 — Bridge the Gap
+// GAME 3: Bridge the Gap
 // A rider is up the road. Close the gap before they escape for good.
 // =============================================================================
 const bridgeGame = {
@@ -250,7 +250,7 @@ const bridgeGame = {
   howTo: [
     'A breakaway rider is 15 seconds ahead, riding hard at 95% of your FTP pace.',
     'Ride harder than them and the gap shrinks. Ride softer and it grows.',
-    'Catch them and you win — your time is your score.',
+    'Catch them and you win: your time is your score.',
     'If the gap stretches past 30 seconds, or 8 minutes pass, they\u2019re gone.',
   ],
   init(ftp) {
@@ -289,7 +289,7 @@ const bridgeGame = {
           </div>
         </div>
         <div style={{ fontSize: 12.5, color: closing ? SUB : '#FF9F40', fontWeight: closing ? 400 : 700 }}>
-          {closing ? 'You\u2019re closing. Keep it steady\u2026' : 'The gap is growing — dig deeper!'}
+          {closing ? 'You\u2019re closing. Keep it steady\u2026' : 'The gap is growing. Dig deeper!'}
         </div>
       </div>
     );
@@ -297,7 +297,7 @@ const bridgeGame = {
 };
 
 // =============================================================================
-// GAME 4 — Pro Attack
+// GAME 4: Pro Attack
 // Sit in the bunch, then react instantly when the attack goes.
 // =============================================================================
 const attackGame = {
@@ -312,7 +312,7 @@ const attackGame = {
   scoreUnit: 'attacks survived',
   howTo: [
     'Ride in the bunch at an easy endurance pace.',
-    'Without much warning, an attack goes — a hard target flashes up and you must hold it to keep the wheel.',
+    'Without much warning, an attack goes: a hard target flashes up and you must hold it to keep the wheel.',
     'Fall below the target and your grip on the wheel drains. Hit zero and you\u2019re dropped.',
     'Three attacks, each harder and longer than the last. Survive all three to win.',
   ],
@@ -395,7 +395,7 @@ const attackGame = {
         <div style={{ fontSize: 12.5, color: SUB }}>
           {state.phase === 'bunch' && state.idx < state.attacks.length && 'Spin easy and recover. The next one could go any second\u2026'}
           {inAttack && 'Match the surge or lose the wheel!'}
-          {state.phase === 'done-cruise' && 'Roll it home — nobody could drop you today.'}
+          {state.phase === 'done-cruise' && 'Roll it home: nobody could drop you today.'}
         </div>
       </div>
     );
@@ -403,11 +403,11 @@ const attackGame = {
 };
 
 // =============================================================================
-// GAME 5 — Beat the Pros
+// GAME 5: Beat the Pros
 // Real, unscaled professional power numbers. No FTP scaling, no mercy —
 // you experience the literal demands of elite racing. Every effort opens
 // with a rolling start (easy spin, then a ramp) so the flywheel is already
-// moving before the hard part — no picking the anvil up off the floor.
+// moving before the hard part: no picking the anvil up off the floor.
 // =============================================================================
 const PRO_LEAD_IN = 15;   // seconds spinning easy before the ramp
 const PRO_RAMP = 15;      // seconds ramping from the easy start up to target
@@ -433,9 +433,9 @@ const prosGame = {
     { id: 'hour', name: 'Hour Record Pace', watts: 355, seconds: 600, note: 'Dan Bigham held ~355W for the full hour to set the UCI Hour Record (55.548km) in 2022. Here\u2019s a 10-minute taste.' },
   ],
   howTo: [
-    'Pick a real professional benchmark effort. The wattage is literal — exactly what the pros put out, not scaled to your FTP.',
+    'Pick a real professional benchmark effort. The wattage is literal: exactly what the pros put out, not scaled to your FTP.',
     'Every effort opens with a rolling start: 15 seconds spinning easy at 150W, then a smooth 15-second ramp up to the target, so the flywheel is already moving before the hard part.',
-    'Once you\u2019re at pro power, hold it — your rolling average must stay above 92% of the target.',
+    'Once you\u2019re at pro power, hold it: your rolling average must stay above 92% of the target.',
     'Slip below for 8 straight seconds and the effort is over. Your score is how long you held pro power; last the full duration to actually beat the pros.',
   ],
   init(ftp, variant) {
@@ -495,7 +495,7 @@ const prosGame = {
     let banner, sub, bannerBg, bannerInk;
     if (state.phase === 'lead') {
       banner = `ROLLING START \u00b7 ${PRO_START_W}W`;
-      sub = 'Spin easy — getting the flywheel moving.';
+      sub = 'Spin easy: getting the flywheel moving.';
       bannerBg = PANEL; bannerInk = TEXT;
     } else if (state.phase === 'ramp') {
       banner = `RAMPING UP \u00b7 ${cur}W`;
@@ -505,7 +505,7 @@ const prosGame = {
       banner = `HOLD ${target}W`;
       sub = onPace
         ? 'On pro pace. This is what they feel like the whole race.'
-        : (state.below > 0 ? `Below pro pace — ${Math.ceil(8 - state.below)}s before you blow!` : 'Lift it back to pro power!');
+        : (state.below > 0 ? `Below pro pace: ${Math.ceil(8 - state.below)}s before you blow!` : 'Lift it back to pro power!');
       bannerBg = onPace ? paceColor : dangerColor; bannerInk = INK;
     }
 
@@ -532,13 +532,13 @@ const prosGame = {
 
 export const MINI_GAMES = [lavaGame, chaseGame, bridgeGame, attackGame, prosGame];
 
-// Beat the Pros is the only game currently exposed in the UI — the rest stay
+// Beat the Pros is the only game currently exposed in the UI: the rest stay
 // registered above (fully working) so they can be switched back on later by
 // flipping `active` to true, once each has its own animated visuals.
 export const BEAT_THE_PROS = prosGame;
 
 // =============================================================================
-// Landing page — the Mini Games library
+// Landing page: the Mini Games library
 // =============================================================================
 export function MiniGamesView({ onPlay }) {
   const pbs = loadPBs();
@@ -550,7 +550,7 @@ export function MiniGamesView({ onPlay }) {
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 24, fontWeight: 600, color: TEXT }}>Mini Games</div>
         </div>
         <div style={{ fontSize: 12.5, color: SUB, lineHeight: 1.55, marginBottom: 18 }}>
-          Short, replayable power games — proper training in disguise. Jump on, pick one, and see how long you last.
+          Short, replayable power games: proper training in disguise. Jump on, pick one, and see how long you last.
         </div>
         {MINI_GAMES.filter(g => g.active !== false).map(g => {
           // for variant games, surface the best PB across variants
@@ -589,7 +589,7 @@ export function MiniGamesView({ onPlay }) {
 }
 
 // =============================================================================
-// Game player — full-screen host that runs whichever game is selected
+// Game player: full-screen host that runs whichever game is selected
 // =============================================================================
 export function MiniGamePlayer({ game, ftp, trainer, heartRate, onExit, cvd }) {
   const [phase, setPhase] = useState('intro'); // intro | countdown | playing | done
@@ -632,7 +632,7 @@ export function MiniGamePlayer({ game, ftp, trainer, heartRate, onExit, cvd }) {
       stateRef.current = game.init(ftp, variant);
       lastTickRef.current = performance.now();
       // Prime the trainer at the gentle rolling-start wattage so the flywheel
-      // is light the instant the game starts — no lifting the anvil.
+      // is light the instant the game starts: no lifting the anvil.
       if (game.usesErg && trainer.hasControl) {
         const startW = game.ergStartWatts || 150;
         trainer.setErgTarget(startW);
@@ -649,7 +649,7 @@ export function MiniGamePlayer({ game, ftp, trainer, heartRate, onExit, cvd }) {
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // main game loop — 4 Hz with real measured dt so throttled tabs stay honest
+  // main game loop: 4 Hz with real measured dt so throttled tabs stay honest
   useEffect(() => {
     if (phase !== 'playing') return;
     const iv = setInterval(() => {
@@ -783,11 +783,11 @@ export function MiniGamePlayer({ game, ftp, trainer, heartRate, onExit, cvd }) {
             {trainer.status === 'connected' && game.usesErg && (
               trainer.hasControl ? (
                 <div style={{ fontSize: 11.5, color: SUB, lineHeight: 1.45 }}>
-                  ERG ready — the trainer sets its own resistance to the pro's exact wattage. Don't spin frantically to catch them; hold a steady cadence and let the resistance do the work. If a target is higher than your trainer can physically produce (some cap around 1,000–2,000W), it'll hold at its own ceiling.
+                  ERG ready: the trainer sets its own resistance to the pro's exact wattage. Don't spin frantically to catch them; hold a steady cadence and let the resistance do the work. If a target is higher than your trainer can physically produce (some cap around 1,000–2,000W), it'll hold at its own ceiling.
                 </div>
               ) : (
                 <div style={{ fontSize: 11.5, color: cvd ? '#E69F00' : '#FF9F40', lineHeight: 1.45 }}>
-                  Heads up: this trainer is connected for power readings only — the app can't drive its resistance, so it won't wind up to the pro's wattage on its own. You'll have to reach the target yourself (harder gear, ride harder). Automatic resistance needs a trainer that supports FTMS or Wahoo ERG control.
+                  Heads up: this trainer is connected for power readings only; the app can't drive its resistance, so it won't wind up to the pro's wattage on its own. You'll have to reach the target yourself (harder gear, ride harder). Automatic resistance needs a trainer that supports FTMS or Wahoo ERG control.
                 </div>
               )
             )}

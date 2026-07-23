@@ -38,7 +38,7 @@ export default function PrivacyPage() {
         Fit data, or your location.
       </LegalP>
       <LegalP>
-        <strong>We treat the training metrics we do store — power, FTP, Training Stress Score, calories, duration —
+        <strong>We treat the training metrics we do store (power, FTP, Training Stress Score, calories, duration)
         as athletic performance data, not health information.</strong> They describe how hard you pedalled, not your
         physical condition.
       </LegalP>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
       <LegalH2>3. What we do collect</LegalH2>
       <LegalH3>3.1 Information you give us</LegalH3>
       <LegalUl>
-        <LegalLi><strong>Account information.</strong> Your email address and a securely hashed password, or — if you sign in with Google — your email address, name and Google account identifier.</LegalLi>
+        <LegalLi><strong>Account information.</strong> Your email address and a securely hashed password, or (if you sign in with Google) your email address, name and Google account identifier.</LegalLi>
         <LegalLi><strong>Training profile.</strong> Your Functional Threshold Power (FTP), FTP history, training plan settings and workout preferences.</LegalLi>
         <LegalLi><strong>Support correspondence.</strong> Anything you send us by email or in-app feedback.</LegalLi>
       </LegalUl>
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
       <LegalH3>3.5 Strava</LegalH3>
       <LegalP>
         If you connect Strava, we store the access and refresh tokens it issues so we can upload your completed
-        workouts at your request. We upload the workout name, duration, date and power summary — <strong>not heart
+        workouts at your request. We upload the workout name, duration, date and power summary, <strong>not heart
         rate</strong>. Disconnect at any time and we delete the tokens.
       </LegalP>
       <LegalH3>3.6 Technical information</LegalH3>
@@ -116,8 +116,8 @@ export default function PrivacyPage() {
           ['Supabase', 'Database and authentication', 'United States'],
           ['Vercel', 'Hosting and serverless functions', 'Global edge network'],
           ['Stripe', 'Payments and subscriptions', 'United States / global'],
-          ['Strava', 'Activity upload — only if you connect it', 'United States'],
-          ['Google', 'Sign-in — only if you use it', 'Global'],
+          ['Strava', 'Activity upload: only if you connect it', 'United States'],
+          ['Google', 'Sign-in: only if you use it', 'Global'],
         ]}
       />
       <LegalP>
@@ -137,11 +137,11 @@ export default function PrivacyPage() {
 
       <LegalH2>8. How long we keep it</LegalH2>
       <LegalUl>
-        <LegalLi><strong>Account and training data</strong> — while your account is open; deleted within <strong>30 days</strong> of you deleting your account, and purged from backups within <strong>90 days</strong>.</LegalLi>
-        <LegalLi><strong>Billing records</strong> — as required by Australian tax law, generally <strong>7 years</strong>.</LegalLi>
-        <LegalLi><strong>Strava tokens</strong> — until you disconnect.</LegalLi>
-        <LegalLi><strong>Technical logs</strong> — a short retention period set by our providers.</LegalLi>
-        <LegalLi><strong>Heart rate</strong> — never retained. There is nothing to delete.</LegalLi>
+        <LegalLi><strong>Account and training data</strong>: while your account is open; deleted within <strong>30 days</strong> of you deleting your account, and purged from backups within <strong>90 days</strong>.</LegalLi>
+        <LegalLi><strong>Billing records</strong>: as required by Australian tax law, generally <strong>7 years</strong>.</LegalLi>
+        <LegalLi><strong>Strava tokens</strong>: until you disconnect.</LegalLi>
+        <LegalLi><strong>Technical logs</strong>: a short retention period set by our providers.</LegalLi>
+        <LegalLi><strong>Heart rate</strong>: never retained. There is nothing to delete.</LegalLi>
       </LegalUl>
       <LegalP>You can delete individual workouts from your history at any time.</LegalP>
 
@@ -153,8 +153,8 @@ export default function PrivacyPage() {
       </LegalP>
       <LegalP>
         No system is perfectly secure. If a data breach is likely to cause you serious harm, we will notify you and
-        the Office of the Australian Information Commissioner under the Notifiable Data Breaches scheme, and — where
-        the GDPR applies — the relevant supervisory authority within 72 hours.
+        the Office of the Australian Information Commissioner under the Notifiable Data Breaches scheme, and, where
+        the GDPR applies, the relevant supervisory authority within 72 hours.
       </LegalP>
 
       <LegalH2>10. Your rights</LegalH2>

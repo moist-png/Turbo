@@ -344,7 +344,7 @@ function intervalCodeLine(it) {
 function buildWorkoutExportText(w) {
   const intervals = w.intervals || [];
   const total = totalDuration(intervals);
-  const listLines = intervals.map((it, i) => `${i + 1}. ${it.label} — ${fmt(it.duration)} — ${intervalTargetLabel(it)}`);
+  const listLines = intervals.map((it, i) => `${i + 1}. ${it.label} (${fmt(it.duration)}, ${intervalTargetLabel(it)})`);
   const codeLines = intervals.map(intervalCodeLine);
   return [
     '=== TRBO WORKOUT EXPORT ===',
@@ -719,7 +719,7 @@ function smartScaleWorkout(originalIntervals, targetSeconds, repeatWholeCore) {
 const DEMO_FTP = 200;
 const DEMO_WORKOUT = {
   id: 'demo-ride', name: 'Demo ride', category: 'Demo',
-  description: 'A quick taste of Trbo — connect your trainer and feel it respond in real time.',
+  description: 'A quick taste of Trbo: connect your trainer and feel it respond in real time.',
   intervals: [
     iv('Easy spin', 90, 'power', 55),
     iv('Roll up', 60, 'power', 65),
@@ -738,8 +738,8 @@ const DEMO_WORKOUT = {
 const LIBRARY = [
   {
     id: 'ramp-ftp-test', name: 'Ramp FTP test', category: 'Basics',
-    description: 'Power climbs a little every minute until you can’t hold it — no long steady effort needed.',
-    notes: 'Ride until you can no longer hold the target power. If a trainer is connected, the app will notice when you fall off the pace and end the test for you automatically, then estimate your FTP. Without a trainer connected, stop yourself, find the last full minute you completed, take its power, and multiply by 0.75 — that’s your new FTP, update it in Settings.',
+    description: 'Power climbs a little every minute until you can’t hold it: no long steady effort needed.',
+    notes: 'Ride until you can no longer hold the target power. If a trainer is connected, the app will notice when you fall off the pace and end the test for you automatically, then estimate your FTP. Without a trainer connected, stop yourself, find the last full minute you completed, take its power, and multiply by 0.75. That’s your new FTP: update it in Settings.',
     autoStopTest: true,
     ftpMultiplier: 0.75,
     fixedLength: true,
@@ -752,7 +752,7 @@ const LIBRARY = [
   {
     id: 'ftp-test-20', name: '20 minute FTP test', category: 'Basics',
     description: 'The standard test protocol for finding your current FTP.',
-    notes: 'If a trainer or power meter is connected, the app will average your power for the 20 minute effort and work out your new FTP for you automatically as soon as it ends. Without one connected, take your average power for that block yourself and multiply by 0.95 — that’s your new FTP, update it in Settings.',
+    notes: 'If a trainer or power meter is connected, the app will average your power for the 20 minute effort and work out your new FTP for you automatically as soon as it ends. Without one connected, take your average power for that block yourself and multiply by 0.95. That’s your new FTP: update it in Settings.',
     fixedLength: true,
     ftpTestLabel: '20 minute test',
     ftpMultiplier: 0.95,
@@ -815,7 +815,7 @@ const LIBRARY = [
   },
   {
     id: 'rpe-fartlek', name: 'Fartlek surges', category: 'Basics',
-    description: 'Short surges and easy settles, back to back — the trainer holds the effort, you just ride.',
+    description: 'Short surges and easy settles, back to back: the trainer holds the effort, you just ride.',
     intervals: [
       iv('Easy spin', 300, 'rpe', 3), iv('Build', 180, 'rpe', 6),
       ...repeatIv(2, (i) => [
@@ -827,7 +827,7 @@ const LIBRARY = [
   },
   {
     id: 'recovery-spin', name: 'Recovery spin', category: 'Basics',
-    description: 'Light and easy — flush the legs, nothing more.',
+    description: 'Light and easy: flush the legs, nothing more.',
     intervals: [iv('Keep it light', 1800, 'power', 50)],
   },
   {
@@ -837,13 +837,13 @@ const LIBRARY = [
   },
   {
     id: 'mixed-metric', name: 'Mixed metric session', category: 'Basics',
-    description: 'Structured power intervals mixed with effort-based surges — always something to push against.',
+    description: 'Structured power intervals mixed with effort-based surges: always something to push against.',
     intervals: [iv('Warm up', 480, 'power', 60), iv('Sweet spot', 600, 'power', 90), iv('Recovery', 300, 'power', 50), iv('Hard effort', 240, 'rpe', 8), iv('Sprint', 30, 'rpe', 10), iv('Recovery', 90, 'power', 50), iv('Endurance', 600, 'power', 70), iv('Cool down', 360, 'power', 50)],
   },
   {
     id: 'vo2-40-20-double', name: 'VO2 max 40/20 × 13 (2 sets)', category: 'Basics',
     description: 'Two sets of thirteen short, sharp 40-second VO2 max efforts with 20 seconds off, separated by a proper recovery block.',
-    notes: 'A hard, focused VO2 max session. The 40-second efforts should feel like you couldn’t hold them much past a minute — the 20 seconds off is just enough to keep the legs turning before the next one.',
+    notes: 'A hard, focused VO2 max session. The 40-second efforts should feel like you couldn’t hold them much past a minute: the 20 seconds off is just enough to keep the legs turning before the next one.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       ...repeatIv(13, () => [iv('On', 40, 'power', 120), iv('Off', 20, 'power', 50)]),
@@ -871,7 +871,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-chaingang', name: 'Chaingang Special', category: 'Rides',
-    description: 'Fast, tight rotating pacelines with no let-up — take your turn on the front and hang on in the line.',
+    description: 'Fast, tight rotating pacelines with no let-up: take your turn on the front and hang on in the line.',
     intervals: [
       iv('Warm up', 480, 'power', 55),
       iv('Build', 300, 'power', 70),
@@ -889,7 +889,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-century-sim', name: 'Century Simulation', category: 'Rides',
-    description: 'The full arc of a 100-mile day — long steady miles, two rest stops, a headwind slog and a final climb before home.',
+    description: 'The full arc of a 100-mile day: long steady miles, two rest stops, a headwind slog and a final climb before home.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Settle in', 2400, 'power', 68),
@@ -925,7 +925,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-alpine-ascent', name: 'Alpine Ascent', category: 'Rides',
-    description: 'One long mountain up-and-over — valley approach, switchback surges, a sweet spot mid-section, hairpin kicks and a summit push.',
+    description: 'One long mountain up-and-over: valley approach, switchback surges, a sweet spot mid-section, hairpin kicks and a summit push.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1800, 'power', 68),
@@ -961,7 +961,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-crosswind-echelon', name: 'Crosswind Echelon', category: 'Rides',
-    description: 'A gusty exposed road — rotate through the echelon, hold the wheel, and don’t get gapped when it splits.',
+    description: 'A gusty exposed road: rotate through the echelon, hold the wheel, and don’t get gapped when it splits.',
     intervals: [
       iv('Warm up', 600, 'power', 56),
       iv('Build', 480, 'power', 70),
@@ -978,7 +978,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-breakaway-glory', name: 'Breakaway to Glory', category: 'Rides',
-    description: 'You go off the front and try to make it stick — the drama of an escape, a chase, a counter, and a photo finish.',
+    description: 'You go off the front and try to make it stick: the drama of an escape, a chase, a counter, and a photo finish.',
     intervals: [
       iv('Warm up', 600, 'power', 56),
       iv('Group tempo', 900, 'power', 78),
@@ -987,7 +987,7 @@ const LIBRARY = [
       ...repeatIv(4, () => [iv('Chase pressure surge', 90, 'power', 105), iv('Steady', 120, 'power', 88)]),
       iv('Solo grind', 900, 'power', 98),
       iv('Dig deep', 300, 'power', 112),
-      iv('Caught — recover', 360, 'power', 60),
+      iv('Caught: recover', 360, 'power', 60),
       iv('Regroup tempo', 600, 'power', 78),
       iv('Counter attack', 90, 'power', 115),
       iv('Solo again', 900, 'power', 95),
@@ -997,7 +997,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-audax-200', name: 'Audax 200 Pace', category: 'Rides',
-    description: 'Ultra-distance brevet pacing — patient, metronomic, with two control-point stops. Nothing flashy, just steady miles.',
+    description: 'Ultra-distance brevet pacing: patient, metronomic, with two control-point stops. Nothing flashy, just steady miles.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Long steady endurance', 4200, 'power', 65),
@@ -1013,7 +1013,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-crit-sim', name: 'Criterium Simulation', category: 'Rides',
-    description: 'Short, sharp, and relentless — hard accelerations out of every corner with barely a moment to recover.',
+    description: 'Short, sharp, and relentless: hard accelerations out of every corner with barely a moment to recover.',
     intervals: [
       iv('Warm up', 600, 'power', 60),
       iv('Neutral lap', 180, 'power', 65),
@@ -1046,7 +1046,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-cobbled-classics', name: 'Cobbled Classics', category: 'Rides',
-    description: 'A brutal spring-classics profile — three escalating pavé sectors, a cobbled climb, and a solo dash to the velodrome.',
+    description: 'A brutal spring-classics profile: three escalating pavé sectors, a cobbled climb, and a solo dash to the velodrome.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Approach tempo', 1200, 'power', 78),
@@ -1065,7 +1065,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-group-surges', name: 'Group Ride Surges', category: 'Rides',
-    description: 'Someone in the group keeps attacking for fun — repeated surges you have to cover, then settle, then cover again.',
+    description: 'Someone in the group keeps attacking for fun: repeated surges you have to cover, then settle, then cover again.',
     intervals: [
       iv('Warm up', 600, 'power', 56),
       iv('Neutral', 600, 'power', 62),
@@ -1084,7 +1084,7 @@ const LIBRARY = [
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Approach endurance', 1800, 'power', 68),
-      iv('Climb 1 — Cat 3', 900, 'power', 90),
+      iv('Climb 1: Cat 3', 900, 'power', 90),
       iv('Summit surge', 60, 'power', 105),
       iv('Descent', 600, 'power', 50),
       ...repeatIv(6, () => [iv('Roll up', 180, 'power', 78), iv('Roll down', 120, 'power', 60)]),
@@ -1092,7 +1092,7 @@ const LIBRARY = [
       iv('Descent', 720, 'power', 50),
       iv('Feed zone', 480, 'power', 45),
       iv('Endurance cruise', 1500, 'power', 68),
-      iv('Climb 3 — the big one', 1500, 'power', 88),
+      iv('Climb 3: the big one', 1500, 'power', 88),
       iv('Summit push', 180, 'power', 102),
       iv('Descent', 900, 'power', 50),
       ...repeatIv(5, () => [iv('Roll up', 120, 'power', 80), iv('Roll down', 120, 'power', 62)]),
@@ -1133,7 +1133,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-night-steady', name: 'Night Ride Steady', category: 'Rides',
-    description: 'Smooth, consistent effort under headlights — a careful climb, a cautious descent, and a small group keeping each other honest.',
+    description: 'Smooth, consistent effort under headlights: a careful climb, a cautious descent, and a small group keeping each other honest.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Smooth steady endurance', 2400, 'power', 68),
@@ -1146,7 +1146,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-everesting-lite', name: 'Everesting Lite', category: 'Rides',
-    description: 'Same hill, again and again — twelve reps of climb-and-descend with a feed stop halfway through.',
+    description: 'Same hill, again and again: twelve reps of climb-and-descend with a feed stop halfway through.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       ...repeatIv(8, () => [iv('Climb the hill', 480, 'power', 92), iv('Descend and recover', 240, 'power', 60)]),
@@ -1160,7 +1160,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-breakaway-stage', name: 'Breakaway Stage Day', category: 'Rides',
-    description: 'A full stage-race narrative — an early move that holds most of the day, a crosswind scare, and a bunch gallop at the line.',
+    description: 'A full stage-race narrative: an early move that holds most of the day, a crosswind scare, and a bunch gallop at the line.',
     intervals: [
       iv('Warm up', 720, 'power', 56),
       iv('Neutral rollout', 480, 'power', 62),
@@ -1180,7 +1180,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-monument-classics', name: 'Spring Classics Monument', category: 'Rides',
-    description: 'The hardest one-day race on the calendar — three escalating pavé sectors, a run of steep bergs, and a selection made in the final hour.',
+    description: 'The hardest one-day race on the calendar: three escalating pavé sectors, a run of steep bergs, and a selection made in the final hour.',
     intervals: [
       iv('Warm up', 900, 'power', 55),
       iv('Approach endurance', 2400, 'power', 68),
@@ -1192,7 +1192,7 @@ const LIBRARY = [
       ...repeatIv(5, () => [iv('Berg climb', 90, 'power', 108), iv('Descend', 60, 'power', 62)]),
       iv('Endurance regroup', 1500, 'power', 68),
       ...repeatIv(8, () => [iv('Pavé push', 120, 'power', 105), iv('Recover', 90, 'power', 70)]),
-      iv('Selection made — threshold grind', 1200, 'power', 98),
+      iv('Selection made: threshold grind', 1200, 'power', 98),
       iv('Chase group tempo', 900, 'power', 85),
       iv('Final berg climb', 300, 'power', 105),
       iv('Sprint finish', 30, 'rpe', 10),
@@ -1201,19 +1201,19 @@ const LIBRARY = [
   },
   {
     id: 'ride-bikepacking-haul', name: 'Bikepacking Long Haul', category: 'Rides',
-    description: 'A loaded, all-day ultra-distance ride — lower power to account for the gear, gravel sections, and two proper rest stops.',
+    description: 'A loaded, all-day ultra-distance ride: lower power to account for the gear, gravel sections, and two proper rest stops.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Loaded steady endurance', 3600, 'power', 62),
       iv('Gravel section endurance', 2400, 'power', 65),
       iv('Climb with gear', 900, 'power', 78),
-      iv('Descent — careful', 600, 'power', 48),
+      iv('Descent: careful', 600, 'power', 48),
       iv('Rest stop', 900, 'power', 45),
       iv('Steady endurance', 3000, 'power', 63),
       iv('Headwind grind', 1500, 'power', 70),
       iv('Rest stop', 600, 'power', 45),
       iv('Steady endurance', 2400, 'power', 64),
-      iv('Final push — tired legs', 900, 'power', 72),
+      iv('Final push: tired legs', 900, 'power', 72),
       iv('Cool down', 780, 'power', 50),
     ],
   },
@@ -1237,7 +1237,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-urban-commute', name: 'Urban Commute Intervals', category: 'Rides',
-    description: 'Stop-and-go city riding — sprints away from every light, a bridge climb, and a park path to catch your breath.',
+    description: 'Stop-and-go city riding: sprints away from every light, a bridge climb, and a park path to catch your breath.',
     intervals: [
       iv('Warm up', 480, 'power', 58),
       ...repeatIv(10, () => [iv('Sprint from the light', 30, 'power', 110), iv('Coast to the next light', 60, 'power', 48)]),
@@ -1253,7 +1253,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-city-skyline-intervals', name: 'City Skyline Intervals', category: 'Rides',
-    description: 'Short, sharp efforts with a view — a compact session for a tight morning.',
+    description: 'Short, sharp efforts with a view: a compact session for a tight morning.',
     intervals: [
       iv('Warm up', 900, 'power', 60),
       ...repeatIv(6, () => [iv('VO2 effort', 120, 'power', 118), iv('Recover', 180, 'power', 55)]),
@@ -1262,7 +1262,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-recovery-cruise', name: 'Recovery Century Cruise', category: 'Rides',
-    description: 'A very long day at a very easy pace — all endurance, one café stop, and nothing that will trouble your legs.',
+    description: 'A very long day at a very easy pace: all endurance, one café stop, and nothing that will trouble your legs.',
     intervals: [
       iv('Warm up', 600, 'power', 52),
       iv('All easy endurance', 3600, 'power', 62),
@@ -1275,7 +1275,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-leadout-day', name: 'Sprinter’s Lead-Out Day', category: 'Rides',
-    description: 'Mostly easy miles broken up by repeated lead-out-and-sprint efforts — practice for the final 200 meters.',
+    description: 'Mostly easy miles broken up by repeated lead-out-and-sprint efforts: practice for the final 200 meters.',
     intervals: [
       iv('Warm up', 600, 'power', 58),
       iv('Endurance', 1500, 'power', 68),
@@ -1288,7 +1288,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-ridge-traverse', name: 'Ridge Traverse', category: 'Rides',
-    description: 'A high, exposed ridge road — rolling punchy climbs, buffeting crosswind straights, and views for miles the whole way along.',
+    description: 'A high, exposed ridge road: rolling punchy climbs, buffeting crosswind straights, and views for miles the whole way along.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Approach climb to the ridge', 1200, 'power', 82),
@@ -1321,7 +1321,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-desert-crossing', name: 'Desert Crossing', category: 'Rides',
-    description: 'Flat, hot and relentless — long steady grinding across open desert with a stiff headwind fight and a race to town before dark.',
+    description: 'Flat, hot and relentless: long steady grinding across open desert with a stiff headwind fight and a race to town before dark.',
     intervals: [
       iv('Warm up', 600, 'power', 56),
       iv('Early steady tempo', 2400, 'power', 78),
@@ -1338,7 +1338,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-fjord-switchbacks', name: 'Fjord Switchbacks', category: 'Rides',
-    description: 'Relentless steep drops into fjords and brutal switchback climbs back out, again and again — the answer to a flat ride.',
+    description: 'Relentless steep drops into fjords and brutal switchback climbs back out, again and again: the answer to a flat ride.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Approach', 900, 'power', 68),
@@ -1361,7 +1361,7 @@ const LIBRARY = [
       ...repeatIv(4, () => [iv('Squall surge', 90, 'power', 100), iv('Steady through the rain', 150, 'power', 75)]),
       iv('Steady glen cruise', 1500, 'power', 68),
       iv('Approach the big climb', 900, 'power', 75),
-      iv('Big climb — the pass', 1500, 'power', 90),
+      iv('Big climb: the pass', 1500, 'power', 90),
       iv('Summit surge', 60, 'power', 108),
       iv('Long descent', 1080, 'power', 55),
       iv('Loch road home', 1200, 'power', 68),
@@ -1370,7 +1370,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-dolomites-double', name: 'Dolomites Double', category: 'Rides',
-    description: 'Two legendary mountain passes back to back — hairpins, steep ramps and thin air, twice over.',
+    description: 'Two legendary mountain passes back to back: hairpins, steep ramps and thin air, twice over.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1500, 'power', 68),
@@ -1407,7 +1407,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-moorland-crossing', name: 'Moorland Crossing', category: 'Rides',
-    description: 'Exposed, boggy and utterly alone — a driving headwind across open moorland with rough gravel sections underfoot.',
+    description: 'Exposed, boggy and utterly alone: a driving headwind across open moorland with rough gravel sections underfoot.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Moor road endurance', 1500, 'power', 68),
@@ -1423,7 +1423,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-canyon-rim', name: 'Canyon Rim Ride', category: 'Rides',
-    description: 'Technical rim-road riding — sudden drops into side canyons and sharp climbs back out, over and over, with sheer exposure throughout.',
+    description: 'Technical rim-road riding: sudden drops into side canyons and sharp climbs back out, over and over, with sheer exposure throughout.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Rim approach', 1200, 'power', 70),
@@ -1439,7 +1439,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-alpine-col-chain', name: 'Alpine Col Chain', category: 'Rides',
-    description: 'Four cols in one day — none of them huge alone, but the fatigue stacks fast by the fourth.',
+    description: 'Four cols in one day: none of them huge alone, but the fatigue stacks fast by the fourth.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Approach', 1800, 'power', 68),
@@ -1450,7 +1450,7 @@ const LIBRARY = [
       iv('Valley connector', 900, 'power', 68),
       iv('Col 3 climb', 1200, 'power', 90),
       iv('Col 3 descent', 780, 'power', 55),
-      iv('Col 4 climb — legs are gone', 1320, 'power', 86),
+      iv('Col 4 climb: legs are gone', 1320, 'power', 86),
       iv('Col 4 summit surge', 60, 'power', 102),
       iv('Final descent', 1080, 'power', 55),
       iv('Valley cruise home', 1800, 'power', 68),
@@ -1459,7 +1459,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-anti-gravity', name: 'Anti-Gravity Day', category: 'Rides',
-    description: 'The mountain owes you nothing — every fast, easy drop has to be paid back with a harder climb straight after. The debt keeps compounding.',
+    description: 'The mountain owes you nothing: every fast, easy drop has to be paid back with a harder climb straight after. The debt keeps compounding.',
     notes: 'A playful inversion of a hill-repeat session: descents are quick and light, but each one is followed by a "debt climb" that’s a notch harder than a normal repeat would be. By the end your legs will disagree that gravity was ever on your side.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
@@ -1474,36 +1474,36 @@ const LIBRARY = [
   },
   {
     id: 'ride-storm-chase', name: 'Storm Chase', category: 'Rides',
-    description: 'A front is building on the horizon and you’re racing it home — escalating gusts, a mid-ride lightning-strike sprint, and a full-gas dash for shelter.',
+    description: 'A front is building on the horizon and you’re racing it home: escalating gusts, a mid-ride lightning-strike sprint, and a full-gas dash for shelter.',
     intervals: [
       iv('Warm up', 480, 'power', 56),
       iv('Calm before the storm', 900, 'power', 75),
       iv('Distant thunder', 120, 'power', 95),
-      iv('Building tempo — skies darkening', 900, 'power', 82),
+      iv('Building tempo: skies darkening', 900, 'power', 82),
       ...repeatIv(5, () => [iv('Wind gust surge', 90, 'power', 105), iv('Brace and hold', 120, 'power', 80)]),
       iv('Storm closing in', 720, 'power', 90),
       iv('Lightning strike sprint', 30, 'rpe', 10),
       ...repeatIv(4, () => [iv('Squall surge', 60, 'power', 110), iv('Push through', 120, 'power', 85)]),
       iv('Full gas race to shelter', 300, 'power', 105),
       iv('Sprint for the door', 30, 'rpe', 10),
-      iv('Sheltered — catching breath', 480, 'power', 55),
+      iv('Sheltered: catching breath', 480, 'power', 55),
       iv('Cool down', 480, 'power', 50),
     ],
   },
   {
     id: 'ride-tt-through-time', name: 'Time Trial Through Time', category: 'Rides',
-    description: 'A ride through the eras of cycling — heavy steel-bike tempo, smooth aero-bar threshold blocks, and precise modern power-meter intervals.',
+    description: 'A ride through the eras of cycling: heavy steel-bike tempo, smooth aero-bar threshold blocks, and precise modern power-meter intervals.',
     notes: 'Three "eras," three different feels: Era 1 is steady, heavy and mechanical; Era 2 is long and smooth, built for holding an aero position; Era 3 is short, sharp and exactly on target the way a power meter demands.',
     intervals: [
       iv('Warm up', 600, 'power', 58),
       iv('Era 1: the steel age', 2100, 'power', 75),
       ...repeatIv(5, () => [iv('Cobbled test track push', 60, 'power', 98), iv('Recover', 60, 'power', 70)]),
       iv('Transition', 480, 'power', 60),
-      iv('Era 2: the aero age — block 1', 1200, 'power', 98),
-      iv('Era 2: the aero age — block 2', 1200, 'power', 100),
+      iv('Era 2: the aero age, block 1', 1200, 'power', 98),
+      iv('Era 2: the aero age, block 2', 1200, 'power', 100),
       iv('Transition', 480, 'power', 60),
       ...repeatIv(6, () => [iv('Era 3: on the power meter', 120, 'power', 105), iv('Era 3: recover to target', 60, 'power', 65)]),
-      iv('Era 3 finale — perfectly paced', 600, 'power', 102),
+      iv('Era 3 finale: perfectly paced', 600, 'power', 102),
       iv('Modern day sprint', 30, 'rpe', 10),
       iv('Cool down', 630, 'power', 50),
     ],
@@ -1511,7 +1511,7 @@ const LIBRARY = [
   {
     id: 'ride-the-gauntlet', name: 'The Gauntlet', category: 'Rides',
     description: 'Five boss climbs, each tougher than the last, a secret boss thrown in for good measure, and one Final Boss standing between you and the victory lap.',
-    notes: 'Treat each "boss" like a level — the checkpoints between them are recovery, not the end of the fight. Save something for the Final Boss.',
+    notes: 'Treat each "boss" like a level: the checkpoints between them are recovery, not the end of the fight. Save something for the Final Boss.',
     intervals: [
       iv('Warm up', 600, 'power', 56),
       iv('Level 1 boss', 480, 'power', 82),
@@ -1522,10 +1522,10 @@ const LIBRARY = [
       iv('Checkpoint', 300, 'power', 62),
       iv('Secret boss', 480, 'power', 88),
       iv('Checkpoint', 300, 'power', 62),
-      ...repeatIv(4, () => [iv('Level 4 boss — attack pattern', 60, 'power', 100), iv('Level 4 boss — dodge', 90, 'power', 75)]),
+      ...repeatIv(4, () => [iv('Level 4 boss: attack pattern', 60, 'power', 100), iv('Level 4 boss: dodge', 90, 'power', 75)]),
       iv('Checkpoint', 360, 'power', 62),
       ...repeatIv(6, () => [iv('Bonus stage surge', 60, 'power', 95), iv('Bonus stage recover', 90, 'power', 65)]),
-      ...repeatIv(4, () => [iv('Level 5 boss — attack pattern', 60, 'power', 106), iv('Level 5 boss — dodge', 90, 'power', 75)]),
+      ...repeatIv(4, () => [iv('Level 5 boss: attack pattern', 60, 'power', 106), iv('Level 5 boss: dodge', 90, 'power', 75)]),
       iv('Checkpoint', 360, 'power', 62),
       iv('FINAL BOSS', 300, 'power', 110),
       iv('Boss defeated sprint', 30, 'rpe', 10),
@@ -1535,7 +1535,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-migration-flock', name: 'Migration Ride: Follow the Flock', category: 'Rides',
-    description: 'A long ride shaped like a migration — rising on thermals, rotating through the flock in a crosswind formation, and one long steady wingspan haul before landing.',
+    description: 'A long ride shaped like a migration: rising on thermals, rotating through the flock in a crosswind formation, and one long steady wingspan haul before landing.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Rising with the flock', 900, 'power', 82),
@@ -1543,7 +1543,7 @@ const LIBRARY = [
       ...repeatIv(6, () => [iv('Flock surge', 120, 'power', 98), iv('Glide and reform', 120, 'power', 66)]),
       iv('Crosswind formation flying', 1200, 'power', 80),
       iv('Long wingspan haul', 2700, 'power', 68),
-      iv('Storm front — push through', 900, 'power', 85),
+      iv('Storm front: push through', 900, 'power', 85),
       ...repeatIv(5, () => [iv('Flock surge', 120, 'power', 100), iv('Glide and reform', 150, 'power', 66)]),
       iv('Descending to roost', 900, 'power', 55),
       iv('Final approach push', 480, 'power', 88),
@@ -1553,10 +1553,10 @@ const LIBRARY = [
   },
   {
     id: 'ride-ironman-nice', name: 'Riviera Coastal Climb', category: 'Rides',
-    description: 'A French Riviera long-course bike leg — a flat coastal rollout along the Promenade before the road tips up into the Alpes-Maritimes hinterland, over the Col de Vence, and back down to the sea.',
+    description: 'A French Riviera long-course bike leg: a flat coastal rollout along the Promenade before the road tips up into the Alpes-Maritimes hinterland, over the Col de Vence, and back down to the sea.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
-      iv('Coastal rollout — Promenade des Anglais', 1500, 'power', 62),
+      iv('Coastal rollout: Promenade des Anglais', 1500, 'power', 62),
       iv('Approach into the hills', 1200, 'power', 74),
       iv('Col de Vence lower slopes', 900, 'power', 85),
       ...repeatIv(5, () => [iv('Col de Vence switchback surge', 90, 'power', 104), iv('Steady grind', 150, 'power', 88)]),
@@ -1564,7 +1564,7 @@ const LIBRARY = [
       iv('Summit sprint', 30, 'rpe', 10),
       iv('Descent', 900, 'power', 55),
       ...repeatIv(6, () => [iv('Plateau roll up', 150, 'power', 82), iv('Plateau roll down', 120, 'power', 62)]),
-      iv('Second climb — Coursegoules ramp', 720, 'power', 90),
+      iv('Second climb: Coursegoules ramp', 720, 'power', 90),
       iv('Summit push 2', 300, 'power', 100),
       iv('Summit sprint 2', 30, 'rpe', 10),
       iv('Long descent back to the coast', 1500, 'power', 55),
@@ -1575,18 +1575,18 @@ const LIBRARY = [
   },
   {
     id: 'ride-ironman-kona', name: 'Kona Lava Highway', category: 'Rides',
-    description: 'The Big Island\u2019s toughest long-course bike route — flat lava-field highway out to Hawi, a stiff climb into the crosswind, and a long grinding return with the trade winds full in your face.',
+    description: 'The Big Island\u2019s toughest long-course bike route: flat lava-field highway out to Hawi, a stiff climb into the crosswind, and a long grinding return with the trade winds full in your face.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Ali’i Drive rollout', 900, 'power', 62),
-      iv('Onto the Queen K — lava field flat', 1500, 'power', 72),
+      iv('Onto the Queen K: lava field flat', 1500, 'power', 72),
       ...repeatIv(6, () => [iv('Crosswind gust surge', 90, 'power', 98), iv('Steady into the wind', 120, 'power', 72)]),
       iv('Kawaihae flat grind', 1200, 'power', 75),
       iv('Climb to Hawi', 1200, 'power', 88),
       iv('Hawi summit push', 300, 'power', 98),
       iv('Hawi turnaround sprint', 30, 'rpe', 10),
       iv('Fast descent from Hawi', 900, 'power', 55),
-      iv('Queen K return — headwind grind', 2400, 'power', 80),
+      iv('Queen K return: headwind grind', 2400, 'power', 80),
       ...repeatIv(5, () => [iv('Trade wind gust', 90, 'power', 100), iv('Steady grind', 120, 'power', 75)]),
       iv('Energy Lab out-and-back', 900, 'power', 90),
       iv('Final Queen K push', 1200, 'power', 82),
@@ -1596,7 +1596,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-ironman-lanzarote', name: 'Lanzarote Fire Mountains', category: 'Rides',
-    description: 'One of triathlon’s hardest bike courses — volcanic terrain, relentless crosswinds, and the brutal switchback climb up to Femés.',
+    description: 'One of triathlon’s hardest bike courses: volcanic terrain, relentless crosswinds, and the brutal switchback climb up to Femés.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Volcanic flat rollout', 900, 'power', 65),
@@ -1608,7 +1608,7 @@ const LIBRARY = [
       iv('Summit sprint', 30, 'rpe', 10),
       iv('Exposed plateau descent', 900, 'power', 58),
       ...repeatIv(4, () => [iv('Crosswind gust', 90, 'power', 98), iv('Steady', 120, 'power', 72)]),
-      iv('Second climb — Fire Mountains approach', 900, 'power', 88),
+      iv('Second climb: Fire Mountains approach', 900, 'power', 88),
       iv('Long descent to the coast', 1200, 'power', 55),
       iv('Coastal headwind grind home', 1800, 'power', 78),
       iv('Cool down', 600, 'power', 50),
@@ -1616,7 +1616,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-pyrenees-circle-of-death', name: 'Pyrenees: Circle of Death', category: 'Rides',
-    description: 'The Pyrenees’ legendary trio — the Tourmalet, the Aspin and the Peyresourde back to back, the combination that gave this stage its nickname.',
+    description: 'The Pyrenees’ legendary trio: the Tourmalet, the Aspin and the Peyresourde back to back, the combination that gave this stage its nickname.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1200, 'power', 68),
@@ -1641,13 +1641,13 @@ const LIBRARY = [
   },
   {
     id: 'ride-giro-stelvio', name: 'Giro: Passo dello Stelvio', category: 'Rides',
-    description: '48 hairpins to the highest paved pass the Giro visits — a long, relentless grind above the clouds.',
+    description: '48 hairpins to the highest paved pass the Giro visits: a long, relentless grind above the clouds.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1500, 'power', 68),
       iv('Stelvio lower slopes', 1200, 'power', 80),
       ...repeatIv(8, () => [iv('Hairpin surge', 90, 'power', 102), iv('Steady grind', 180, 'power', 87)]),
-      iv('Thinning air — mid climb', 900, 'power', 88),
+      iv('Thinning air: mid climb', 900, 'power', 88),
       ...repeatIv(6, () => [iv('Hairpin surge', 90, 'power', 104), iv('Steady grind', 180, 'power', 88)]),
       iv('Final ramps to the Cima Coppi', 480, 'power', 97),
       iv('Summit sprint', 30, 'rpe', 10),
@@ -1658,7 +1658,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-giro-zoncolan', name: 'Giro: Monte Zoncolan', category: 'Rides',
-    description: 'The Kaiser — short in distance but savagely steep, with ramps that never let you find a rhythm.',
+    description: 'The Kaiser: short in distance but savagely steep, with ramps that never let you find a rhythm.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1200, 'power', 68),
@@ -1676,11 +1676,11 @@ const LIBRARY = [
   },
   {
     id: 'ride-giro-finestre', name: 'Giro: Colle delle Finestre', category: 'Rides',
-    description: 'Tarmac gives way to gravel switchbacks near the top of this Giro d’Italia climb — one of the hardest summit finishes in the sport.',
+    description: 'Tarmac gives way to gravel switchbacks near the top of this Giro d’Italia climb: one of the hardest summit finishes in the sport.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1500, 'power', 68),
-      iv('Finestre lower slopes — tarmac', 1200, 'power', 82),
+      iv('Finestre lower slopes: tarmac', 1200, 'power', 82),
       ...repeatIv(6, () => [iv('Hairpin surge', 90, 'power', 103), iv('Steady grind', 150, 'power', 87)]),
       iv('Gravel switchbacks begin', 600, 'power', 90),
       ...repeatIv(8, () => [iv('Gravel ramp', 60, 'power', 108), iv('Steady grind', 90, 'power', 88)]),
@@ -1694,13 +1694,13 @@ const LIBRARY = [
   },
   {
     id: 'ride-tour-ventoux', name: 'Tour: Mont Ventoux', category: 'Rides',
-    description: 'The Giant of Provence — forest switchbacks give way to the exposed, windswept moonscape on the run to the summit.',
+    description: 'The Giant of Provence: forest switchbacks give way to the exposed, windswept moonscape on the run to the summit.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Approach through Bédoin', 1200, 'power', 68),
       iv('Forest lower slopes', 900, 'power', 85),
       ...repeatIv(6, () => [iv('Forest ramp surge', 90, 'power', 102), iv('Steady grind', 150, 'power', 89)]),
-      iv('Chalet Reynard — treeline', 480, 'power', 90),
+      iv('Chalet Reynard: treeline', 480, 'power', 90),
       iv('Exposed moonscape', 900, 'power', 96),
       ...repeatIv(4, () => [iv('Wind gust surge', 60, 'power', 108), iv('Steady into the wind', 90, 'power', 92)]),
       iv('Final push to the summit', 300, 'power', 100),
@@ -1715,7 +1715,7 @@ const LIBRARY = [
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1200, 'power', 68),
-      iv('Lower slopes — steepest ramps', 600, 'power', 92),
+      iv('Lower slopes: steepest ramps', 600, 'power', 92),
       ...repeatIv(7, () => [iv('Hairpin bend surge', 90, 'power', 106), iv('Steady grind', 150, 'power', 90)]),
       iv('Dutch Corner', 300, 'power', 95),
       ...repeatIv(5, () => [iv('Hairpin bend surge', 90, 'power', 104), iv('Steady grind', 150, 'power', 89)]),
@@ -1728,7 +1728,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-tour-galibier', name: 'Tour: Col du Galibier', category: 'Rides',
-    description: 'The Col du Télégraphe into a short valley breather, then the long, thin-air grind over the Galibier — one of the highest points the Tour ever visits.',
+    description: 'The Col du Télégraphe into a short valley breather, then the long, thin-air grind over the Galibier: one of the highest points the Tour ever visits.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1200, 'power', 68),
@@ -1736,10 +1736,10 @@ const LIBRARY = [
       ...repeatIv(4, () => [iv('Télégraphe surge', 90, 'power', 102), iv('Steady climb', 150, 'power', 88)]),
       iv('Télégraphe summit', 60, 'power', 96),
       iv('Descent to Valloire', 480, 'power', 58),
-      iv('Valley connector — feed zone', 480, 'power', 60),
+      iv('Valley connector: feed zone', 480, 'power', 60),
       iv('Galibier lower slopes', 1200, 'power', 84),
       ...repeatIv(6, () => [iv('Galibier surge', 90, 'power', 103), iv('Steady grind', 180, 'power', 87)]),
-      iv('Thin air — final ramps', 600, 'power', 92),
+      iv('Thin air: final ramps', 600, 'power', 92),
       iv('Summit push', 300, 'power', 99),
       iv('Summit sprint', 30, 'rpe', 10),
       iv('Long descent', 1800, 'power', 55),
@@ -1749,10 +1749,10 @@ const LIBRARY = [
   },
   {
     id: 'ride-paris-roubaix', name: 'Paris–Roubaix: Hell of the North', category: 'Rides',
-    description: 'The Arenberg Forest, Mons-en-Pévèle and the Carrefour de l’Arbre — punishing cobbles all the way to the velodrome.',
+    description: 'The Arenberg Forest, Mons-en-Pévèle and the Carrefour de l’Arbre: punishing cobbles all the way to the velodrome.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
-      iv('Long approach — neutral zone tempo', 1800, 'power', 74),
+      iv('Long approach: neutral zone tempo', 1800, 'power', 74),
       ...repeatIv(5, () => [iv('Early pavé sector', 90, 'power', 96), iv('Smooth recover', 90, 'power', 68)]),
       iv('Group tempo', 900, 'power', 78),
       iv('Trouée d’Arenberg', 300, 'power', 102),
@@ -1771,10 +1771,10 @@ const LIBRARY = [
   },
   {
     id: 'ride-tour-of-flanders', name: 'Tour of Flanders: Kwaremont & Paterberg', category: 'Rides',
-    description: 'The Ronde’s finale on repeat — the Oude Kwaremont and the brutally steep Paterberg, back to back, again and again.',
+    description: 'The Ronde’s finale on repeat: the Oude Kwaremont and the brutally steep Paterberg, back to back, again and again.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
-      iv('Long approach — flat sectors', 2100, 'power', 70),
+      iv('Long approach: flat sectors', 2100, 'power', 70),
       ...repeatIv(6, () => [iv('Kasseien roller', 90, 'power', 90), iv('Smooth recover', 90, 'power', 66)]),
       iv('Taaienberg', 180, 'power', 100),
       iv('Steady', 300, 'power', 72),
@@ -1791,15 +1791,15 @@ const LIBRARY = [
       iv('Oude Kwaremont 3', 300, 'power', 100),
       iv('Paterberg 3', 120, 'power', 110),
       iv('Steady', 480, 'power', 70),
-      iv('Oude Kwaremont 4 — final time up', 300, 'power', 103),
-      iv('Paterberg 4 — final time up', 120, 'power', 113),
+      iv('Oude Kwaremont 4: final time up', 300, 'power', 103),
+      iv('Paterberg 4: final time up', 120, 'power', 113),
       iv('Sprint to the line in Oudenaarde', 30, 'rpe', 10),
       iv('Cool down', 720, 'power', 50),
     ],
   },
   {
     id: 'ride-liege-bastogne-liege', name: 'Liège–Bastogne–Liège', category: 'Rides',
-    description: 'La Doyenne — the oldest and hilliest of the Classics, a long rolling grind through the Ardennes to the uphill finish in Liège.',
+    description: 'La Doyenne: the oldest and hilliest of the Classics, a long rolling grind through the Ardennes to the uphill finish in Liège.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Long rolling approach', 2400, 'power', 70),
@@ -1822,7 +1822,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-milan-san-remo', name: 'Milan–San Remo: La Classicissima', category: 'Rides',
-    description: 'The longest race on the calendar — hours of flat, controlled tempo before the Cipressa and the Poggio decide it in the final half hour.',
+    description: 'The longest race on the calendar: hours of flat, controlled tempo before the Cipressa and the Poggio decide it in the final half hour.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Neutral rollout', 600, 'power', 60),
@@ -1834,21 +1834,21 @@ const LIBRARY = [
       iv('Regroup tempo', 900, 'power', 78),
       iv('Poggio climb', 360, 'power', 98),
       iv('Poggio summit attack', 60, 'power', 110),
-      iv('Poggio descent — technical', 300, 'power', 60),
+      iv('Poggio descent: technical', 300, 'power', 60),
       iv('Sprint into San Remo', 30, 'rpe', 10),
       iv('Cool down', 720, 'power', 50),
     ],
   },
   {
     id: 'ride-vuelta-angliru', name: 'Vuelta: Alto de l’Angliru', category: 'Rides',
-    description: 'The Vuelta’s most savage climb — relentless double-digit gradients that spike past 20% near the top, at Cueña les Cabres.',
+    description: 'The Vuelta’s most savage climb: relentless double-digit gradients that spike past 20% near the top, at Cueña les Cabres.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Valley approach', 1500, 'power', 68),
       iv('Angliru lower slopes', 900, 'power', 85),
       ...repeatIv(6, () => [iv('Steep ramp surge', 90, 'power', 105), iv('Steady grind', 150, 'power', 90)]),
-      iv('Mid-climb breather — false flat', 240, 'power', 82),
-      iv('Cueña les Cabres — the wall', 300, 'power', 112),
+      iv('Mid-climb breather: false flat', 240, 'power', 82),
+      iv('Cueña les Cabres: the wall', 300, 'power', 112),
       ...repeatIv(4, () => [iv('Brutal ramp', 60, 'power', 116), iv('Steady grind', 90, 'power', 95)]),
       iv('Final ramps to the summit', 300, 'power', 105),
       iv('Summit sprint', 30, 'rpe', 10),
@@ -1864,7 +1864,7 @@ const LIBRARY = [
   // ------------------------------------------------------------------------
   {
     id: 'ride-lunch-climb', name: 'Lunchtime Climb', category: 'Basics',
-    description: 'One clean climb done over lunch — a short valley run-in, then a steady sustained effort to the top and straight back down.',
+    description: 'One clean climb done over lunch: a short valley run-in, then a steady sustained effort to the top and straight back down.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Valley approach', 240, 'power', 68),
@@ -1878,7 +1878,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-hill-repeats', name: 'Hill Repeats', category: 'Basics',
-    description: 'The same short, steep pitch five times over — punch up out of every hairpin, roll back down, go again.',
+    description: 'The same short, steep pitch five times over: punch up out of every hairpin, roll back down, go again.',
     repeatWholeCore: true,
     intervals: [
       iv('Warm up', 360, 'power', 55),
@@ -1889,7 +1889,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-punchy-climb-express', name: 'Rolling Climb Express', category: 'Basics',
-    description: 'Three climbs linked by quick descents in under an hour — sustained climbing legs without the all-day epic.',
+    description: 'Three climbs linked by quick descents in under an hour: sustained climbing legs without the all-day epic.',
     intervals: [
       iv('Warm up', 360, 'power', 55),
       iv('Rolling approach', 300, 'power', 70),
@@ -1910,7 +1910,7 @@ const LIBRARY = [
   // ------------------------------------------------------------------------
   {
     id: 'ride-valley-sweetspot', name: 'Sweet spot 10+10+8', category: 'Basics',
-    description: 'Rolling valley roads with three sweet spot blocks stitched between the scenic cruising — the workhorse tempo session with a view.',
+    description: 'Rolling valley roads with three sweet spot blocks stitched between the scenic cruising: the workhorse tempo session with a view.',
     intervals: [
       iv('Warm up', 420, 'power', 58),
       iv('Rolling spin', 300, 'power', 68),
@@ -1928,7 +1928,7 @@ const LIBRARY = [
   // ------------------------------------------------------------------------
   {
     id: 'ride-country-recovery', name: 'Country Lanes Recovery', category: 'Basics',
-    description: 'A soft-pedal spin down quiet country lanes — nothing but easy gears to flush the legs the day after something hard.',
+    description: 'A soft-pedal spin down quiet country lanes: nothing but easy gears to flush the legs the day after something hard.',
     intervals: [
       iv('Easy spin', 300, 'power', 50),
       iv('Gentle lanes', 600, 'power', 58),
@@ -1955,7 +1955,7 @@ const LIBRARY = [
       iv('Between sets recovery', 300, 'power', 55),
       ...repeatIv(13, () => [iv('On', 40, 'power', 120), iv('Off', 20, 'power', 50)]),
       iv('Recovery', 180, 'power', 55),
-      iv('Sustained VO2 finisher — empty the tank', 300, 'power', 115),
+      iv('Sustained VO2 finisher: empty the tank', 300, 'power', 115),
       iv('Last gasp sprint', 30, 'rpe', 10),
       iv('Cool down', 600, 'power', 50),
     ],
@@ -1976,18 +1976,18 @@ const LIBRARY = [
   // ------------------------------------------------------------------------
   {
     id: 'sprint-ladder', name: 'Sprint Ladder', category: 'Basics',
-    description: 'Maximal sprints climbing then dropping in length — 5 up to 20 seconds and back — with long full recoveries so every one is flat out.',
+    description: 'Maximal sprints climbing then dropping in length, 5 up to 20 seconds and back, with long full recoveries so every one is flat out.',
     repeatWholeCore: true,
     intervals: [
       iv('Warm up', 480, 'power', 60),
       iv('Primer sprint', 8, 'power', 120), iv('Easy spin', 172, 'power', 55),
-      iv('Sprint — 5s', 7, 'power', 170), iv('Full recovery', 235, 'power', 50),
-      iv('Sprint — 10s', 12, 'power', 160), iv('Full recovery', 230, 'power', 50),
-      iv('Sprint — 15s', 15, 'power', 150), iv('Full recovery', 225, 'power', 50),
-      iv('Sprint — 20s', 20, 'power', 140), iv('Full recovery', 240, 'power', 50),
-      iv('Sprint — 15s', 15, 'power', 150), iv('Full recovery', 225, 'power', 50),
-      iv('Sprint — 10s', 12, 'power', 160), iv('Full recovery', 230, 'power', 50),
-      iv('Sprint — 5s', 7, 'power', 170), iv('Full recovery', 235, 'power', 50),
+      iv('Sprint: 5s', 7, 'power', 170), iv('Full recovery', 235, 'power', 50),
+      iv('Sprint: 10s', 12, 'power', 160), iv('Full recovery', 230, 'power', 50),
+      iv('Sprint: 15s', 15, 'power', 150), iv('Full recovery', 225, 'power', 50),
+      iv('Sprint: 20s', 20, 'power', 140), iv('Full recovery', 240, 'power', 50),
+      iv('Sprint: 15s', 15, 'power', 150), iv('Full recovery', 225, 'power', 50),
+      iv('Sprint: 10s', 12, 'power', 160), iv('Full recovery', 230, 'power', 50),
+      iv('Sprint: 5s', 7, 'power', 170), iv('Full recovery', 235, 'power', 50),
       iv('Cool down', 420, 'power', 50),
     ],
   },
@@ -1997,22 +1997,22 @@ const LIBRARY = [
   // finishing on the savage wall into Siena's Piazza del Campo.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-strade-bianche', name: 'Strade Bianche — The White Roads', category: 'Rides',
-    description: 'Tuscany’s gravel monument — rolling tempo between brutal white-gravel sectors, saving just enough for the savage ramp up to the Piazza del Campo in Siena.',
+    id: 'ride-strade-bianche', name: 'Strade Bianche: The White Roads', category: 'Rides',
+    description: 'Tuscany’s gravel monument: rolling tempo between brutal white-gravel sectors, saving just enough for the savage ramp up to the Piazza del Campo in Siena.',
     intervals: [
       iv('Warm up', 720, 'power', 55),
       iv('Rolling Tuscan roads', 900, 'power', 68),
-      iv('Gravel sector 1 — settling in', 300, 'power', 88),
+      iv('Gravel sector 1: settling in', 300, 'power', 88),
       iv('Recover on tarmac', 300, 'power', 65),
       iv('Rolling tempo', 600, 'power', 75),
       ...repeatIv(3, () => [iv('White-road gravel sector', 240, 'power', 92), iv('Steep gravel ramp', 45, 'power', 112), iv('Tarmac recovery', 360, 'power', 66)]),
-      iv('Attrition tempo — legs filling up', 900, 'power', 78),
-      iv('Gravel sector — Monte Sante Marie', 480, 'power', 90),
+      iv('Attrition tempo: legs filling up', 900, 'power', 78),
+      iv('Gravel sector: Monte Sante Marie', 480, 'power', 90),
       iv('Punchy gravel rise', 60, 'power', 110),
       iv('Regroup and chase', 420, 'power', 82),
-      iv('Le Tolfe — steep white ramp', 90, 'power', 115),
+      iv('Le Tolfe: steep white ramp', 90, 'power', 115),
       iv('Run-in to Siena', 300, 'power', 88),
-      iv('Via Santa Caterina — the wall', 45, 'rpe', 10),
+      iv('Via Santa Caterina: the wall', 45, 'rpe', 10),
       iv('Piazza del Campo sprint', 20, 'rpe', 10),
       iv('Cool down', 720, 'power', 50),
     ],
@@ -2023,16 +2023,16 @@ const LIBRARY = [
   // discipline the library didn't represent.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-team-time-trial', name: 'Team Time Trial — 4-Up', category: 'Rides',
-    description: 'The rotating paceline — a hard turn on the front just over threshold, then tuck in and recover in the draft, over and over, holding a relentless collective pace.',
+    id: 'ride-team-time-trial', name: 'Team Time Trial: 4-Up', category: 'Rides',
+    description: 'The rotating paceline: a hard turn on the front just over threshold, then tuck in and recover in the draft, over and over, holding a relentless collective pace.',
     repeatWholeCore: true,
     intervals: [
       iv('Warm up', 600, 'power', 60),
       iv('Openers', 60, 'power', 105), iv('Settle', 120, 'power', 70),
-      iv('Roll out — build to pace', 180, 'power', 90),
-      ...repeatIv(10, () => [iv('On the front — pull', 45, 'power', 106), iv('In the draft — recover', 90, 'power', 78)]),
+      iv('Roll out: build to pace', 180, 'power', 90),
+      ...repeatIv(10, () => [iv('On the front: pull', 45, 'power', 106), iv('In the draft: recover', 90, 'power', 78)]),
       iv('Regroup at the turnaround', 240, 'power', 70),
-      ...repeatIv(10, () => [iv('On the front — pull', 45, 'power', 108), iv('In the draft — recover', 90, 'power', 80)]),
+      ...repeatIv(10, () => [iv('On the front: pull', 45, 'power', 108), iv('In the draft: recover', 90, 'power', 80)]),
       iv('Final flying kilometre', 120, 'power', 100),
       iv('Line sprint', 20, 'rpe', 10),
       iv('Cool down', 600, 'power', 50),
@@ -2045,15 +2045,15 @@ const LIBRARY = [
   // ------------------------------------------------------------------------
   {
     id: 'ride-bridge-to-break', name: 'Bridge to the Break', category: 'Rides',
-    description: 'The break keeps going up the road — each time you dig into the red to bridge across, sit in to catch your breath, then chase the next move that goes.',
+    description: 'The break keeps going up the road: each time you dig into the red to bridge across, sit in to catch your breath, then chase the next move that goes.',
     intervals: [
       iv('Warm up', 600, 'power', 58),
       iv('Nervous bunch tempo', 480, 'power', 78),
-      iv('First attack goes — cover it', 120, 'power', 113),
+      iv('First attack goes: cover it', 120, 'power', 113),
       iv('Sit in the group', 300, 'power', 72),
       ...repeatIv(4, () => [iv('Bridge to the break', 180, 'power', 115), iv('Ease in the wheels', 240, 'power', 75)]),
-      iv('Break is caught — regroup', 360, 'power', 70),
-      iv('Counter-attack — dig deep', 150, 'power', 118),
+      iv('Break is caught: regroup', 360, 'power', 70),
+      iv('Counter-attack: dig deep', 150, 'power', 118),
       iv('Chase group tempo', 420, 'power', 84),
       ...repeatIv(3, () => [iv('Surge to hold the wheel', 120, 'power', 116), iv('Recover in the line', 180, 'power', 76)]),
       iv('Final selection forms', 240, 'power', 95),
@@ -2063,7 +2063,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-the-long-escape', name: 'The Long Escape', category: 'Rides',
-    description: "Hours off the front — mostly about holding position, but every time they threaten to close the gap, you have to find another gear.",
+    description: "Hours off the front: mostly about holding position, but every time they threaten to close the gap, you have to find another gear.",
     intervals: [
       iv('Warm up', 900, 'power', 60),
       ...repeatIv(6, () => [iv('Holding the wheel', 694, 'power', 68), iv('Surge to cover the move', 90, 'power', 115)]),
@@ -2077,21 +2077,21 @@ const LIBRARY = [
   // headwind drag home. Lots of variety inside one aspirational ride.
   // ------------------------------------------------------------------------
   {
-    id: 'ride-mallorca-312', name: 'Mallorca 312 — Sa Calobra & the Coast', category: 'Rides',
-    description: 'The legendary Mediterranean sportive — long scenic coastal miles, the iconic Sa Calobra switchback climb and descent, then a long flat drag home into the sea breeze.',
+    id: 'ride-mallorca-312', name: 'Mallorca 312: Sa Calobra & the Coast', category: 'Rides',
+    description: 'The legendary Mediterranean sportive: long scenic coastal miles, the iconic Sa Calobra switchback climb and descent, then a long flat drag home into the sea breeze.',
     intervals: [
       iv('Warm up', 600, 'power', 55),
       iv('Dawn rollout along the bay', 1200, 'power', 66),
       iv('Coastal endurance', 1800, 'power', 70),
       iv('Rolling headland', 900, 'power', 74),
-      iv('Sa Calobra — into the switchbacks', 600, 'power', 82),
+      iv('Sa Calobra: into the switchbacks', 600, 'power', 82),
       ...repeatIv(4, () => [iv('Hairpin ramp', 90, 'power', 98), iv('Steady switchback', 210, 'power', 88)]),
       iv('Sa Calobra upper slopes', 480, 'power', 90),
-      iv('Coll dels Reis — over the top', 60, 'power', 104),
+      iv('Coll dels Reis: over the top', 60, 'power', 104),
       iv('Long technical descent', 900, 'power', 55),
-      iv('Regroup — feed zone spin', 600, 'power', 64),
+      iv('Regroup: feed zone spin', 600, 'power', 64),
       iv('Rolling inland tempo', 1200, 'power', 72),
-      iv('The long flat drag home — headwind', 1500, 'power', 76),
+      iv('The long flat drag home: headwind', 1500, 'power', 76),
       iv('Grinding into the breeze', 600, 'power', 74),
       iv('Final run to the line', 300, 'power', 80),
       iv('Cool down', 720, 'power', 50),
@@ -2122,7 +2122,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-border-run', name: 'Tempo 2×60, building', category: 'Basics',
-    description: 'A long flat road along a borderland — calm outbound, then a building headwind for the way home.',
+    description: 'A long flat road along a borderland: calm outbound, then a building headwind for the way home.',
     intervals: [
       iv('Warm up', 720, 'power', 60),
       iv('Tailwind tempo', 3600, 'power', 75),
@@ -2152,7 +2152,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-delta-causeway', name: 'Tempo 8×7 with kicks', category: 'Basics',
-    description: 'A chain of low bridges over marsh country — tempo pace with a hard kick over every crossing.',
+    description: 'A chain of low bridges over marsh country: tempo pace with a hard kick over every crossing.',
     intervals: [
       iv('Warm up', 600, 'power', 60),
       ...repeatIv(8, () => [iv('Causeway tempo', 420, 'power', 78), iv('Bridge ramp', 60, 'power', 95), iv('Recover', 90, 'power', 58)]),
@@ -2174,7 +2174,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-meadowline-rollers', name: 'Sweet spot rollers 15×5', category: 'Basics',
-    description: 'Low meadow country, one climb blurring into the next — the effort never really settles.',
+    description: 'Low meadow country, one climb blurring into the next: the effort never really settles.',
     intervals: [
       iv('Warm up', 720, 'power', 60),
       ...repeatIv(15, () => [iv('Roller', 150, 'power', 89), iv('Crest', 150, 'power', 93)]),
@@ -2194,7 +2194,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-twin-peaks-sweep', name: 'Sweet spot 2×27', category: 'Basics',
-    description: 'Two short sustained climbs linked by a valley sweep — a taste of a proper climbing day without the full epic length.',
+    description: 'Two short sustained climbs linked by a valley sweep: a taste of a proper climbing day without the full epic length.',
     intervals: [
       iv('Warm up', 720, 'power', 58),
       iv('Climb one', 1650, 'power', 90),
@@ -2205,7 +2205,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-velodrome-nights', name: 'Velodrome Nights', category: 'Rides',
-    description: 'Flying-lap sprints under the lights, full recovery between each one — quality over quantity.',
+    description: 'Flying-lap sprints under the lights, full recovery between each one: quality over quantity.',
     intervals: [
       iv('Warm up', 720, 'power', 58),
       ...repeatIv(3, () => [iv('Opener', 15, 'power', 110), iv('Easy', 45, 'power', 55)]),
@@ -2215,7 +2215,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-alleycat-dash', name: 'Alleycat Dash', category: 'Rides',
-    description: 'Unpredictable, intersection-to-intersection sprints — you never quite know when the next one is coming.',
+    description: 'Unpredictable, intersection-to-intersection sprints: you never quite know when the next one is coming.',
     intervals: [
       iv('Warm up', 900, 'power', 58),
       iv('Sprint', 12, 'power', 105), iv('Gap', 150, 'power', 60),
@@ -2233,7 +2233,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-match-play', name: 'Match Play', category: 'Rides',
-    description: 'Paired efforts that mimic real racing — close the gap, then find one more gear to win the sprint.',
+    description: 'Paired efforts that mimic real racing: close the gap, then find one more gear to win the sprint.',
     intervals: [
       iv('Warm up', 900, 'power', 60),
       ...repeatIv(10, () => [iv('Close the gap', 30, 'power', 115), iv('Recover', 10, 'power', 50), iv('Win the sprint', 12, 'power', 170), iv('Easy', 240, 'power', 55)]),
@@ -2251,7 +2251,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-twilight-crit', name: 'Twilight Crit', category: 'Rides',
-    description: 'A short, sharp criterium under lights — tight corners, no let-up.',
+    description: 'A short, sharp criterium under lights: tight corners, no let-up.',
     intervals: [
       iv('Warm up', 900, 'power', 60),
       ...repeatIv(22, () => [iv('Corner acceleration', 45, 'power', 105), iv('Straight recover', 75, 'power', 65)]),
@@ -2269,7 +2269,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-puncheurs-ambush', name: "Puncheur's Ambush", category: 'Rides',
-    description: 'A day built for the puncheur — no long climbs, just one steep kick after another.',
+    description: 'A day built for the puncheur: no long climbs, just one steep kick after another.',
     intervals: [
       iv('Warm up', 900, 'power', 60),
       ...repeatIv(18, () => [iv('Steep kick', 90, 'power', 115), iv('Recover', 180, 'power', 65)]),
@@ -2278,7 +2278,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-points-race-series', name: 'Points Race Series', category: 'Rides',
-    description: 'A points-race format — a string of intermediate sprints where the stakes, and the effort, climb every time.',
+    description: 'A points-race format: a string of intermediate sprints where the stakes, and the effort, climb every time.',
     intervals: [
       iv('Warm up', 900, 'power', 60),
       iv('Intermediate sprint 1', 20, 'power', 85), iv('Easy', 950, 'power', 55),
@@ -2286,7 +2286,7 @@ const LIBRARY = [
       iv('Intermediate sprint 3', 20, 'power', 95), iv('Easy', 950, 'power', 55),
       iv('Intermediate sprint 4', 20, 'power', 100), iv('Easy', 950, 'power', 55),
       iv('Intermediate sprint 5', 20, 'power', 105), iv('Easy', 950, 'power', 55),
-      iv('Intermediate sprint 6 — winner takes it', 20, 'power', 110), iv('Easy', 950, 'power', 55),
+      iv('Intermediate sprint 6: winner takes it', 20, 'power', 110), iv('Easy', 950, 'power', 55),
       iv('Cool down', 900, 'power', 50),
     ],
   },
@@ -2312,7 +2312,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-alone-at-the-front', name: 'Alone at the Front', category: 'Rides',
-    description: "You've gone clear and it's just you and the road — hold it as long as you can.",
+    description: "You've gone clear and it's just you and the road: hold it as long as you can.",
     intervals: [
       iv('Warm up', 1080, 'power', 58),
       ...Array.from({ length: 11 }, (_, i) => iv('Holding the gap', 300, 'power', Math.round(103 - i * 0.7))),
@@ -2321,14 +2321,14 @@ const LIBRARY = [
   },
   {
     id: 'ride-garden-path-spin', name: 'Garden Path Spin', category: 'Rides',
-    description: 'A light, easy spin through parkland — nothing to prove, just moving.',
+    description: 'A light, easy spin through parkland: nothing to prove, just moving.',
     intervals: [
       iv('Easy spin', 3000, 'power', 52),
     ],
   },
   {
     id: 'ride-quiet-streets-loop', name: 'Quiet Streets Loop', category: 'Rides',
-    description: 'Empty neighborhood streets before the day gets going — gently rolling but never pushed.',
+    description: 'Empty neighborhood streets before the day gets going: gently rolling but never pushed.',
     intervals: [
       ...repeatIv(6, () => [iv('Quiet streets', 780, 'power', 54), iv('Gentle rise', 120, 'power', 62)]),
     ],
@@ -2378,7 +2378,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-race-legs', name: 'Race Legs', category: 'Rides',
-    description: "Race tactics condensed into an hour — sharp openers, a threshold rally, two sprints, then a string of threshold snaps to close it out.",
+    description: "Race tactics condensed into an hour: sharp openers, a threshold rally, two sprints, then a string of threshold snaps to close it out.",
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 60, 'power', 80), iv('Sweet spot', 45, 'power', 90),
@@ -2411,7 +2411,7 @@ const LIBRARY = [
     // stretching this ride re-runs the whole foothills route as an extra
     // lap instead, keeping the climbing character intact at any length.
     repeatWholeCore: true,
-    description: 'A rolling foothills route that never settles — short punchy climbs and gentle drags, cresting a genuine Wall near the end before the run home.',
+    description: 'A rolling foothills route that never settles: short punchy climbs and gentle drags, cresting a genuine Wall near the end before the run home.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Flat / rolling', 20, 'power', 65), iv('Climb', 15, 'power', 86),
@@ -2452,7 +2452,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-ziggurat', name: 'Ziggurat', category: 'Rides',
-    description: 'A mirrored step pyramid — sweet spot and endurance blocks shrink to a single minute, spike through VO2 max and threshold, then rebuild all the way back out.',
+    description: 'A mirrored step pyramid: sweet spot and endurance blocks shrink to a single minute, spike through VO2 max and threshold, then rebuild all the way back out.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 360, 'power', 70),
@@ -2478,7 +2478,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-rising-tide', name: 'Rising Tide', category: 'Rides',
-    description: 'Three rolling endurance waves, each one followed by a sharper finish than the last — a VO2 opener, a threshold rally, then a trio of escalating VO2 sprints.',
+    description: 'Three rolling endurance waves, each one followed by a sharper finish than the last: a VO2 opener, a threshold rally, then a trio of escalating VO2 sprints.',
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Endurance', 240, 'power', 70), iv('Endurance', 240, 'power', 80),
@@ -2505,7 +2505,7 @@ const LIBRARY = [
     // into three rolling phases (each its own repeatIv group, so the duration
     // slider can grow/shrink them independently) plus a final kick, instead of
     // two flat blocks -- built for a visibly busier, wavier profile chart.
-    description: "A short, sheltered out-and-back for the lunch-break days — three rolling sweet spot phases building in intensity, with a punchy final kick before the descent home.",
+    description: "A short, sheltered out-and-back for the lunch-break days: three rolling sweet spot phases building in intensity, with a punchy final kick before the descent home.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(4, () => [iv('Rise', 70, 'power', 90), iv('Ease', 50, 'power', 85)]),
@@ -2524,7 +2524,7 @@ const LIBRARY = [
     // the four plateaus is now its own rolling repeatIv group instead of one
     // flat block, so the ride reads as genuine terrain texture rather than
     // four held power targets, while scaling exactly the same way.
-    description: "A long, wide-open traverse across four rolling plateaus of sweet spot effort — the wind picks up through the second before the longest, steadiest stretch of the ride.",
+    description: "A long, wide-open traverse across four rolling plateaus of sweet spot effort: the wind picks up through the second before the longest, steadiest stretch of the ride.",
     intervals: [
       iv('Warm up', 600, 'power', 58),
       ...repeatIv(3, () => [iv('Rise', 200, 'power', 90), iv('Ease', 100, 'power', 85)]),
@@ -2553,7 +2553,7 @@ const LIBRARY = [
   // --- 20-30min bucket (2 recovery, 2 vo2max, 1 anaerobic) ---
   {
     id: 'ride-loose-legs-spin', name: 'Loose Legs Spin', category: 'Rides',
-    description: "An easy, unhurried spin with a gentle float through the back half — legs-only recovery, nothing to chase.",
+    description: "An easy, unhurried spin with a gentle float through the back half: legs-only recovery, nothing to chase.",
     intervals: [
       iv('Warm up', 120, 'power', 55),
       ...repeatIv(4, () => [iv('Ease', 90, 'power', 57), iv('Loose', 90, 'power', 52)]),
@@ -2563,7 +2563,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-flush-lap', name: 'Flush Lap', category: 'Rides',
-    description: "A flush ride for the day after something hard — drifts even easier through the second half.",
+    description: "A flush ride for the day after something hard: drifts even easier through the second half.",
     intervals: [
       iv('Warm up', 150, 'power', 56),
       ...repeatIv(5, () => [iv('Turn', 80, 'power', 58), iv('Ease', 70, 'power', 53)]),
@@ -2573,7 +2573,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-short-fuse', name: 'Short Fuse', category: 'Rides',
-    description: "30-on/30-off VO2 max intervals in two waves with a short breather between — quick, sharp, done before lunch.",
+    description: "30-on/30-off VO2 max intervals in two waves with a short breather between: quick, sharp, done before lunch.",
     intervals: [
       iv('Warm up', 240, 'power', 58),
       iv('Opener', 60, 'power', 85),
@@ -2585,7 +2585,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-three-minute-warning', name: 'Three Minute Warning', category: 'Rides',
-    description: "Three-minute VO2 efforts that build in two steps rather than holding flat — fewer reps, more sustained bite.",
+    description: "Three-minute VO2 efforts that build in two steps rather than holding flat: fewer reps, more sustained bite.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2595,7 +2595,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-matchstick', name: 'Matchstick', category: 'Rides',
-    description: "A sprint ladder that climbs in intensity then eases back down — ten short, sharp efforts of varying length.",
+    description: "A sprint ladder that climbs in intensity then eases back down: ten short, sharp efforts of varying length.",
     intervals: [
       iv('Warm up', 240, 'power', 58),
       iv('Opener', 20, 'power', 92),
@@ -2626,7 +2626,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-fireroad-amble', name: 'Fireroad Amble', category: 'Rides',
-    description: "Rolling endurance with a punchier back half — two wave patterns instead of one held pace.",
+    description: "Rolling endurance with a punchier back half: two wave patterns instead of one held pace.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       ...repeatIv(5, () => [iv('Roll', 150, 'power', 72), iv('Ease', 100, 'power', 63)]),
@@ -2636,7 +2636,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-towpath-ramble', name: 'Towpath Ramble', category: 'Rides',
-    description: "Long, flat, and steady — a genuine easy cruise from start to finish.",
+    description: "Long, flat, and steady: a genuine easy cruise from start to finish.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(9, () => [iv('Steady', 140, 'power', 69), iv('Ease', 100, 'power', 62)]),
@@ -2645,7 +2645,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-downtown-crit', name: 'Downtown Crit', category: 'Rides',
-    description: "Attack, get chased down, settle, repeat — a bridge effort and a field sprint close it out.",
+    description: "Attack, get chased down, settle, repeat: a bridge effort and a field sprint close it out.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       iv('Opener', 15, 'power', 100),
@@ -2659,7 +2659,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-alley-sprint-series', name: 'Alley Sprint Series', category: 'Rides',
-    description: "A sprint-heavy crit simulation — eight jumps out of the corners, a late attack, and a closing sprint.",
+    description: "A sprint-heavy crit simulation: eight jumps out of the corners, a late attack, and a closing sprint.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       iv('Opener', 15, 'power', 98),
@@ -2715,7 +2715,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-corridor-run', name: 'Sweet spot rolling 5+4 (short)', category: 'Basics',
-    description: "A compact sweet spot ride — two rolling, undulating phases with a short recovery between.",
+    description: "A compact sweet spot ride: two rolling, undulating phases with a short recovery between.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       ...repeatIv(5, () => [iv('Rise', 90, 'power', 91), iv('Ease', 60, 'power', 85)]),
@@ -2726,7 +2726,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-ridge-line', name: 'Sweet spot rolling 6+5', category: 'Basics',
-    description: "A longer rolling sweet spot ride — more reps per phase, undulating rather than flat.",
+    description: "A longer rolling sweet spot ride: more reps per phase, undulating rather than flat.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(6, () => [iv('Rise', 100, 'power', 90), iv('Ease', 70, 'power', 84)]),
@@ -2748,7 +2748,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-steady-state-special', name: 'Tempo blocks 7+4', category: 'Basics',
-    description: "Tempo in two blocks with a breather between — the second block runs slightly harder than the first.",
+    description: "Tempo in two blocks with a breather between: the second block runs slightly harder than the first.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       ...repeatIv(7, () => [iv('Push', 150, 'power', 80), iv('Ease', 90, 'power', 73)]),
@@ -2759,7 +2759,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-cruise-control', name: 'Rolling tempo 11×2', category: 'Basics',
-    description: "A gentle tempo ride — long, evenly paced rolling waves start to finish.",
+    description: "A gentle tempo ride: long, evenly paced rolling waves start to finish.",
     intervals: [
       iv('Warm up', 360, 'power', 58),
       ...repeatIv(11, () => [iv('Push', 130, 'power', 79), iv('Ease', 90, 'power', 72)]),
@@ -2825,7 +2825,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-the-grind', name: 'The Grind', category: 'Rides',
-    description: "2×20 threshold, the classic long-block protocol — hold/push texture running through each 20.",
+    description: "2×20 threshold, the classic long-block protocol: hold/push texture running through each 20.",
     intervals: [
       iv('Warm up', 420, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2838,7 +2838,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-midweek-crit', name: 'Midweek Crit', category: 'Rides',
-    description: "A longer race simulation — attacks, chases, counters, a bridge, and a sprint to close it out.",
+    description: "A longer race simulation: attacks, chases, counters, a bridge, and a sprint to close it out.",
     intervals: [
       iv('Warm up', 390, 'power', 58),
       iv('Opener', 20, 'power', 100),
@@ -2862,7 +2862,7 @@ const LIBRARY = [
   // ------------------------------------------------------------------------
   {
     id: 'ride-castle-hill', name: 'Castle Hill Dash', category: 'Rides',
-    description: "One steep old-town climb taken twice — cobble-flavoured ramps, a kick through the gate, and a fast roll back down between.",
+    description: "One steep old-town climb taken twice: cobble-flavoured ramps, a kick through the gate, and a fast roll back down between.",
     intervals: [
       iv('Warm up', 300, 'power', 55),
       iv('Through the streets', 240, 'power', 68),
@@ -2878,18 +2878,18 @@ const LIBRARY = [
   },
   {
     id: 'ride-two-cols-loop', name: 'Two Cols Loop', category: 'Rides',
-    description: "A pair of honest mid-size cols joined by a valley road — the classic morning loop, done properly.",
+    description: "A pair of honest mid-size cols joined by a valley road: the classic morning loop, done properly.",
     intervals: [
       iv('Warm up', 360, 'power', 55),
       iv('Valley run-in', 480, 'power', 68),
-      iv('Col one — lower slopes', 600, 'power', 85),
-      iv('Col one — steady grind', 360, 'power', 90),
-      iv('Col one — final bend', 120, 'power', 96),
+      iv('Col one: lower slopes', 600, 'power', 85),
+      iv('Col one: steady grind', 360, 'power', 90),
+      iv('Col one: final bend', 120, 'power', 96),
       iv('Descent', 300, 'power', 55),
       iv('Between the valleys', 360, 'power', 70),
-      iv('Col two — settle in', 480, 'power', 88),
-      iv('Col two — steepens', 360, 'power', 92),
-      iv('Col two — last kilometre', 180, 'power', 98),
+      iv('Col two: settle in', 480, 'power', 88),
+      iv('Col two: steepens', 360, 'power', 92),
+      iv('Col two: last kilometre', 180, 'power', 98),
       iv('Summit surge', 45, 'power', 106),
       iv('Descent', 300, 'power', 55),
       iv('Cool down', 240, 'power', 50),
@@ -2897,7 +2897,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-monastery-road', name: 'Monastery Road', category: 'Rides',
-    description: "One long mountain to a clifftop monastery — hairpins through the forest, a false flat to breathe on, and a final ramp to the gates.",
+    description: "One long mountain to a clifftop monastery: hairpins through the forest, a false flat to breathe on, and a final ramp to the gates.",
     intervals: [
       iv('Warm up', 420, 'power', 55),
       iv('Rolling approach', 600, 'power', 68),
@@ -2917,7 +2917,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-quayside-tt', name: 'Quayside TT', category: 'Rides',
-    description: "A half-hour harbour time trial — three building stages along the water, a breather at the turn, and one last drive home.",
+    description: "A half-hour harbour time trial: three building stages along the water, a breather at the turn, and one last drive home.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2931,7 +2931,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-lighthouse-run', name: 'Lighthouse Run', category: 'Rides',
-    description: "Threshold out to the lighthouse and back — headwind surges on the way out, a steady tailwind drive home with a late kick.",
+    description: "Threshold out to the lighthouse and back: headwind surges on the way out, a steady tailwind drive home with a late kick.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2945,7 +2945,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-viaduct-repeats', name: 'Viaduct Repeats', category: 'Rides',
-    description: "3×8 threshold over the old viaduct circuit — hold/push halves each lap, and a surge over the top to finish.",
+    description: "3×8 threshold over the old viaduct circuit: hold/push halves each lap, and a surge over the top to finish.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2960,7 +2960,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-rooftop-repeats', name: 'Rooftop Repeats', category: 'Rides',
-    description: "40/20s up on the parking-garage circuit — three shrinking waves, each one a little harder than the last.",
+    description: "40/20s up on the parking-garage circuit: three shrinking waves, each one a little harder than the last.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 85),
@@ -2974,7 +2974,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-seawall-surges', name: 'Seawall Surges', category: 'Rides',
-    description: "Two-minute VO2 surges along the seawall with rolling recoveries — and one extra, harder, when you think you're done.",
+    description: "Two-minute VO2 surges along the seawall with rolling recoveries: and one extra, harder, when you think you're done.",
     intervals: [
       iv('Warm up', 300, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -2986,7 +2986,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-gorge-attacks', name: 'Gorge Attacks', category: 'Rides',
-    description: "Three waves of attacks through the gorge — long ones first, short and sharp in the middle, one last dig at the end.",
+    description: "Three waves of attacks through the gorge: long ones first, short and sharp in the middle, one last dig at the end.",
     intervals: [
       iv('Warm up', 330, 'power', 58),
       iv('Opener', 60, 'power', 88),
@@ -3002,7 +3002,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-station-sprints', name: 'Station Sprints', category: 'Rides',
-    description: "Standing starts from the station forecourt, then flying sprints once the legs are lit — short, maximal, and done in half an hour.",
+    description: "Standing starts from the station forecourt, then flying sprints once the legs are lit: short, maximal, and done in half an hour.",
     intervals: [
       iv('Warm up', 300, 'power', 56),
       iv('Opener', 20, 'power', 95),
@@ -3015,7 +3015,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-green-lights', name: 'Green Lights', category: 'Rides',
-    description: "Crosstown sprint work — jump every green light, cruise between them, then a handful of longer beat-the-light efforts to finish.",
+    description: "Crosstown sprint work: jump every green light, cruise between them, then a handful of longer beat-the-light efforts to finish.",
     intervals: [
       iv('Warm up', 300, 'power', 56),
       ...repeatIv(10, () => [iv('Green light', 12, 'power', 145), iv('Cruise', 108, 'power', 58)]),
@@ -3026,7 +3026,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-final-two-hundred', name: 'Final Two Hundred', category: 'Rides',
-    description: "Leadout-and-sprint practice — wind it up, launch for the line, sit up, go again. The last one is full gas.",
+    description: "Leadout-and-sprint practice: wind it up, launch for the line, sit up, go again. The last one is full gas.",
     intervals: [
       iv('Warm up', 330, 'power', 56),
       iv('Opener', 20, 'power', 95),
@@ -3048,7 +3048,7 @@ const LIBRARY = [
   // ==========================================================================
   {
     id: 'ride-snaefell-circuit', name: 'Snaefell Circuit', category: 'Rides',
-    description: "A lap of the island's mountain road circuit — village drags, the long climb over the shoulder, and a fast run back down to the promenade.",
+    description: "A lap of the island's mountain road circuit: village drags, the long climb over the shoulder, and a fast run back down to the promenade.",
     intervals: [
       iv('Warm up', 420, 'power', 57),
       iv('Promenade rollout', 300, 'power', 66),
@@ -3068,7 +3068,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-otago-rail-trail', name: 'Otago Rail Trail', category: 'Rides',
-    description: 'An old goods line turned gravel path — a gradient so consistent it never lets you settle, through two tunnels and a schist gorge.',
+    description: 'An old goods line turned gravel path: a gradient so consistent it never lets you settle, through two tunnels and a schist gorge.',
     intervals: [
       iv('Warm up', 480, 'power', 57),
       iv('Middlemarch flats', 300, 'power', 68),
@@ -3190,7 +3190,7 @@ const LIBRARY = [
   },
   {
     id: 'ride-sa-calobra', name: 'Sa Calobra', category: 'Rides',
-    description: 'Up from the cove through twenty-six bends. Each hairpin pitches, each straight lets you off — barely.',
+    description: 'Up from the cove through twenty-six bends. Each hairpin pitches, each straight lets you off: barely.',
     intervals: [
       iv('Warm up', 540, 'power', 58),
       iv('Sea-level cove', 300, 'power', 68),
@@ -4562,7 +4562,7 @@ function WorkoutDetail({ workout, ftp, setFtp, settings, onStart, onClose, onEdi
                 <div style={{ width: 4, height: 24, background: z.color, borderRadius: 2, flexShrink: 0 }} />
                 <div style={{ flex: 1, color: TEXT, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
-                  {isPaddedSprint && <InfoDot text="Includes a hidden 2-second ramp so your trainer's flywheel can spin up to full resistance — you'll get the full sprint effort for the length shown." />}
+                  {isPaddedSprint && <InfoDot text="Includes a hidden 2-second ramp so your trainer's flywheel can spin up to full resistance: you'll get the full sprint effort for the length shown." />}
                 </div>
                 <div style={{ color: SUB }}>{formatTarget(it, ftp, settings.targetDisplay)}</div>
                 <div style={{ color: SUB, width: 44, textAlign: 'right' }}>{fmt(it.duration)}</div>
@@ -4622,12 +4622,12 @@ function mostRecentEntry(list, predicate) {
 // progressively less-urgent signals and stopping at the first one that fires.
 function buildNextUpSuggestion(ftpHistory, workoutHistory) {
   if (!ftpHistory || ftpHistory.length === 0) {
-    return { text: 'You haven’t tested your FTP yet — run a quick test so your power targets are accurate.', action: 'ftp', cta: 'Test FTP' };
+    return { text: 'You haven’t tested your FTP yet: run a quick test so your power targets are accurate.', action: 'ftp', cta: 'Test FTP' };
   }
   const lastFtp = ftpHistory[ftpHistory.length - 1];
   const daysSinceFtp = daysSince(lastFtp.date);
   if (daysSinceFtp >= 42) {
-    return { text: `It's been ${daysSinceFtp} days since your last FTP test — worth retesting to keep your targets sharp.`, action: 'ftp' };
+    return { text: `It's been ${daysSinceFtp} days since your last FTP test: worth retesting to keep your targets sharp.`, action: 'ftp' };
   }
   if (!workoutHistory || workoutHistory.length === 0) {
     return { text: 'Ready for your first session? Workouts and Rides both have plenty to choose from.', action: 'basics' };
@@ -4636,7 +4636,7 @@ function buildNextUpSuggestion(ftpHistory, workoutHistory) {
   const daysSinceVO2 = lastVO2 ? daysSince(lastVO2.date) : null;
   if (daysSinceVO2 === null || daysSinceVO2 >= 14) {
     return {
-      text: daysSinceVO2 == null ? 'You haven’t logged a VO2 max session yet — worth adding one for a fitness boost.' : `You haven't done a VO2 max session in ${daysSinceVO2} days.`,
+      text: daysSinceVO2 == null ? 'You haven’t logged a VO2 max session yet: worth adding one for a fitness boost.' : `You haven't done a VO2 max session in ${daysSinceVO2} days.`,
       action: 'basics',
     };
   }
@@ -4644,7 +4644,7 @@ function buildNextUpSuggestion(ftpHistory, workoutHistory) {
   const daysSinceRide = lastRide ? daysSince(lastRide.date) : null;
   if (daysSinceRide === null || daysSinceRide >= 10) {
     return {
-      text: daysSinceRide == null ? 'You haven’t done a long ride yet — the Rides library has plenty to choose from.' : `It's been ${daysSinceRide} days since your last ride.`,
+      text: daysSinceRide == null ? 'You haven’t done a long ride yet: the Rides library has plenty to choose from.' : `It's been ${daysSinceRide} days since your last ride.`,
       action: 'rides',
     };
   }
@@ -4653,9 +4653,9 @@ function buildNextUpSuggestion(ftpHistory, workoutHistory) {
   const lastRecovery = mostRecentEntry(workoutHistory, w => /recovery/i.test(w.name));
   const daysSinceRecovery = lastRecovery ? daysSince(lastRecovery.date) : null;
   if (daysSinceAny !== null && daysSinceAny >= 5 && (daysSinceRecovery == null || daysSinceRecovery >= 10)) {
-    return { text: 'It’s been a few days since your last session — maybe ease back in with a recovery spin.', action: 'basics' };
+    return { text: 'It’s been a few days since your last session: maybe ease back in with a recovery spin.', action: 'basics' };
   }
-  return { text: 'You’re riding consistently — keep it up.', action: null };
+  return { text: 'You’re riding consistently: keep it up.', action: null };
 }
 
 // ---------- personal records ----------
@@ -4863,7 +4863,7 @@ function HomeView({ account, ftpHistory, workoutHistory, trainingPlan, onNavigat
                   <div style={monoVal}>{currentFtpVal}</div>
                   {ftpDelta != null && ftpDelta !== 0 && <div style={{ fontSize: 10.5, color: ftpDelta > 0 ? 'var(--accent)' : SUB }}>{ftpDelta > 0 ? '+' : ''}{ftpDelta}</div>}
                 </div>
-                {ftpValues.length >= 2 ? <Sparkline values={ftpValues} height={16} /> : <div style={{ fontSize: 10.5, color: SUB, marginTop: 2 }}>—</div>}
+                {ftpValues.length >= 2 ? <Sparkline values={ftpValues} height={16} /> : <div style={{ fontSize: 10.5, color: SUB, marginTop: 2 }}>–</div>}
               </>
             ) : <div style={{ fontSize: 10.5, color: SUB, marginTop: 2 }}>No tests</div>}
           </div>
@@ -5020,7 +5020,7 @@ function HistoryView({ workoutHistory, onClear }) {
       <PersonalRecordsPanel workoutHistory={workoutHistory} />
       <TrainingLoadPanel workoutHistory={workoutHistory} />
       {all.length === 0 ? (
-        <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 0' }}>No workouts logged yet — finish a session and it'll show up here.</div>
+        <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 0' }}>No workouts logged yet: finish a session and it'll show up here.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {all.map(entry => <HistoryRow key={entry.id} entry={entry} />)}
@@ -5079,7 +5079,7 @@ function FtpView({ ftp, setFtp, ftpHistory, onClearFtpHistory, onOpenWorkout }) 
       </div>
       {history.length === 0 ? (
         <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '24px 0', border: `1px dashed ${LINE}`, borderRadius: 10 }}>
-          No FTP tests logged yet — run one of the protocols above to get started.
+          No FTP tests logged yet: run one of the protocols above to get started.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -5343,10 +5343,10 @@ function SaveQueueControl({ queueLength, savedCount, maxSaved, maxWorkouts, onSa
   function submit() {
     const result = onSave(name);
     if (!result || !result.ok) {
-      if (result?.reason === 'limit') setError(`You've reached the ${maxSaved}-saved-queue limit — delete one first.`);
-      else if (result?.reason === 'too-long') setError(`Saved queues are capped at ${maxWorkouts} workouts — trim your queue first.`);
+      if (result?.reason === 'limit') setError(`You've reached the ${maxSaved}-saved-queue limit. Delete one first.`);
+      else if (result?.reason === 'too-long') setError(`Saved queues are capped at ${maxWorkouts} workouts. Trim your queue first.`);
       else if (result?.reason === 'name') setError('Give it a name first.');
-      else setError('Could not save — try again.');
+      else setError('Could not save. Try again.');
       return;
     }
     setSaving(false);
@@ -5450,7 +5450,7 @@ function QueueView({ queue, customWorkouts, onOpen, onRemove, onReorder, onClear
 
       {resolved.length === 0 ? (
         <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 20px', border: `1px dashed ${LINE}`, borderRadius: 10, lineHeight: 1.6 }}>
-          Add workouts or rides from Library, Basics or Rides — look for the <b style={{ color: TEXT }}>Queue</b> button next to Start workout. Queue two or more and they'll roll straight into each other, back to back.
+          Add workouts or rides from Library, Basics or Rides: look for the <b style={{ color: TEXT }}>Queue</b> button next to Start workout. Queue two or more and they'll roll straight into each other, back to back.
         </div>
       ) : (
         <>
@@ -5782,7 +5782,7 @@ function buildWorkoutFromRoute(route, targetDurationSec) {
     id: 'custom-' + newId(),
     name: route.routeName,
     category: 'Rides',
-    description: `Built from your uploaded route — ${(route.totalDist / 1000).toFixed(1)}km with ${Math.round(route.totalElevGain)}m of climbing, converted into an indoor power profile.`,
+    description: `Built from your uploaded route: ${(route.totalDist / 1000).toFixed(1)}km with ${Math.round(route.totalElevGain)}m of climbing, converted into an indoor power profile.`,
     intervals,
   };
 }
@@ -6076,7 +6076,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 26, color: TEXT, letterSpacing: -0.3, marginBottom: 2 }}>{editingWorkout ? 'Edit workout' : 'Build a workout'}</div>
-      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 16 }}>Stack intervals, mix power, RPE and free riding — or start from a real route.</div>
+      <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: SUB, marginBottom: 16 }}>Stack intervals, mix power, RPE and free riding, or start from a real route.</div>
 
       <input ref={fileInputRef} type="file" accept=".gpx" onChange={handleGpxFile} style={{ display: 'none' }} />
       <button onClick={() => fileInputRef.current && fileInputRef.current.click()} disabled={gpxBusy}
@@ -6114,7 +6114,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
               </div>
             </div>
             <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, marginBottom: 12, lineHeight: 1.5 }}>
-              Defaults to a race-pace estimate for this route's climbing. Adjust either field to match a real bike split — climbs will still take proportionally longer than flats.
+              Defaults to a race-pace estimate for this route's climbing. Adjust either field to match a real bike split; climbs will still take proportionally longer than flats.
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={confirmPendingRoute} style={{ fontFamily: "'Manrope', sans-serif", flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>Build intervals</button>
@@ -6126,7 +6126,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
 
       {!pendingRoute && (
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
-          Turns a real ride's elevation profile into an indoor power workout — climbs get harder targets, descents get easier ones. You'll set a target pace before it builds intervals.
+          Turns a real ride's elevation profile into an indoor power workout: climbs get harder targets, descents get easier ones. You'll set a target pace before it builds intervals.
         </div>
       )}
 
@@ -6179,7 +6179,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
           rowRef={el => { if (el) rowRefsMap.current[it.id] = el; else delete rowRefsMap.current[it.id]; }}
           first={idx === 0} last={idx === intervals.length - 1} />
       ))}
-      {intervals.length === 0 && <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '20px 0', border: `1px dashed ${LINE}`, borderRadius: 10, marginBottom: 16 }}>No intervals yet — tap a quick add block above to start.</div>}
+      {intervals.length === 0 && <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '20px 0', border: `1px dashed ${LINE}`, borderRadius: 10, marginBottom: 16 }}>No intervals yet: tap a quick add block above to start.</div>}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
         {editingWorkout && <button onClick={reset} style={{ fontFamily: "'Manrope', sans-serif", flex: 1, padding: '12px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: SUB, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>}
@@ -6201,7 +6201,7 @@ function BuilderView({ customWorkouts, saveCustomWorkout, deleteCustomWorkout, e
       {exportFallback && (
         <div style={{ marginTop: 8 }}>
           <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginBottom: 6 }}>
-            Couldn't copy automatically — tap the box, select all, and copy manually.
+            Couldn't copy automatically: tap the box, select all, and copy manually.
           </div>
           <textarea readOnly value={exportFallback} onFocus={e => e.target.select()}
             style={{ fontFamily: 'monospace', width: '100%', height: 160, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, color: TEXT, padding: 10, fontSize: 11.5, boxSizing: 'border-box', resize: 'vertical' }} />
@@ -7013,7 +7013,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
       <div className="player-main" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
         <div className="player-stats" style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: isDone ? SUB : z.color, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>
-            {isDone ? (testResult ? (testResult.resultLabel || (testResult.auto ? 'Test ended — that’s your limit' : 'Ramp test complete')) : 'Workout complete') : (current.label || z.name)}
+            {isDone ? (testResult ? (testResult.resultLabel || (testResult.auto ? 'Test ended: that’s your limit' : 'Ramp test complete')) : 'Workout complete') : (current.label || z.name)}
           </div>
 
           {!isDone ? (
@@ -7076,7 +7076,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 
           {isDone && (
             <div style={{ fontFamily: FONT_BODY, fontSize: 16, color: SUB, marginTop: 6 }}>
-              {testResult ? 'Estimated FTP — saved to your FTP history' : 'Nice work — here’s how it went.'}
+              {testResult ? 'Estimated FTP, saved to your FTP history' : 'Nice work. Here’s how it went.'}
             </div>
           )}
 
@@ -7088,7 +7088,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
             <div style={{ marginTop: 14, maxWidth: 440, margin: '14px auto 0' }}>
               {effortGiven ? (
                 <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: SUB, textAlign: 'center' }}>
-                  Noted — this helps your plan learn what suits you.
+                  Noted. This helps your plan learn what suits you.
                 </div>
               ) : (
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px' }}>
@@ -7224,7 +7224,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
               {pendingAction === 'exit' ? 'Exit workout?' : 'Restart workout?'}
             </div>
             <div style={{ fontFamily: FONT_BODY, fontSize: 13.5, color: SUB, lineHeight: 1.6, marginBottom: 20 }}>
-              Your ride is still running — are you sure you want to continue?
+              Your ride is still running. Are you sure you want to continue?
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={cancelPendingAction} style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontFamily: FONT_BODY, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Keep riding</button>
@@ -7384,7 +7384,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <BleConnectRow conn={trainer} statusColor={statusColor} statusLabel={statusLabel} />
       {!trainer.supported && (
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
-          Bluetooth isn't available here. This works in Chrome on desktop or Android with a trainer that supports the FTMS standard — not in Safari or iOS.
+          Bluetooth isn't available here. This works in Chrome on desktop or Android with a trainer that supports the FTMS standard, not in Safari or iOS.
         </div>
       )}
       {trainer.errorMsg && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: RED, marginBottom: 6 }}>{trainer.errorMsg}</div>}
@@ -7400,12 +7400,12 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       {heartRate.status !== 'connected' && (
         <div style={{ display: 'flex', gap: 6, fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
           <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>A chest strap or armband just needs to be worn — the sensor wakes on skin contact. A watch (Coros, Garmin, Apple Watch, etc.) won't show up until you turn on its <b style={{ color: TEXT }}>Broadcast Heart Rate</b> mode — that's the setting that makes the watch send its heart rate over Bluetooth for another app to pick up.</span>
+          <span>A chest strap or armband just needs to be worn. The sensor wakes on skin contact. A watch (Coros, Garmin, Apple Watch, etc.) won't show up until you turn on its <b style={{ color: TEXT }}>Broadcast Heart Rate</b> mode: that's the setting that makes the watch send its heart rate over Bluetooth for another app to pick up.</span>
         </div>
       )}
       {!heartRate.supported && (
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
-          Bluetooth isn't available here. Works with any standard BLE chest strap or armband — Polar, Wahoo, Garmin and most others.
+          Bluetooth isn't available here. Works with any standard BLE chest strap or armband: Polar, Wahoo, Garmin and most others.
         </div>
       )}
       {heartRate.errorMsg && <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: RED, marginBottom: 6 }}>{heartRate.errorMsg}</div>}
@@ -7413,7 +7413,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
         Your heart rate is shown live while you ride and is included in any workout file you export. It is never saved to your Trbo account and never sent to Strava.
       </div>
       <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 6, lineHeight: 1.5 }}>
-        Separate from your trainer — pair it here once and it'll show up alongside power during every ride.
+        Separate from your trainer: pair it here once and it'll show up alongside power during every ride.
       </div>
 
       {STRAVA_CLIENT_ID ? (
@@ -7471,7 +7471,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           style={{ width: '100%', accentColor: settings.accentColor }} />
       </div>
       <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11, color: SUB, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 14, marginBottom: 6 }}>Ride cues</div>
-      <SettingRow label="Distinct tone per zone" sub="Interval-change beep pitch matches the upcoming effort — low for recovery, sharp for anaerobic">
+      <SettingRow label="Distinct tone per zone" sub="Interval-change beep pitch matches the upcoming effort: low for recovery, sharp for anaerobic">
         <Switch checked={settings.soundZoneTones} onChange={v => updateSetting('soundZoneTones', v)} />
       </SettingRow>
       <SettingRow label="Halfway & final-interval chimes" sub="A soft chime at the workout's midpoint and again entering the last interval">
@@ -7511,7 +7511,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 2 }}>Default orientation</div>
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 8, lineHeight: 1.5 }}>
-          Landscape is recommended — it's designed for a device mounted on your bars. Portrait works but some screens will feel cramped or stretched.
+          Landscape is recommended: it's designed for a device mounted on your bars. Portrait works but some screens will feel cramped or stretched.
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Chip active={settings.preferredOrientation === 'landscape'} onClick={() => updateSetting('preferredOrientation', 'landscape')}>Landscape (recommended)</Chip>
@@ -7536,7 +7536,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
       <div style={{ padding: '10px 0', borderBottom: `1px solid ${LINE}` }}>
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: TEXT, marginBottom: 2 }}>Workout text size</div>
         <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12, color: SUB, marginBottom: 8, lineHeight: 1.5 }}>
-          Scales the timer and target/current numbers you read mid-ride. 2x is sized for a tablet mounted further from the bars — on a phone, Large usually reads best.
+          Scales the timer and target/current numbers you read mid-ride. 2x is sized for a tablet mounted further from the bars; on a phone, Large usually reads best.
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Chip active={settings.workoutTextScale === 1} onClick={() => updateSetting('workoutTextScale', 1)}>Normal</Chip>
@@ -7548,7 +7548,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
         {settings.workoutTextScale >= 2 && (
           <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: 'var(--flame)', marginTop: 8, lineHeight: 1.5, display: 'flex', gap: 6 }}>
             <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>At this size on a phone, the timer ring and the watts dial are hidden to make room — you'll see just the big timer, target, current watts and the pause button. Turn the text size back down to bring them back.</span>
+            <span>At this size on a phone, the timer ring and the watts dial are hidden to make room: you'll see just the big timer, target, current watts and the pause button. Turn the text size back down to bring them back.</span>
           </div>
         )}
       </div>
@@ -7562,8 +7562,8 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
             <button onClick={onLogout} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 12.5, cursor: 'pointer' }}>Log out</button>
           </SettingRow>
           <SettingRow
-            label={compAccess ? 'Friends & family — free access' : testerCompActive ? `Tester access — ${testerCompDaysLeft} day${testerCompDaysLeft === 1 ? '' : 's'} left` : subscribed ? 'Subscription — active' : `Free trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
-            sub={compAccess ? 'Complimentary access, no card on file' : testerCompActive ? 'Thanks for testing — this expires automatically, no action needed' : subscribed ? 'Update your card, view invoices, or cancel any time' : 'No charge yet in this demo'}
+            label={compAccess ? 'Friends & family: free access' : testerCompActive ? `Tester access: ${testerCompDaysLeft} day${testerCompDaysLeft === 1 ? '' : 's'} left` : subscribed ? 'Subscription: active' : `Free trial: ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+            sub={compAccess ? 'Complimentary access, no card on file' : testerCompActive ? 'Thanks for testing: this expires automatically, no action needed' : subscribed ? 'Update your card, view invoices, or cancel any time' : 'No charge yet in this demo'}
           >
             {!subscribed && !compAccess && (
               <button onClick={onShowPaywall} style={{ fontFamily: "'Manrope', sans-serif", padding: '7px 12px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>Upgrade now</button>
@@ -7609,7 +7609,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
         <>
           <SectionHeader icon={<MessageSquare size={16} color="var(--accent)" />} title="Feedback & support" />
           <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: SUB, lineHeight: 1.5, marginBottom: 12 }}>
-            Found a bug, want a feature, or need a hand? Send it straight to us — it lands in our inbox and we&rsquo;ll reply to you by email.
+            Found a bug, want a feature, or need a hand? Send it straight to us: it lands in our inbox and we&rsquo;ll reply to you by email.
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             {[['bug', 'Bug'], ['idea', 'Idea'], ['praise', 'Praise'], ['other', 'Other']].map(([key, label]) => (
@@ -7629,7 +7629,7 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
           />
           {fbStatus === 'sent' && (
             <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: 'var(--accent)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Check size={14} /> Thanks — we&rsquo;ve got it and will get back to you at {account.email}.
+              <Check size={14} /> Thanks. We&rsquo;ve got it and will get back to you at {account.email}.
             </div>
           )}
           {fbStatus === 'error' && fbError && (
@@ -8160,7 +8160,7 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email,
 
       <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 16, marginBottom: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Trbo — {plan === 'annual' ? 'Annual' : 'Monthly'}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>Trbo: {plan === 'annual' ? 'Annual' : 'Monthly'}</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>{priceLabel}</div>
         </div>
         <div style={{ fontSize: 12, color: SUB, lineHeight: 1.6 }}>
@@ -8172,7 +8172,7 @@ function PaywallView({ blocking, trialExpired, onClose, onLogout, userId, email,
       <AuthError>{error}</AuthError>
 
       <button onClick={startCheckout} disabled={redirecting} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--accent)', color: INK, fontWeight: 700, fontSize: 15, cursor: redirecting ? 'default' : 'pointer', marginTop: 6, opacity: redirecting ? 0.7 : 1 }}>
-        {redirecting ? 'Redirecting to checkout…' : `Subscribe — ${priceLabel}`}
+        {redirecting ? 'Redirecting to checkout…' : `Subscribe: ${priceLabel}`}
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 16 }}>
@@ -8277,7 +8277,7 @@ function OrientationGate({ preferredOrientation, children }) {
           <div style={{ fontSize: 42, marginBottom: 14, transform: 'rotate(90deg)' }}>📱</div>
           <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 19, color: TEXT, marginBottom: 8 }}>Rotate your device</div>
           <div style={{ fontSize: 13.5, color: SUB, maxWidth: 320, lineHeight: 1.6, marginBottom: 22 }}>
-            This app is designed for landscape — it's easier to read your timer and chart when your device is mounted on the bars. Turn your device sideways for the best experience.
+            This app is designed for landscape: it's easier to read your timer and chart when your device is mounted on the bars. Turn your device sideways for the best experience.
           </div>
           <button onClick={dismiss} style={{ padding: '11px 20px', borderRadius: 10, border: `1px solid ${LINE}`, background: PANEL2, color: TEXT, fontSize: 13.5, cursor: 'pointer' }}>
             Continue in portrait anyway
@@ -8338,7 +8338,7 @@ function InstallHintToast({ onDismiss, onInstall }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: TEXT, marginBottom: 4 }}>Install Trbo as a desktop app</div>
           <div style={{ fontSize: 12, color: SUB, lineHeight: 1.5 }}>
-            Look for the install icon in your browser's address bar — or just click Install below.
+            Look for the install icon in your browser's address bar, or just click Install below.
           </div>
           <div style={{ display: 'flex', gap: 14, marginTop: 10, alignItems: 'center' }}>
             <button onClick={onInstall} style={{ background: 'var(--accent)', border: 'none', color: INK, fontWeight: 700, fontSize: 12, borderRadius: 999, padding: '6px 14px', cursor: 'pointer' }}>Install</button>

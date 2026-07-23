@@ -125,7 +125,7 @@ export function PricingPage() {
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 24px 0' }}>
         <FeatureRow title="ERG mode trainer control via Bluetooth" desc="Connect a smart trainer directly in the browser or the native app and let Trbo hold your target power for you, interval by interval." />
         <FeatureRow title="Structured, periodized workout library" desc="A large library of purpose-built sessions spanning endurance, threshold, VO2, and anaerobic work." />
-        <FeatureRow title="AI-driven training plan builder" desc="Tell Trbo your goal, your available days, and your hours per week — it builds a periodized plan and rotates workouts so sessions don't repeat too often." />
+        <FeatureRow title="AI-driven training plan builder" desc="Tell Trbo your goal, your available days, and your hours per week: it builds a periodized plan and rotates workouts so sessions don't repeat too often." />
         <FeatureRow title="Mini-games" desc="Short, game-ified rides that make hard efforts more fun without losing structure." />
       </div>
 
@@ -140,7 +140,7 @@ export function PricingPage() {
         <div style={{ marginTop: 22, background: COLOR.panel, border: `1px solid ${COLOR.hairline}`, borderRadius: 14, padding: '16px 18px' }}>
           <div style={{ fontFamily: FONT_BODY, fontWeight: 700, fontSize: 13.5, color: COLOR.ink, marginBottom: 4 }}>New signups aren't open yet</div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: COLOR.muted, lineHeight: 1.55 }}>
-            Trbo is between launches right now, so we're not creating new accounts at the moment — the prices above reflect what a subscription will cost once signups reopen. Already have an account? <a href="/" style={{ color: COLOR.teal, fontWeight: 700, textDecoration: 'none' }}>Log in here</a>.
+            Trbo is between launches right now, so we're not creating new accounts at the moment: the prices above reflect what a subscription will cost once signups reopen. Already have an account? <a href="/" style={{ color: COLOR.teal, fontWeight: 700, textDecoration: 'none' }}>Log in here</a>.
           </div>
         </div>
       </div>

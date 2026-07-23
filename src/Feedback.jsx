@@ -76,7 +76,7 @@ export function FeedbackHeroCard({ onNavigate }) {
 
   const subtitle = count === null ? 'Tell us what\u2019s broken, missing, or great'
     : count === 0 ? 'Be the first to leave feedback'
-    : `${count} piece${count === 1 ? '' : 's'} of feedback so far — add yours`;
+    : `${count} piece${count === 1 ? '' : 's'} of feedback so far: add yours`;
 
   return (
     <button onClick={() => onNavigate('feedback')} style={{
@@ -121,7 +121,7 @@ export default function FeedbackView({ userId }) {
       .select('id, body, photo_paths, created_at, upvote_count')
       .order('upvote_count', { ascending: false })
       .order('created_at', { ascending: false });
-    if (itemsErr) { setError("Couldn't load feedback — try refreshing."); setItems([]); return; }
+    if (itemsErr) { setError("Couldn't load feedback. Try refreshing."); setItems([]); return; }
 
     const { data: votes } = await supabase.from('feedback_votes').select('feedback_id').eq('user_id', userId);
     setMyVotes(new Set((votes || []).map(v => v.feedback_id)));
@@ -175,7 +175,7 @@ export default function FeedbackView({ userId }) {
       setComposerOpen(false);
       await load();
     } catch (e) {
-      setError((e && e.message && e.message.includes('too fast')) ? e.message : "Couldn't post that — try again.");
+      setError((e && e.message && e.message.includes('too fast')) ? e.message : "Couldn't post that. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -214,7 +214,7 @@ export default function FeedbackView({ userId }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 600, color: TEXT }}>Feedback</div>
-            <div style={{ fontSize: 11.5, color: SUB, marginTop: 2 }}>Visible to testers only — never public</div>
+            <div style={{ fontSize: 11.5, color: SUB, marginTop: 2 }}>Visible to testers only, never public</div>
           </div>
           {!composerOpen && (
             <button onClick={() => setComposerOpen(true)} style={{
@@ -246,7 +246,7 @@ export default function FeedbackView({ userId }) {
             <div style={{ fontSize: 10.5, color: SUB, textAlign: 'right', marginTop: 3 }}>{body.length}/{MAX_BODY}</div>
 
             <div style={{ fontSize: 11, color: SUB, margin: '10px 0 8px' }}>
-              Got a screenshot? Bug reports with a photo get fixed a lot faster — up to {MAX_PHOTOS}.
+              Got a screenshot? Bug reports with a photo get fixed a lot faster, up to {MAX_PHOTOS}.
             </div>
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -23,15 +23,15 @@ export default function TermsPage() {
       <LegalH2>2. The Service</LegalH2>
       <LegalP>
         Trbo provides structured indoor cycling workouts, long-form Rides, Mini Games, a periodised training plan
-        builder, FTP tracking, training-load analysis, workout history, activity export, and — where your hardware
-        and browser support it — control of a compatible smart trainer's resistance in ERG mode.
+        builder, FTP tracking, training-load analysis, workout history, activity export, and, where your hardware
+        and browser support it, control of a compatible smart trainer's resistance in ERG mode.
       </LegalP>
       <LegalP>
         We may add, change, suspend or remove features. We will try to give reasonable notice before removing a
         feature you rely on, but we are not obliged to keep any particular feature available.
       </LegalP>
 
-      <LegalH2>3. Hardware and browser compatibility — important</LegalH2>
+      <LegalH2>3. Hardware and browser compatibility: important</LegalH2>
       <LegalP>
         Trbo connects to trainers and heart rate monitors using <strong>Web Bluetooth</strong>, a browser technology
         that <strong>Apple does not support on iPhone or iPad in any browser</strong>. Chrome and Edge on iOS are
@@ -59,7 +59,7 @@ export default function TermsPage() {
         terms and privacy policies, and we are not responsible for their availability or acts.
       </LegalP>
 
-      <LegalH2>5. Health and safety — read this</LegalH2>
+      <LegalH2>5. Health and safety: read this</LegalH2>
       <LegalP><strong>Trbo is a fitness tool, not a medical device. Nothing in the Service is medical advice.</strong></LegalP>
       <LegalUl>
         <LegalLi><strong>Consult a doctor before starting.</strong> Indoor cycling is strenuous. Seek medical advice before beginning any training program, particularly if you have a heart condition, high blood pressure, chest pain, dizziness, a joint or bone condition, are pregnant, are recovering from illness or injury, or are over 35 and inactive.</LegalLi>
@@ -95,7 +95,7 @@ export default function TermsPage() {
         compensation for reasonably foreseeable loss.
       </LegalP>
       <LegalP>
-        <strong>EU and UK consumers — 14-day right of withdrawal.</strong> If you are a consumer in the EU or UK, you
+        <strong>EU and UK consumers: 14-day right of withdrawal.</strong> If you are a consumer in the EU or UK, you
         normally have <strong>14 days</strong> from the date you subscribe to withdraw from the contract and receive
         a full refund, without giving a reason.
       </LegalP>
@@ -124,7 +124,7 @@ export default function TermsPage() {
 
       <LegalH2>9. Intellectual property</LegalH2>
       <LegalP>
-        The Service — its software, design, artwork, workout library, Rides, Mini Games and branding — is owned by
+        The Service (its software, design, artwork, workout library, Rides, Mini Games and branding) is owned by
         us or our licensors. We grant you a limited, personal, non-exclusive, non-transferable, revocable licence to
         use it for your own non-commercial training. All other rights are reserved.
       </LegalP>
@@ -171,7 +171,7 @@ export default function TermsPage() {
       <LegalH2>13. Indemnity</LegalH2>
       <LegalP>
         You agree to indemnify us against any claim, loss, damage or cost (including reasonable legal costs) arising
-        from your breach of these Terms, your misuse of the Service, or your violation of another person's rights —
+        from your breach of these Terms, your misuse of the Service, or your violation of another person's rights,
         except to the extent caused by our own negligence or breach.
       </LegalP>
 

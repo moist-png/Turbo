@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         .eq('user_id', uid);
       res.setHeader('Content-Type', 'text/html');
       res.send(pageShell(pageH1('Got it') + pageP(
-        checkin === 'yes' ? 'We\u2019ll check back in with you in a couple of months. Thanks for the heads up.' : 'No worries — thanks for letting us know.'
+        checkin === 'yes' ? 'We\u2019ll check back in with you in a couple of months. Thanks for the heads up.' : 'No worries. Thanks for letting us know.'
       )));
       return;
     }
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     }
 
     res.send(pageShell(
-      pageH1('Thanks — noted') +
+      pageH1('Thanks, noted') +
       pageP(validAnswer.prompt + ' (totally optional)') +
       `<form method="POST" action="/api/survey">` +
       `<input type="hidden" name="uid" value="${escapeHtml(uid)}" />` +

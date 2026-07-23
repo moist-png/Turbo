@@ -1876,12 +1876,12 @@ export function applyCheckin(plan, weekNumber, feedback, library, reason) {
   // Record what this answer did to the plan, in plain English, so the
   // adaptation log tells the whole story of the block (Stage 3).
   const checkinReasonText = {
-    'too-easy': `You said week ${weekNumber} was too easy — the coming weeks now ramp up as fast as the safety cap allows.`,
-    'about-right': `You said week ${weekNumber} was about right — the plan carries on unchanged.`,
-    'too-hard': `You said week ${weekNumber} was too hard — next week becomes a recovery week and the remaining load eases back ~15%.`,
+    'too-easy': `You said week ${weekNumber} was too easy: the coming weeks now ramp up as fast as the safety cap allows.`,
+    'about-right': `You said week ${weekNumber} was about right: the plan carries on unchanged.`,
+    'too-hard': `You said week ${weekNumber} was too hard: next week becomes a recovery week and the remaining load eases back ~15%.`,
     'missed-a-lot': missedScheduleOnly
-      ? `You missed most of week ${weekNumber} to scheduling — the remaining load eases back gently, no forced recovery week.`
-      : `You missed most of week ${weekNumber} through fatigue — next week becomes a recovery week and the remaining load drops ~30%.`,
+      ? `You missed most of week ${weekNumber} to scheduling: the remaining load eases back gently, no forced recovery week.`
+      : `You missed most of week ${weekNumber} through fatigue: next week becomes a recovery week and the remaining load drops ~30%.`,
   }[feedback] || `Week ${weekNumber} check-in applied.`;
   const adaptationLog = [...(plan.adaptationLog || []), {
     at: new Date().toISOString(), id: `checkin-w${weekNumber}-${feedback}`, kind: 'checkin', reason: checkinReasonText,
@@ -2235,7 +2235,7 @@ export function planProposals({ plan, workoutHistory, ftpHistory, library, now =
         id: `reentry-w${cur}`,
         kind: 'reentry',
         title: 'Ease back in',
-        reason: `Most of week ${cur - 1} didn’t happen — that’s life. The safest restart is a lighter re-entry week ramping from what you actually rode, not what was planned.${nextIsRecovery ? ' The recovery week that was scheduled next isn’t needed now, so it becomes a light training week instead.' : ''}`,
+        reason: `Most of week ${cur - 1} didn’t happen: that’s life. The safest restart is a lighter re-entry week ramping from what you actually rode, not what was planned.${nextIsRecovery ? ' The recovery week that was scheduled next isn’t needed now, so it becomes a light training week instead.' : ''}`,
         params: { fromWeek: cur, actualBaseline: Math.max(80, recentActual) },
       });
     }
@@ -2269,7 +2269,7 @@ export function planProposals({ plan, workoutHistory, ftpHistory, library, now =
               id: `rescue-w${cur}-${thisWeek.days[keyIdx].workoutId}`,
               kind: 'rescue-key-session',
               title: 'Rescue the key session',
-              reason: `${thisWeek.days[keyIdx].name} is this week's key session and its day has passed. It can take the ${WEEKDAY_LABELS_FULL[normalizeWeekdayPattern(plan.weekdayPattern, plan.daysPerWeek)[toIdx]]} slot instead — the easy ride moves to the earlier day, and no two hard days end up back-to-back.`,
+              reason: `${thisWeek.days[keyIdx].name} is this week's key session and its day has passed. It can take the ${WEEKDAY_LABELS_FULL[normalizeWeekdayPattern(plan.weekdayPattern, plan.daysPerWeek)[toIdx]]} slot instead: the easy ride moves to the earlier day, and no two hard days end up back-to-back.`,
               params: { weekNumber: cur, fromIdx: keyIdx, toIdx },
             });
           }
@@ -2290,7 +2290,7 @@ export function planProposals({ plan, workoutHistory, ftpHistory, library, now =
         id: `pull-recovery-w${next.weekNumber}`,
         kind: 'pull-recovery',
         title: 'Take the recovery week early',
-        reason: `You've ridden about ${Math.round(health.ratio * 100)}% of the planned load over the last few weeks — more than the plan expected. Pulling the recovery week forward to next week lets that work actually sink in before building again.`,
+        reason: `You've ridden about ${Math.round(health.ratio * 100)}% of the planned load over the last few weeks: more than the plan expected. Pulling the recovery week forward to next week lets that work actually sink in before building again.`,
         params: { weekNumber: next.weekNumber },
       });
     }
@@ -2320,7 +2320,7 @@ export function planProposals({ plan, workoutHistory, ftpHistory, library, now =
             id: `ftp-retest-w${target.weekNumber}`,
             kind: 'ftp-retest',
             title: 'Time to retest your FTP',
-            reason: `Your FTP is ${Math.round(ftpAgeDays / 7)} weeks old and your recent hard sessions keep coming back rated easy — it's probably gone up. A ramp test slots into week ${target.weekNumber} in place of its hardest session, as a proper test day.`,
+            reason: `Your FTP is ${Math.round(ftpAgeDays / 7)} weeks old and your recent hard sessions keep coming back rated easy: it's probably gone up. A ramp test slots into week ${target.weekNumber} in place of its hardest session, as a proper test day.`,
             params: { weekNumber: target.weekNumber, dayIndex: dayIdx },
           });
         }
@@ -2339,7 +2339,7 @@ export function planProposals({ plan, workoutHistory, ftpHistory, library, now =
         out.push({
           id: `missed-easy-w${cur}-${i}`,
           kind: 'note',
-          title: 'Missed an easy day — let it go',
+          title: 'Missed an easy day: let it go',
           reason: `${d.name} didn’t happen this week. Easy rides are the right ones to lose: don’t squeeze it in on top of the rest, just carry on with the week as planned.`,
           params: {},
         });
@@ -2565,7 +2565,7 @@ export function applyVacation(plan, awayDays, library, now = new Date()) {
     at: new Date().toISOString(),
     id: `vacation-w${cur + 1}-${K}`,
     kind: 'vacation',
-    reason: `${K} week${K > 1 ? 's' : ''} away from week ${cur + 1} — the plan shifts later by the same amount, and the first weeks back ease in about ${Math.round((1 - decay) * 100)}% lighter so fitness can catch back up.`,
+    reason: `${K} week${K > 1 ? 's' : ''} away from week ${cur + 1}: the plan shifts later by the same amount, and the first weeks back ease in about ${Math.round((1 - decay) * 100)}% lighter so fitness can catch back up.`,
   }];
 
   const updated = {
