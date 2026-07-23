@@ -8376,13 +8376,18 @@ const BOTTOM_TAB_KEYS = ['home', 'basics', 'rides', 'planner'];
 // includes FTP and History, which have never had a bottom-bar entry at all --
 // on a phone they were previously reachable only via the home screen, so the
 // sheet actually widens what's reachable rather than burying things.
+// Feedback is deliberately absent here: the tester message board is a beta-era
+// surface that shouldn't sit in the phone's primary navigation. It stays in
+// NAV_ITEMS (so the landscape/tablet/desktop sidebar still lists it) and its
+// /feedback route and home-screen hero card are untouched, so a phone-portrait
+// tester still reaches the board via that card. This only takes it off the
+// bottom bar's More sheet.
 const MORE_ITEMS = [
   { key: 'library', label: 'Library', Icon: Library },
   { key: 'queue', label: 'Queue', Icon: ListOrdered },
   { key: 'builder', label: 'Builder', Icon: Wrench },
   { key: 'ftp', label: 'FTP', Icon: Gauge },
   { key: 'history', label: 'History', Icon: BarChart3 },
-  { key: 'feedback', label: 'Feedback', Icon: MessageSquare },
   { key: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
 

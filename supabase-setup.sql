@@ -192,6 +192,7 @@ create or replace function public.admin_dashboard_stats()
 returns json as $$
 declare
   is_owner boolean;
+  mkt_ids uuid[];
   result json;
 begin
   select (auth.jwt() ->> 'email') = 'freddiesmuscles@gmail.com' into is_owner;
@@ -199,16 +200,25 @@ begin
     return null;
   end if;
 
+  -- Marketing/demo accounts (e.g. "Luca", see the marketing section below)
+  -- carry dozens of seeded rides that would otherwise inflate ride counts,
+  -- active-rider counts and adoption rates and distort the only numbers you
+  -- have. Collect their ids once and exclude them from every figure below.
+  -- When there are none, mkt_ids is an empty array and "<> all(mkt_ids)"
+  -- keeps every row, so this changes nothing until an account is flagged.
+  select coalesce(array_agg(id), '{}'::uuid[]) into mkt_ids
+    from public.profiles where coalesce(marketing_account, false);
+
   select json_build_object(
-    'total_users', (select count(*) from public.profiles),
-    'subscribed_users', (select count(*) from public.profiles where subscribed = true),
-    'trial_users', (select count(*) from public.profiles where subscribed = false and trial_start > now() - interval '7 days'),
-    'expired_trial_users', (select count(*) from public.profiles where subscribed = false and trial_start <= now() - interval '7 days'),
-    'signups_last_7_days', (select count(*) from public.profiles where created_at > now() - interval '7 days'),
-    'signups_last_30_days', (select count(*) from public.profiles where created_at > now() - interval '30 days'),
-    'rides_last_24h', (select count(*) from public.workout_history where date > now() - interval '1 day'),
-    'rides_last_7_days', (select count(*) from public.workout_history where date > now() - interval '7 days'),
-    'total_rides_logged', (select count(*) from public.workout_history),
+    'total_users', (select count(*) from public.profiles where id <> all(mkt_ids)),
+    'subscribed_users', (select count(*) from public.profiles where subscribed = true and id <> all(mkt_ids)),
+    'trial_users', (select count(*) from public.profiles where subscribed = false and trial_start > now() - interval '7 days' and id <> all(mkt_ids)),
+    'expired_trial_users', (select count(*) from public.profiles where subscribed = false and trial_start <= now() - interval '7 days' and id <> all(mkt_ids)),
+    'signups_last_7_days', (select count(*) from public.profiles where created_at > now() - interval '7 days' and id <> all(mkt_ids)),
+    'signups_last_30_days', (select count(*) from public.profiles where created_at > now() - interval '30 days' and id <> all(mkt_ids)),
+    'rides_last_24h', (select count(*) from public.workout_history where date > now() - interval '1 day' and user_id <> all(mkt_ids)),
+    'rides_last_7_days', (select count(*) from public.workout_history where date > now() - interval '7 days' and user_id <> all(mkt_ids)),
+    'total_rides_logged', (select count(*) from public.workout_history where user_id <> all(mkt_ids)),
 
     -- Understanding users: conversion, retention, and churn risk, so you can
     -- tell at a glance whether the trial is working and whether paying
@@ -221,13 +231,14 @@ begin
           count(*) filter (where subscribed = true) + count(*) filter (where subscribed = false and trial_start <= now() - interval '7 days')
         ), 1)
       end
-      from public.profiles
+      from public.profiles where id <> all(mkt_ids)
     ),
-    'active_riders_last_7_days', (select count(distinct user_id) from public.workout_history where date > now() - interval '7 days'),
-    'active_riders_last_30_days', (select count(distinct user_id) from public.workout_history where date > now() - interval '30 days'),
+    'active_riders_last_7_days', (select count(distinct user_id) from public.workout_history where date > now() - interval '7 days' and user_id <> all(mkt_ids)),
+    'active_riders_last_30_days', (select count(distinct user_id) from public.workout_history where date > now() - interval '30 days' and user_id <> all(mkt_ids)),
     'subscribers_inactive_14_days', (
       select count(*) from public.profiles p
       where p.subscribed = true
+        and p.id <> all(mkt_ids)
         and not exists (select 1 from public.workout_history wh where wh.user_id = p.id and wh.date > now() - interval '14 days')
     ),
 
@@ -236,26 +247,26 @@ begin
     -- categories they actually ride, versus what's just sitting in the
     -- library unused.
     'planner_adoption_pct', (
-      select case when (select count(*) from public.profiles) = 0 then null
-        else round(100.0 * count(*) filter (where training_plan is not null or id in (select user_id from public.archived_plans)) / (select count(*) from public.profiles), 1)
+      select case when (select count(*) from public.profiles where id <> all(mkt_ids)) = 0 then null
+        else round(100.0 * count(*) filter (where training_plan is not null or id in (select user_id from public.archived_plans)) / (select count(*) from public.profiles where id <> all(mkt_ids)), 1)
       end
-      from public.profiles
+      from public.profiles where id <> all(mkt_ids)
     ),
     'queue_usage_pct', (
-      select case when (select count(*) from public.profiles) = 0 then null
-        else round(100.0 * (select count(distinct user_id) from public.queued_workouts) / (select count(*) from public.profiles), 1)
+      select case when (select count(*) from public.profiles where id <> all(mkt_ids)) = 0 then null
+        else round(100.0 * (select count(distinct user_id) from public.queued_workouts where user_id <> all(mkt_ids)) / (select count(*) from public.profiles where id <> all(mkt_ids)), 1)
       end
     ),
     'starred_usage_pct', (
-      select case when (select count(*) from public.profiles) = 0 then null
-        else round(100.0 * (select count(distinct user_id) from public.starred_workouts) / (select count(*) from public.profiles), 1)
+      select case when (select count(*) from public.profiles where id <> all(mkt_ids)) = 0 then null
+        else round(100.0 * (select count(distinct user_id) from public.starred_workouts where user_id <> all(mkt_ids)) / (select count(*) from public.profiles where id <> all(mkt_ids)), 1)
       end
     ),
     'top_categories_30d', (
       select coalesce(json_agg(row_to_json(t)), '[]'::json) from (
         select category, count(*) as rides
         from public.workout_history
-        where date > now() - interval '30 days' and category is not null
+        where date > now() - interval '30 days' and category is not null and user_id <> all(mkt_ids)
         group by category
         order by rides desc
         limit 6
@@ -265,7 +276,7 @@ begin
       select coalesce(json_agg(row_to_json(t)), '[]'::json) from (
         select name, count(*) as rides
         from public.workout_history
-        where date > now() - interval '30 days' and name is not null
+        where date > now() - interval '30 days' and name is not null and user_id <> all(mkt_ids)
         group by name
         order by rides desc
         limit 8
@@ -1107,3 +1118,143 @@ grant select (
   strava_athlete_id, training_plan, comp_access, comp_expires_at,
   subscription_paused, subscription_paid_through
 ) on public.profiles to authenticated, anon;
+
+-- 23. Marketing / demo account ("Luca"). A permanently good-looking demo
+--     account used for App Store screenshots, the marketing site and the
+--     tutorial screenshots.
+--
+--     WHY THIS ISN'T JUST A ONE-OFF INSERT: everything on the home screen is
+--     measured against *today's* date, not against stored values -- this
+--     week's rides, the weekly streak (consecutive Monday-start weeks with a
+--     ride), the 8-week training-load chart, and the "next up" nudge (days
+--     since the last VO2 / FTP test / ride). A set of rows seeded once looks
+--     perfect today, thin in two weeks, and dead in a month: the streak badge
+--     vanishes and the load chart empties out.
+--
+--     So instead of seeding once, reseed_marketing_account() WIPES AND
+--     REBUILDS this one account's history *relative to now()* every time it
+--     runs. That's what "frozen" means here -- the picture is regenerated
+--     against the current date, so it always looks the same. It's wired to
+--     run daily off the existing email cron (api/email-sequence-cron.js), so
+--     the account maintains itself, and it's safe to run by hand in the SQL
+--     Editor any time to refresh it immediately.
+--
+--     `marketing_account` flags the account out of the owner dashboard
+--     (admin_dashboard_stats, section 8) and the lifecycle emails, so its
+--     seeded rides don't distort the real numbers or trigger customer emails.
+alter table public.profiles add column if not exists marketing_account boolean default false;
+
+-- IMPORTANT for future edits: this function ONLY rebuilds workout_history and
+-- ftp_history (plus a few profile fields) for the one marketing account. It
+-- must NEVER be broadened to touch training_plan, starred_workouts,
+-- queued_workouts, saved_queues or custom_workouts -- those are set up once by
+-- hand inside the app (sign in as Luca and use the Planner / star / queue /
+-- Builder) and are deliberately left untouched here. Every statement is scoped
+-- by this one user id; an unscoped delete here would wipe real riders' data.
+create or replace function public.reseed_marketing_account()
+returns void as $$
+declare
+  v_user_id uuid;
+  v_ftp integer := 240;
+begin
+  -- Look the account up by email every run -- never hard-code a UUID, since it
+  -- changes if the account is ever deleted and recreated.
+  select id into v_user_id from auth.users where lower(email) = lower('mdownus@gmail.com');
+
+  -- If the account doesn't exist on this database, do nothing rather than
+  -- error. The whole setup file is re-run by hand and must not blow up on a
+  -- machine where this account was never created.
+  if v_user_id is null then
+    return;
+  end if;
+
+  -- Profile. "Luca Downus" renders as "Luca" on the home screen (it shows the
+  -- first word only). FTP 240 matches the most recent seeded FTP entry.
+  -- comp_access unlocks the app permanently with no card; comp_expires_at
+  -- stays null (that's the separate 30-day tester field). marketing_account
+  -- keeps it out of the owner stats and the email sequence.
+  update public.profiles
+     set name = 'Luca Downus',
+         ftp = v_ftp,
+         comp_access = true,
+         comp_expires_at = null,
+         subscribed = false,
+         marketing_account = true
+   where id = v_user_id;
+
+  -- ---- FTP history: 5 entries over ~9 months, gently rising, so the home
+  --      screen sparkline has a visible upward shape and a "+6" delta chip
+  --      without looking suspiciously smooth.
+  delete from public.ftp_history where user_id = v_user_id;
+  insert into public.ftp_history (id, user_id, ftp, source, date) values
+    ('mkt-ftp-1', v_user_id, 208, '20-minute test', now() - interval '38 weeks'),
+    ('mkt-ftp-2', v_user_id, 219, 'Ramp test',      now() - interval '28 weeks'),
+    ('mkt-ftp-3', v_user_id, 228, '20-minute test', now() - interval '19 weeks'),
+    ('mkt-ftp-4', v_user_id, 234, 'Ramp test',      now() - interval '9 weeks'),
+    ('mkt-ftp-5', v_user_id, 240, '20-minute test', now() - interval '3 weeks');
+
+  -- ---- Workout history: rebuild ~10 weeks of rides, all dated as offsets
+  --      from now(). A ride every ~2 days guarantees every Monday-start week
+  --      in the range contains at least one (so the streak never has a gap)
+  --      and that the last 7 days are always covered. Workout ids and names
+  --      are real entries from LIBRARY in src/App.jsx. avg/max power and TSS
+  --      vary by index so the Personal Records panel and the training-load
+  --      chart read like a real person's, with a deliberately lighter stretch
+  --      around week 6 so the load chart has shape rather than a flat wall.
+  delete from public.workout_history where user_id = v_user_id;
+
+  insert into public.workout_history
+    (id, user_id, workout_id, name, category, duration, completed, date, avg_power, max_power, tss, calories, outdoor, rpe)
+  select
+    'mkt-ride-' || g.n,
+    v_user_id,
+    c.workout_id, c.name, c.category, c.duration,
+    true,
+    now() - make_interval(days => g.n * 2, hours => 5),
+    c.avg_power + (g.n % 5) * 5,
+    c.max_power + (g.n % 4) * 18,
+    round((c.tss * case when g.n between 20 and 23 then 0.6 else 1 end)::numeric, 0),
+    c.calories,
+    false,
+    null
+  from generate_series(0, 33) as g(n)
+  cross join lateral (
+    select * from (values
+      (0, 'endurance-hour',       'Steady endurance hour', 'Basics', 3600, 168, 235, 58, 610),
+      (1, 'vo2-5x3',              'VO2 max 5×3',           'Basics', 2400, 205, 440, 62, 520),
+      (2, 'ride-coastal-rollers', 'Coastal Rollers',       'Rides',  4200, 192, 480, 78, 720),
+      (3, 'sweet-spot-builder',   'Sweet spot builder',    'Basics', 3600, 210, 300, 74, 640),
+      (4, 'recovery-spin',        'Recovery spin',         'Basics', 1800, 130, 190, 26, 300),
+      (5, 'threshold-2x20',       'Threshold 2×20',        'Basics', 3600, 228, 320, 88, 690),
+      (6, 'ride-sunday-club',     'Sunday Club Run',       'Rides',  5400, 178, 520, 92, 880),
+      (7, 'over-unders',          'Over-unders 4×4',       'Basics', 3300, 224, 360, 82, 650),
+      (8, 'ride-chaingang',       'Chaingang Special',     'Rides',  3600, 236, 640, 90, 700),
+      (9, 'rolling-endurance',    'Rolling endurance',     'Basics', 4200, 172, 260, 70, 720)
+    ) as cat(idx, workout_id, name, category, duration, avg_power, max_power, tss, calories)
+    where cat.idx = g.n % 10
+  ) c;
+
+  -- Two confirmed outdoor rides (no power stream -- an RPE instead, which the
+  -- app uses to estimate their TSS), so the history looks like a real
+  -- person's and the outdoor feature is visibly in use.
+  insert into public.workout_history
+    (id, user_id, workout_id, name, category, duration, completed, date, avg_power, max_power, tss, calories, outdoor, rpe)
+  values
+    ('mkt-outdoor-1', v_user_id, null, 'Outdoor ride', 'Rides', 5400, true, now() - interval '12 days' - interval '6 hours', null, null, 95,  820,  true, 6),
+    ('mkt-outdoor-2', v_user_id, null, 'Outdoor ride', 'Rides', 7200, true, now() - interval '33 days' - interval '6 hours', null, null, 120, 1050, true, 7);
+
+  -- One aborted ride mid-history -- real accounts have them, and it shows the
+  -- app records a bailed session without counting it as a finish.
+  insert into public.workout_history
+    (id, user_id, workout_id, name, category, duration, completed, date, avg_power, max_power, tss, calories, outdoor, rpe)
+  values
+    ('mkt-aborted-1', v_user_id, 'ride-alpine-ascent', 'Alpine Ascent', 'Rides', 900, false, now() - interval '30 days' - interval '4 hours', 198, 410, 20, 180, false, null);
+
+  -- One FTP-test ride near the most recent (3-week-old) FTP entry, so the ride
+  -- history lines up with the FTP history above.
+  insert into public.workout_history
+    (id, user_id, workout_id, name, category, duration, completed, date, avg_power, max_power, tss, calories, outdoor, rpe)
+  values
+    ('mkt-ftptest-1', v_user_id, 'ftp-test-20', '20 minute FTP test', 'Basics', 3000, true, now() - interval '21 days' - interval '5 hours', 233, 360, 68, 560, false, null);
+end;
+$$ language plpgsql security definer set search_path = public;

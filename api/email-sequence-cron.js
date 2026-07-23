@@ -56,8 +56,23 @@ export default async function handler(req, res) {
       console.error('listUsers failed, falling back to per-user lookups:', listErr);
     }
 
+    // Marketing/demo accounts (e.g. "Luca") are excluded from lifecycle
+    // emails -- they carry seeded activity and shouldn't receive real customer
+    // messages or show up in open-rate figures. Read the flag defensively: if
+    // the marketing_account column hasn't been added to the database yet, the
+    // query errors, `data` comes back empty, and the set is simply empty
+    // rather than breaking the whole run.
+    const marketingIds = new Set();
+    try {
+      const { data: mkt } = await supabaseAdmin.from('profiles').select('id').eq('marketing_account', true);
+      for (const m of mkt || []) marketingIds.add(m.id);
+    } catch (mktErr) {
+      console.error('marketing_account lookup failed (column may not exist yet):', mktErr);
+    }
+
     for (const profile of profiles || []) {
       try {
+        if (marketingIds.has(profile.id)) { summary.skipped++; continue; }
         if (profile.email_opt_out) { summary.skipped++; continue; }
 
         const daysSince = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / DAY_MS);
@@ -132,6 +147,19 @@ export default async function handler(req, res) {
         console.error(`Error processing profile ${profile.id}:`, innerErr);
         summary.errors++;
       }
+    }
+
+    // Keep the marketing/demo account ("Luca") looking freshly-populated. Its
+    // home screen is measured against today's date, so this regenerates the
+    // streak, weekly totals and training-load chart relative to now. Runs once
+    // a day off the back of this cron rather than needing its own schedule.
+    // Non-fatal: a failure here (e.g. the function not created yet) is logged
+    // but never fails the email run.
+    try {
+      const { error: reseedErr } = await supabaseAdmin.rpc('reseed_marketing_account');
+      if (reseedErr) console.error('reseed_marketing_account failed:', reseedErr);
+    } catch (reseedErr) {
+      console.error('reseed_marketing_account threw:', reseedErr);
     }
 
     res.status(200).json({ ok: true, checked: (profiles || []).length, ...summary });
