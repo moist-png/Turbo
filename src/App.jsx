@@ -5399,7 +5399,7 @@ function SaveQueueControl({ queueLength, savedCount, maxSaved, maxWorkouts, onSa
 // Named queue presets a rider can reload. Shown whenever any exist, even if
 // the active queue is currently empty -- loading a saved queue is very
 // likely exactly why someone opened this tab with nothing queued.
-function SavedQueuesList({ savedQueues, customWorkouts, onLoad, onDelete }) {
+function SavedQueuesList({ savedQueues, customWorkouts, queue = [], onLoad, onUnload, onDelete }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   if (!savedQueues.length) return null;
   const all = LIBRARY.concat(customWorkouts);
@@ -5410,16 +5410,26 @@ function SavedQueuesList({ savedQueues, customWorkouts, onLoad, onDelete }) {
         {savedQueues.map(sq => {
           const resolvedWorkouts = sq.workoutIds.map(id => all.find(w => w.id === id)).filter(Boolean);
           const totalSecs = resolvedWorkouts.reduce((sum, w) => sum + totalDuration(w.intervals), 0);
+          // "Loaded" when the active queue is exactly this saved set, in order.
+          // Then the button flips to Unload and clears the queue on press.
+          const isLoaded = sq.workoutIds.length > 0 && sq.workoutIds.length === queue.length && sq.workoutIds.every((id, i) => id === queue[i]);
           return (
             <div key={sq.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 15, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sq.name}</div>
                 <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginTop: 2 }}>{resolvedWorkouts.length} workout{resolvedWorkouts.length === 1 ? '' : 's'} · {fmtLong(totalSecs)}</div>
               </div>
-              <button onClick={() => onLoad(sq.id)} title="Load into queue"
-                style={{ fontFamily: "'Manrope', sans-serif", background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: INK, flexShrink: 0 }}>
-                <Play size={13} fill={INK} /> Load
-              </button>
+              {isLoaded ? (
+                <button onClick={onUnload} title="Clear the queue"
+                  style={{ fontFamily: "'Manrope', sans-serif", background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: TEXT, flexShrink: 0 }}>
+                  <X size={13} /> Unload
+                </button>
+              ) : (
+                <button onClick={() => onLoad(sq.id)} title="Load into queue"
+                  style={{ fontFamily: "'Manrope', sans-serif", background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: INK, flexShrink: 0 }}>
+                  <Play size={13} fill={INK} /> Load
+                </button>
+              )}
               {confirmDeleteId === sq.id ? (
                 <IconBtn onClick={() => { onDelete(sq.id); setConfirmDeleteId(null); }} danger><Check size={15} /></IconBtn>
               ) : (
@@ -5433,8 +5443,65 @@ function SavedQueuesList({ savedQueues, customWorkouts, onLoad, onDelete }) {
   );
 }
 
-function QueueView({ queue, customWorkouts, onOpen, onRemove, onReorder, onClear, onStartQueue, savedQueues = [], maxSavedQueues = 8, maxSavedQueueWorkouts = 8, onSaveQueue, onLoadSavedQueue, onDeleteSavedQueue, lastRemovedQueueItem, onUndoRemove }) {
+// Search-and-add sheet for the Queue tab: find any workout or ride and tap to
+// drop it straight onto the end of the queue. Tapping an already-queued row
+// takes it back out again, so the same list doubles as a quick way to prune.
+function AddToQueueModal({ queue, customWorkouts, onToggle, onClose }) {
+  const [query, setQuery] = useState('');
+  const all = useMemo(
+    () => LIBRARY.map(w => ({ ...w, custom: false })).concat(customWorkouts.map(w => ({ ...w, custom: true }))),
+    [customWorkouts]
+  );
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = q ? all.filter(w => w.name.toLowerCase().includes(q)) : all;
+    return list.slice(0, 60);
+  }, [all, query]);
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 70, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: BG, width: '100%', maxWidth: 520, borderTopLeftRadius: 18, borderTopRightRadius: 18, border: `1px solid ${LINE}`, borderBottom: 'none', padding: '16px 16px calc(16px + env(safe-area-inset-bottom))', maxHeight: 'min(82vh, calc(100dvh - 40px))', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, textTransform: 'uppercase', fontSize: 20, color: TEXT, letterSpacing: -0.2 }}>Add workout</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: SUB, cursor: 'pointer', padding: 4 }}><X size={22} /></button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 12px', marginBottom: 12 }}>
+          <Search size={16} color={SUB} />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search workouts and rides" autoFocus
+            style={{ background: 'none', border: 'none', outline: 'none', color: TEXT, fontSize: 14, flex: 1, minWidth: 0 }} />
+        </div>
+        <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {matches.map(w => {
+            const inQ = queue.includes(w.id);
+            return (
+              <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 15, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</div>
+                  <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 11.5, color: SUB, marginTop: 2 }}>{fmtLong(totalDuration(w.intervals))} · {w.category}</div>
+                </div>
+                <button onClick={() => onToggle(w.id)} title={inQ ? 'Remove from queue' : 'Add to queue'}
+                  style={{ flexShrink: 0, fontFamily: "'Manrope', sans-serif", display: 'flex', alignItems: 'center', gap: 5, borderRadius: 8, padding: '7px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', border: inQ ? `1px solid ${LINE}` : 'none', background: inQ ? PANEL2 : 'var(--accent)', color: inQ ? SUB : INK }}>
+                  {inQ ? <><Check size={13} /> Added</> : <><Plus size={13} /> Add</>}
+                </button>
+              </div>
+            );
+          })}
+          {matches.length === 0 && (
+            <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '24px 0' }}>No workouts match “{query}”.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QueueView({ queue, customWorkouts, onOpen, onRemove, onReorder, onClear, onStartQueue, onToggleQueue, savedQueues = [], maxSavedQueues = 8, maxSavedQueueWorkouts = 8, onSaveQueue, onLoadSavedQueue, onDeleteSavedQueue, lastRemovedQueueItem, onUndoRemove }) {
   const [confirmClear, setConfirmClear] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const resolved = useMemo(() => {
     const all = LIBRARY.concat(customWorkouts);
     return queue.map(id => all.find(w => w.id === id)).filter(Boolean);
@@ -5464,11 +5531,9 @@ function QueueView({ queue, customWorkouts, onOpen, onRemove, onReorder, onClear
         </div>
       )}
 
-      <SavedQueuesList savedQueues={savedQueues} customWorkouts={customWorkouts} onLoad={onLoadSavedQueue} onDelete={onDeleteSavedQueue} />
-
       {resolved.length === 0 ? (
         <div style={{ fontFamily: "'Manrope', sans-serif", color: SUB, fontSize: 13, textAlign: 'center', padding: '30px 20px', border: `1px dashed ${LINE}`, borderRadius: 10, lineHeight: 1.6 }}>
-          Add workouts or rides from Library, Basics or Rides: look for the <b style={{ color: TEXT }}>Queue</b> button next to Start workout. Queue two or more and they'll roll straight into each other, back to back.
+          Use <b style={{ color: TEXT }}>Add workout</b> below, or the <b style={{ color: TEXT }}>Queue</b> button next to Start workout in Library, Workouts or Rides. Queue two or more and they'll roll straight into each other, back to back.
         </div>
       ) : (
         <>
@@ -5498,6 +5563,22 @@ function QueueView({ queue, customWorkouts, onOpen, onRemove, onReorder, onClear
             )}
           </div>
         </>
+      )}
+
+      {/* Add workout: a search-bar-styled control that opens the find-and-add
+          sheet. Always available, so you can build a queue from scratch or top
+          one up without leaving the tab. */}
+      <button onClick={() => setAddOpen(true)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: PANEL2, border: `1px solid ${LINE}`, borderRadius: 10, padding: '11px 12px', marginTop: 22, marginBottom: 22, cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box' }}>
+        <Search size={16} color={SUB} />
+        <span style={{ fontFamily: "'Manrope', sans-serif", fontSize: 14, color: SUB, flex: 1 }}>Add workout</span>
+        <Plus size={16} color="var(--accent)" />
+      </button>
+
+      <SavedQueuesList savedQueues={savedQueues} customWorkouts={customWorkouts} queue={queue} onLoad={onLoadSavedQueue} onUnload={onClear} onDelete={onDeleteSavedQueue} />
+
+      {addOpen && (
+        <AddToQueueModal queue={queue} customWorkouts={customWorkouts} onToggle={onToggleQueue} onClose={() => setAddOpen(false)} />
       )}
     </div>
   );
@@ -9486,7 +9567,7 @@ export default function App() {
             {view === 'games' && <MiniGamesView onPlay={setActiveGame} />}
             {view === 'planner' && <PlannerView plan={trainingPlan} ftp={ftp} recentWeeklyTss={recentWeeklyTss} library={LIBRARY} workoutHistory={workoutHistory} ftpHistory={ftpHistory} onSetFtp={setFtp} onSavePlan={saveTrainingPlan} onOpenPlanWorkout={openPlanWorkout} archivedPlans={archivedPlans} onArchivePlan={archivePlan} onDeleteArchivedPlan={deleteArchivedPlan} onLogOutdoor={logOutdoorRide} />}
             {view === 'builder' && <BuilderView customWorkouts={customWorkouts} saveCustomWorkout={saveCustomWorkout} deleteCustomWorkout={deleteCustomWorkout} editingWorkout={editingWorkout} clearEditing={() => setEditingWorkout(null)} ownerStats={ownerStats} />}
-            {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onReorder={reorderQueue} onClear={clearQueue} onStartQueue={startQueue} savedQueues={savedQueues} maxSavedQueues={MAX_SAVED_QUEUES} maxSavedQueueWorkouts={MAX_SAVED_QUEUE_WORKOUTS} onSaveQueue={saveQueueAs} onLoadSavedQueue={loadSavedQueue} onDeleteSavedQueue={deleteSavedQueue} lastRemovedQueueItem={lastRemovedQueueItem} onUndoRemove={undoRemoveFromQueue} />}
+            {view === 'queue' && <QueueView queue={queue} customWorkouts={customWorkouts} onOpen={setDetailWorkout} onRemove={removeFromQueue} onReorder={reorderQueue} onClear={clearQueue} onStartQueue={startQueue} onToggleQueue={toggleQueue} savedQueues={savedQueues} maxSavedQueues={MAX_SAVED_QUEUES} maxSavedQueueWorkouts={MAX_SAVED_QUEUE_WORKOUTS} onSaveQueue={saveQueueAs} onLoadSavedQueue={loadSavedQueue} onDeleteSavedQueue={deleteSavedQueue} lastRemovedQueueItem={lastRemovedQueueItem} onUndoRemove={undoRemoveFromQueue} />}
             {view === 'ftp' && <FtpView ftp={ftp} setFtp={setFtp} ftpHistory={ftpHistory} onClearFtpHistory={clearFtpHistory} onOpenWorkout={setDetailWorkout} />}
             {view === 'history' && <HistoryView workoutHistory={workoutHistory} onClear={clearWorkoutHistory} />}
             {view === 'feedback' && <FeedbackView userId={user.id} />}
