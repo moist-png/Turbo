@@ -4422,8 +4422,8 @@ function LengthSlider({ min, max = 360, step = 5, value, onChange, originalMinut
     ? 'width 0.1s ease, height 0.1s ease'
     : 'left 0.18s cubic-bezier(.2,.7,.3,1), width 0.1s ease, height 0.1s ease';
   const thumbShadow = dragging
-    ? `0 0 0 6px rgba(${accent.glow},0.16), 0 5px 10px rgba(0,0,0,0.55)`
-    : '0 3px 6px rgba(0,0,0,0.5)';
+    ? `0 0 0 6px rgba(${accent.glow},0.16), 0 4px 8px rgba(0,0,0,0.35)`
+    : '0 2px 5px rgba(0,0,0,0.3)';
 
   return (
     <>
@@ -4447,7 +4447,7 @@ function LengthSlider({ min, max = 360, step = 5, value, onChange, originalMinut
         {showOriginalMarker && (
           <div style={{ position: 'absolute', left: `${originalPct}%`, top: '50%', width: 2, height: 20, background: '#E9ECEF', opacity: 0.4, transform: 'translate(-50%, -50%)', pointerEvents: 'none' }} />
         )}
-        <div style={{ position: 'absolute', left: `${fillPct}%`, top: '50%', width: thumbSize, height: thumbSize, marginLeft: -(thumbSize / 2), marginTop: -(thumbSize / 2), borderRadius: '50%', background: 'radial-gradient(circle at 35% 25%, #ffffff, #d7dbe0 55%, #aeb4bb 100%)', boxShadow: `${thumbShadow}, inset 0 -2px 3px rgba(0,0,0,0.25), inset 0 1.5px 1px rgba(255,255,255,0.9)`, border: '1px solid rgba(0,0,0,0.15)', boxSizing: 'border-box', transition: thumbTransition, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: `${fillPct}%`, top: '50%', width: thumbSize, height: thumbSize, marginLeft: -(thumbSize / 2), marginTop: -(thumbSize / 2), borderRadius: '50%', background: 'radial-gradient(circle at 35% 25%, #f6f4f8, #e6e2ea 55%, #d2ccd8 100%)', boxShadow: `${thumbShadow}, inset 0 -1px 2px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.6)`, border: '1px solid rgba(0,0,0,0.08)', boxSizing: 'border-box', transition: thumbTransition, pointerEvents: 'none' }} />
       </div>
     </>
   );

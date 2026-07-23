@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Let Trbo's audio cues mix with whatever else is already playing
+        // (Spotify, Apple Music, podcasts, etc.) instead of interrupting or
+        // pausing it, while staying audible through a ride. Without this the
+        // Web Audio cues would take over the audio session and stop the
+        // rider's music the first time one fires.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // Non-fatal: fall back to the system's default audio session.
+        }
         return true
     }
 
