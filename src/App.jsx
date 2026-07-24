@@ -5,7 +5,7 @@ import {
   BluetoothOff, Volume2, Sun, Moon, RefreshCw, Check, Zap, ChevronDown as ChevDown, Bike, Dumbbell, Home,
   Trophy, HeartPulse, Upload, Flame, Link as LinkIcon, CalendarDays, BarChart3, Locate, Download,
   Target, Flag, TrendingUp, Gamepad2, Mountain, Smartphone, LogOut, Star, ListOrdered, MessageSquare, GripVertical, Skull, Info,
-  MoreHorizontal,
+  MoreHorizontal, ImagePlus,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 // planner.js (the logic module) stays an ordinary import -- WORKOUT_PURPOSE
@@ -207,6 +207,49 @@ function downloadTextFile(filename, text, mime = 'text/plain') {
     // content in a new tab so the rider can still save it manually.
     try { window.open(`data:${mime};charset=utf-8,` + encodeURIComponent(text), '_blank'); } catch (_) {}
   }
+}
+
+// Shrinks + re-encodes a photo client-side before it ever leaves the device --
+// keeps the emailed attachment small even from a full-res phone photo. Caps
+// the longest edge at 1600px and re-encodes as JPEG. Duplicated from
+// Feedback.jsx (rather than imported) because that module is lazy-loaded and
+// this one small helper isn't worth pulling it into the main bundle for.
+function compressImage(file, maxDim = 1600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+        else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) resolve(blob); else reject(new Error('image processing failed'));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image read failed')); };
+    img.src = url;
+  });
+}
+
+// Reads a Blob as base64 (no "data:...;base64," prefix) for sending straight
+// through as an email attachment.
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result || '';
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 // Flattens the exported ride-history rows into a spreadsheet-friendly CSV.
@@ -3356,10 +3399,10 @@ const LIBRARY = [
     intervals: [
       iv('Warm up', 300, 'power', 55),
       ...repeatIv(12, () => [
-        iv('Sweet spot', 60, 'power', 90),
-        iv('Threshold', 60, 'power', 120),
-        iv('VO2 max', 60, 'power', 140),
-        iv('Sprint', 60, 'power', 160),
+        iv('Sweet spot', 60, 'power', 80),
+        iv('Threshold', 60, 'power', 110),
+        iv('VO2 max', 60, 'power', 130),
+        iv('Sprint', 60, 'power', 150),
         iv('Recovery', 60, 'power', 55),
       ]),
     ],
@@ -7486,6 +7529,7 @@ function PlayerView({ workout, ftp, settings, trainer, heartRate, onExit, onSave
 }
 
 // ---------- settings view ----------
+const MAX_FB_PHOTOS = 2; // matches api/feedback.js's own cap
 function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate, customWorkouts, onResetCustom, ftpHistory, onClearFtpHistory, onClose, account, daysLeft, subscribed, compAccess, testerCompActive, testerCompDaysLeft, onLogout, onShowPaywall, ownerStats, stravaConnected, onConnectStrava, onDisconnectStrava, subscriptionPaused, subscriptionPaidThrough }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
@@ -7503,24 +7547,48 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
   const [fbMessage, setFbMessage] = useState('');
   const [fbStatus, setFbStatus] = useState('idle'); // idle | sending | sent | error
   const [fbError, setFbError] = useState('');
+  const [fbPhotos, setFbPhotos] = useState([]); // { file, previewUrl }, up to MAX_FB_PHOTOS
+  const fbFileInputRef = useRef(null);
+
+  function addFbPhotos(fileList) {
+    const room = MAX_FB_PHOTOS - fbPhotos.length;
+    if (room <= 0) return;
+    const files = Array.from(fileList).slice(0, room);
+    setFbPhotos(prev => [...prev, ...files.map(file => ({ file, previewUrl: URL.createObjectURL(file) }))]);
+  }
+  function removeFbPhoto(i) {
+    setFbPhotos(prev => {
+      URL.revokeObjectURL(prev[i].previewUrl);
+      return prev.filter((_, idx) => idx !== i);
+    });
+  }
 
   // Sends a private message straight to the help@trbo.bike inbox. Identity is
   // proved by the signed-in session (apiFetch attaches the auth token), so we
   // never send name/email up from here — the server reads the real account.
+  // Any attached photos are compressed and base64-encoded client-side and go
+  // straight into the request as real email attachments -- nothing is stored.
   async function sendFeedback() {
     const msg = fbMessage.trim();
     if (!msg || fbStatus === 'sending') return;
     setFbStatus('sending');
     setFbError('');
     try {
+      const images = [];
+      for (const p of fbPhotos) {
+        const blob = await compressImage(p.file);
+        images.push({ contentBase64: await blobToBase64(blob) });
+      }
       const res = await apiFetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, category: fbCategory }),
+        body: JSON.stringify({ message: msg, category: fbCategory, images: images.length ? images : undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not send that. Please try again.');
       setFbMessage('');
+      fbPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
+      setFbPhotos([]);
       setFbStatus('sent');
     } catch (err) {
       setFbError(err.message || 'Something went wrong. Please try again.');
@@ -7980,6 +8048,23 @@ function SettingsView({ settings, updateSetting, ftp, setFtp, trainer, heartRate
               color: TEXT, fontFamily: "'Manrope', sans-serif",
             }}
           />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {fbPhotos.map((p, i) => (
+              <div key={i} style={{ position: 'relative', width: 48, height: 48, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}`, flexShrink: 0 }}>
+                <img src={p.previewUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <button onClick={() => removeFbPhoto(i)} style={{ position: 'absolute', top: 2, right: 2, width: 15, height: 15, borderRadius: '50%', background: 'rgba(20,23,26,0.75)', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+                  <X size={9} />
+                </button>
+              </div>
+            ))}
+            {fbPhotos.length < MAX_FB_PHOTOS && (
+              <button onClick={() => fbFileInputRef.current && fbFileInputRef.current.click()} title="Attach a screenshot"
+                style={{ width: 48, height: 48, borderRadius: 8, border: `1px dashed ${LINE}`, background: PANEL2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: SUB, flexShrink: 0 }}>
+                <ImagePlus size={17} />
+              </button>
+            )}
+            <input ref={fbFileInputRef} type="file" accept="image/*" multiple hidden onChange={e => { addFbPhotos(e.target.files); e.target.value = ''; }} />
+          </div>
           {fbStatus === 'sent' && (
             <div style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: 'var(--accent)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Check size={14} /> Thanks. We&rsquo;ve got it and will get back to you at {account.email}.

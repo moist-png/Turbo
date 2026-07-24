@@ -16,6 +16,14 @@ const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_RO
 
 const SUPPORT_INBOX = 'help@trbo.bike';
 const MAX_MESSAGE = 4000;
+// Photos are attached directly to the email (not stored anywhere) -- capped
+// small enough that two of them plus the message text stay comfortably under
+// Vercel's request body limit. The client already downsizes to ~1600px JPEG
+// before base64-encoding, so a real screenshot or phone photo fits this with
+// plenty of room; this is a sanity backstop against a buggy or malicious
+// client, not the expected case.
+const MAX_IMAGES = 2;
+const MAX_IMAGE_BASE64_BYTES = 1.5 * 1024 * 1024;
 
 // Where the message gets routed in the rider's own words. Keeps triage quick
 // without making the rider think hard -- anything unclear is just "Other".
@@ -53,7 +61,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { message, category } = req.body || {};
+  const { message, category, images } = req.body || {};
   const trimmed = (message || '').toString().trim();
   if (!trimmed) {
     res.status(400).json({ error: 'Please write a message first.' });
@@ -61,6 +69,24 @@ export default async function handler(req, res) {
   }
   const body = trimmed.slice(0, MAX_MESSAGE);
   const catLabel = CATEGORIES[category] || CATEGORIES.other;
+
+  let attachments;
+  if (images != null) {
+    if (!Array.isArray(images) || images.length > MAX_IMAGES) {
+      res.status(400).json({ error: `You can attach up to ${MAX_IMAGES} photos.` });
+      return;
+    }
+    for (const img of images) {
+      const content = img && typeof img.contentBase64 === 'string' ? img.contentBase64 : '';
+      if (!content || content.length > MAX_IMAGE_BASE64_BYTES) {
+        res.status(400).json({ error: 'One of those photos is too large. Try a smaller one.' });
+        return;
+      }
+    }
+    // Filenames are never taken from the client -- just a fixed, safe name
+    // per position, so nothing about the upload can end up in email headers.
+    attachments = images.map((img, i) => ({ filename: `photo-${i + 1}.jpg`, content: img.contentBase64 }));
+  }
 
   // The rider's display name makes the inbox easier to read; it's a nice-to-
   // have, so a failed lookup just falls back to the email.
@@ -82,6 +108,7 @@ export default async function handler(req, res) {
     `<p style="margin:0 0 4px;"><strong>${escapeHtml(catLabel)}</strong></p>` +
     `<p style="margin:0 0 16px;color:#5a5f66;">From ${escapeHtml(who)}</p>` +
     `<div style="white-space:pre-wrap;border-left:3px solid #2FC5AE;padding:2px 0 2px 14px;">${escapeHtml(body)}</div>` +
+    (attachments ? `<p style="margin:16px 0 0;color:#5a5f66;font-size:12.5px;">📎 ${attachments.length} photo${attachments.length === 1 ? '' : 's'} attached</p>` : '') +
     `<hr style="border:none;border-top:1px solid #E3D9C8;margin:20px 0;" />` +
     `<p style="margin:0;color:#8a8f96;font-size:12px;">Sent from Settings &rsaquo; Feedback &amp; support &middot; account ${escapeHtml(verifiedUser.id)}</p>` +
     `</div>`;
@@ -92,6 +119,7 @@ export default async function handler(req, res) {
       subject: `[${catLabel}] Feedback from ${who}`,
       html,
       replyTo: email || undefined,
+      attachments,
     });
     res.status(200).json({ ok: true });
   } catch (err) {

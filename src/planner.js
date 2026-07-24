@@ -1052,6 +1052,13 @@ export function pickWorkoutForPurpose(purpose, library, usedIdsThisWeek, usedTer
   // recovery-scaled hint, so a long native ride can't win a deload slot.
   const durationAware = sessionSecondsHint && (recoveryMode || !FIXED_LENGTH_EXEMPT.has(purpose));
   const comfortableSeconds = durationAware ? sessionSecondsHint * 1.5 : 0;
+  // Covers exactly the gap durationAware leaves open: a normal (non-recovery)
+  // week, for a flexible purpose, where rule (5) below never runs at all. Mild
+  // stretching/squeezing there is fine and exactly what these purposes are
+  // for — the bug is the *extreme* end of it (a ~55min recipe stretched 3.8x
+  // to fill a 3.5h slot; a ~2h37m ride crushed to a quarter of itself for a
+  // 39min slot). See rule (5b) below for the actual penalty.
+  const exemptScaleAware = !durationAware && sessionSecondsHint && FIXED_LENGTH_EXEMPT.has(purpose);
   function score(w) {
     let s = 0;
     // (1) Strongly avoid repeating an exact workout this week.
@@ -1097,6 +1104,27 @@ export function pickWorkoutForPurpose(purpose, library, usedIdsThisWeek, usedTer
       const native = w.intervals.reduce((a, b) => a + b.duration, 0);
       const overMinutes = (native - comfortableSeconds) / 60;
       if (overMinutes > 0) s -= Math.min(45, overMinutes * 0.5);
+    }
+    // (5b) Scale-factor sanity for flexible purposes outside recovery mode —
+    // the case rule (5) skips entirely. These still get freely rescaled after
+    // picking (that's unchanged), so this is deliberately gentle and
+    // symmetric (log-ratio, both directions), doing nothing near a 1:1 fit
+    // and only biting once the fit is genuinely extreme: essentially flat out
+    // to about a 1.4x stretch or squeeze, ~2 points by 2x, capped at 8 around
+    // 4x or beyond (0 at ratio 1, ~0.7 at 1.5x, ~2 at 2x, ~8 at 4x/0.25x).
+    // The cap is well under a single fresh-terrain tag (+10) and rotation's
+    // top penalty (~14), so a real terrain or rotation preference still wins
+    // — this only tips an otherwise-close tie toward the better-fitting
+    // option, and never removes the only candidate a small pool has.
+    // w.fixedLength is excluded because those never actually get rescaled
+    // (see the same check in projectedSlotTss), so a length "mismatch" there
+    // is not a real problem to steer away from.
+    if (exemptScaleAware && !w.fixedLength) {
+      const native = w.intervals.reduce((a, b) => a + b.duration, 0);
+      if (native > 0) {
+        const logRatio = Math.log2(native / sessionSecondsHint);
+        s -= Math.min(8, logRatio * logRatio * 2);
+      }
     }
     // (6) Progression fit (Stage 1.3). When the rider's demonstrated level
     // for this purpose is known, prefer workouts whose computed difficulty

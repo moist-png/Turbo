@@ -10,7 +10,7 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Trbo <hello@trbo.bike>';
 
-export async function sendEmail({ to, subject, html, replyTo }) {
+export async function sendEmail({ to, subject, html, replyTo, attachments }) {
   if (!RESEND_API_KEY) {
     console.warn(`RESEND_API_KEY not set -- skipping send to ${to}: "${subject}"`);
     return { skipped: true };
@@ -21,6 +21,9 @@ export async function sendEmail({ to, subject, html, replyTo }) {
   // goes straight back to the rider who wrote in.
   const payload = { from: FROM_EMAIL, to, subject, html };
   if (replyTo) payload.reply_to = replyTo;
+  // Resend wants each attachment as { filename, content: <base64 string> }.
+  // Used by the Settings feedback form to attach a screenshot or two.
+  if (attachments && attachments.length) payload.attachments = attachments;
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
