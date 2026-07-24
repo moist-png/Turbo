@@ -103,7 +103,7 @@
 <body>
   <div class="card">
     <h1>Admin Invite</h1>
-    <p class="sub">Creates a Trbo account directly and gives you a one‑click sign‑in link to send: works even while public signups are paused.</p>
+    <p class="sub">Creates a Trbo account directly and gives you an email + password to send: works even while public signups are paused, and doesn't expire like a link would.</p>
 
     <div id="keyGate">
       <label for="adminKey">Admin key</label>
@@ -119,7 +119,7 @@
         <label for="compAccess">Give free (comp) access</label>
       </div>
 
-      <button type="submit" id="submitBtn">Create account & get link</button>
+      <button type="submit" id="submitBtn">Create account & get password</button>
     </form>
 
     <div id="result"></div>
@@ -170,16 +170,17 @@
           resultEl.innerHTML = `<div class="msg error">${data.error || 'Something went wrong.'}</div>`;
         } else {
           localStorage.setItem('trbo_admin_key', key);
+          const credentials = `Email: ${data.email}\nPassword: ${data.password}`;
           resultEl.innerHTML = `
             <div class="msg success">
               Account created for <strong>${data.email}</strong>${data.compAccess ? ' with comp access' : ''}.
-              Send them this link; it logs them straight in:
-              <div class="link-box">${data.loginLink}</div>
+              Send them this email and password; they can sign in with it at trbo.bike any time, no expiry:
+              <div class="link-box">${credentials.replace('\n', '<br>')}</div>
             </div>
-            <button type="button" class="copy-btn" id="copyBtn">Copy link</button>
+            <button type="button" class="copy-btn" id="copyBtn">Copy email & password</button>
           `;
           document.getElementById('copyBtn').addEventListener('click', () => {
-            navigator.clipboard.writeText(data.loginLink);
+            navigator.clipboard.writeText(credentials);
             document.getElementById('copyBtn').textContent = 'Copied!';
           });
           form.reset();
@@ -188,7 +189,7 @@
         resultEl.innerHTML = `<div class="msg error">Network error: ${err.message}</div>`;
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Create account & get link';
+        submitBtn.textContent = 'Create account & get password';
       }
     });
   </script>

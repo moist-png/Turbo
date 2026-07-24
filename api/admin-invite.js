@@ -1,33 +1,35 @@
 // A working way to get a specific person into Trbo while public signups
-// stay paused (see supabase-setup.sql / the GDPR Article 27 note).
+// stay paused (see supabase-setup.sql / the GDPR Article 27 note) -- and
+// one they can reuse for weeks or months of testing, not just once.
 //
-// This has to go through admin.inviteUserByEmail(), not admin.createUser().
-// Both dodge Supabase's own "Allow new users to sign up" dashboard switch,
-// but there's a second, stricter gate underneath: the handle_new_user()
-// trigger in supabase-setup.sql rejects any new row in auth.users unless
-// it's an approved invite. That trigger originally checked invited_at
-// alone, but invited_at turns out not to be reliably set on auth.users at
+// WHY EMAIL + PASSWORD, NOT A LINK:
+// Supabase's sign-in links (magic links, invite links) are single-use by
+// design -- there's no way to make one that survives being opened twice,
+// and it can even get silently burned before the person ever sees it (a
+// messaging app building a link preview is enough). Testers who come back
+// over days or weeks need something that doesn't expire, so this creates
+// the account with a real password up front and hands both back. From
+// then on it's an ordinary login at trbo.bike, no link involved.
+//
+// This still has to go through admin.createUser() with a metadata flag,
+// not a plain client-side signUp() -- the handle_new_user() trigger in
+// supabase-setup.sql rejects any new row in auth.users while signups are
+// paused unless it's an approved invite. That trigger originally checked
+// invited_at alone, but invited_at isn't reliably set on auth.users at
 // the moment the row is inserted -- even for genuine Supabase invites --
-// so real invites were getting rejected too. The trigger now also accepts
-// an admin_invited flag carried in raw_user_meta_data, which (unlike
-// invited_at) is guaranteed present at insert time since it's literal data
-// handed to this very call. That's the `data` field below.
-//
-// inviteUserByEmail() does also ask Supabase to send its own invite email,
-// which may or may not arrive (default SMTP is unreliable for addresses
-// outside this account). That's fine -- we ignore it and still generate
-// our own sign-in link below to hand to the person directly.
+// so this instead carries an admin_invited flag in user_metadata, which
+// (unlike invited_at) is guaranteed present at insert time since it's
+// literal data handed to this very call.
 //
 // If comp_access is requested, it's set directly here rather than trusted
 // from the browser, matching how it's protected everywhere else in the
 // app (see supabase-setup.sql -- comp_access can't be written by a client
 // with just the anon key).
-import { timingSafeEqual } from 'crypto';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { checkRateLimit } from './_rateLimit.js';
 
 const SUPABASE_URL = 'https://wxwdqqjzfrfddqcgkrfv.supabase.co';
-const SITE_URL = 'https://trbo.bike';
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Constant-time compare -- an ordinary === leaks how many leading
@@ -51,6 +53,13 @@ function authorized(req) {
   // both channels travel over HTTPS.
   const bodyOk = secretsMatch(req.body?.secret, secret);
   return headerOk || bodyOk;
+}
+
+// base64url has no characters that get mangled by double-clicking to
+// select, by chat apps auto-linking things, or by a stray line-wrap --
+// friendlier to copy/paste around than a raw random string with symbols.
+function generatePassword() {
+  return randomBytes(9).toString('base64url'); // 12 characters
 }
 
 export default async function handler(req, res) {
@@ -84,15 +93,21 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { data: created, error: createError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: SITE_URL,
-    data: { admin_invited: true },
+  const password = generatePassword();
+
+  const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { admin_invited: true },
   });
 
   if (createError) {
     const alreadyExists = createError.status === 422 || /already/i.test(createError.message || '');
     res.status(alreadyExists ? 409 : 500).json({
-      error: createError.message || 'Could not create the account (no further detail from Supabase).',
+      error: alreadyExists
+        ? 'That email already has a Trbo account. This tool only creates new ones -- to give them a fresh password instead, use the Supabase Dashboard (Authentication -> Users, find them, "Send password reset").'
+        : (createError.message || 'Could not create the account (no further detail from Supabase).'),
     });
     return;
   }
@@ -107,26 +122,5 @@ export default async function handler(req, res) {
     }
   }
 
-  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'magiclink',
-    email,
-    options: { redirectTo: SITE_URL },
-  });
-
-  if (linkError || !linkData?.properties?.action_link) {
-    // Don't leave a confirmed, unreachable account behind -- roll it back
-    // so a retry doesn't hit "already registered".
-    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
-    console.error('Created user but failed to generate sign-in link:', linkError);
-    res.status(500).json({
-      error: 'Created the account but could not build a sign-in link, so it was rolled back. Try again.',
-    });
-    return;
-  }
-
-  res.status(200).json({
-    email,
-    compAccess,
-    loginLink: linkData.properties.action_link,
-  });
+  res.status(200).json({ email, password, compAccess });
 }
